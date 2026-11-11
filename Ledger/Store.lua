@@ -251,13 +251,33 @@ end
 
 -- Reading ----------------------------------------------------------------------
 
---- The newest price we have for an item.
+--- The newest price we have for an item, from whichever source has one.
+--- The player's own readings win; the feed answers when they have none.
 ---@param marketKey string
 ---@param itemID number
 ---@return number|nil price     lowest buyout per unit, in copper
 ---@return number|nil quantity  how many were listed
 ---@return number|nil seenAt    server time of the reading
+---@return boolean|nil fromFeed true when the answer came from the feed
 function Ledger.Price(marketKey, itemID)
+    local price, quantity, seenAt = Ledger.LocalPrice(marketKey, itemID)
+    if price then
+        return price, quantity, seenAt
+    end
+
+    price, quantity, seenAt = ns.Feed.Price(marketKey, itemID)
+    if price then
+        return price, quantity, seenAt, true
+    end
+end
+
+--- The newest price from the player's own scans only.
+---@param marketKey string
+---@param itemID number
+---@return number|nil price
+---@return number|nil quantity
+---@return number|nil seenAt
+function Ledger.LocalPrice(marketKey, itemID)
     local market = ns.MarketData(marketKey)
 
     local record = market.tracked[itemID]
@@ -302,11 +322,31 @@ end
 function Ledger.History(marketKey, itemID, numDays)
     local market = ns.MarketData(marketKey)
     local record = market.tracked[itemID]
+    local feedDays = ns.Feed.Days(marketKey, itemID)
     local today = Ledger.Today()
     local history = {}
 
+    -- A day known only as a single price.
+    local function AddFlatDay(day, price, quantity, fromFeed)
+        table.insert(history, {
+            day = day,
+            low = price,
+            high = price,
+            last = price,
+            quantity = quantity,
+            fromFeed = fromFeed,
+        })
+    end
+
     for day = today - numDays + 1, today do
+        -- The player's own readings come first: a tracked item's daily
+        -- record, or failing that a whole-market snapshot from that day.
         local entry = record and record.days[day]
+        local price, quantity
+        if not entry and not record and market.daily[day] then
+            price, quantity = FindInSnapshot(market.daily[day], itemID)
+        end
+
         if entry then
             table.insert(history, {
                 day = day,
@@ -315,17 +355,11 @@ function Ledger.History(marketKey, itemID, numDays)
                 last = entry[LAST],
                 quantity = entry[QUANTITY],
             })
-        elseif not record and market.daily[day] then
-            local price, quantity = FindInSnapshot(market.daily[day], itemID)
-            if price then
-                table.insert(history, {
-                    day = day,
-                    low = price,
-                    high = price,
-                    last = price,
-                    quantity = quantity,
-                })
-            end
+        elseif price then
+            AddFlatDay(day, price, quantity)
+        elseif feedDays and feedDays[day] then
+            -- A day they weren't at the auction house. The feed was.
+            AddFlatDay(day, feedDays[day], 0, true)
         end
     end
 

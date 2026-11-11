@@ -8,6 +8,7 @@ local addonName, ns = ...
 --   settings   the player's options
 --   markets    price data, one entry per auction house market (see Ledger)
 --   places     where auction houses are, learned by visiting them
+--   feedHouses which house in the price feed serves each market (see Feed)
 --   characters what each character held when last played (see Characters)
 --   log        the last couple of hundred diagnostic lines
 --

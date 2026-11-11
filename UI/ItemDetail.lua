@@ -135,6 +135,16 @@ function ItemDetail.Create(parent, onBack)
             table.insert(lines, "Price read " .. ns.Ago(GetServerTime() - row.seenAt) .. ".")
         end
 
+        -- Credit the feed wherever any of what's shown came from it: the
+        -- current price, or days on the chart the player wasn't there for.
+        local usesFeed = row.fromFeed
+        for _, day in ipairs(history) do
+            usesFeed = usesFeed or day.fromFeed
+        end
+        if usesFeed then
+            table.insert(lines, "Includes prices from " .. ns.Feed.SOURCE .. ".")
+        end
+
         notes:SetText(table.concat(lines, "\n"))
         self:Show()
     end

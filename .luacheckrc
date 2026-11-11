@@ -35,6 +35,10 @@ globals = {
 }
 
 read_globals = {
+    -- The companion prices addon, when installed
+    "GoldwisePricesData",
+    "GoldwisePricesIndex",
+
     -- Lua extensions the client adds
     "strsplit",
     "strtrim",

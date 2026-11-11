@@ -32,6 +32,16 @@ local function PriceAgeText()
             ns.Market.Label(marketKey),
             ns.Ago(GetServerTime() - lastScan)
         )
+    end
+
+    -- Nothing of the player's own yet, but the feed may cover this market.
+    -- Say where those prices come from, as Blizzard's terms ask.
+    local feedUpdated = ns.Feed.UpdatedAt(marketKey)
+    if feedUpdated then
+        return ("Prices from %s, updated %s. Visit an auction house for live ones."):format(
+            ns.Feed.SOURCE,
+            ns.Ago(GetServerTime() - feedUpdated)
+        )
     elseif ns.Market.IsOpen() then
         return "No prices yet. Press Read prices to fetch them."
     end

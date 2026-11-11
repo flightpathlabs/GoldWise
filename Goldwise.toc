@@ -4,6 +4,7 @@
 ## Version: 0.2.0
 ## Author: Flight Path Labs
 ## SavedVariables: GoldwiseDB
+## OptionalDeps: GoldwisePrices
 ## IconTexture: Interface\AddOns\Goldwise\Media\icon
 ## AddonCompartmentFunc: Goldwise_OnAddonCompartmentClick
 ## X-License: MIT

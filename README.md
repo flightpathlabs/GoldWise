@@ -60,7 +60,7 @@ ruleset and faction, plus a neutral one, and Goldwise keeps them apart.
 ```
 Core/      startup, events, saved data
 Data/      hand-written tables: what can be gathered, and where
-Market/    which auction house we're at, the request queue, the scanner
+Market/    which auction house we're at, the request queue, the scanners, the price feed
 Ledger/    price storage and the sums done over it
 Profile/   what the player and their other characters carry and can do
 Advisor/   the rules that turn facts into advice (no game calls)
