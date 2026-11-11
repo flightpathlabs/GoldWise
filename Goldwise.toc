@@ -21,6 +21,7 @@ Market\Identity.lua
 Market\Throttle.lua
 Ledger\Store.lua
 Ledger\Stats.lua
+Market\Feed.lua
 Market\Scanner.lua
 Market\DeepScan.lua
 
