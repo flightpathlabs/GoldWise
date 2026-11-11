@@ -31,6 +31,7 @@ globals = {
     -- Ours
     "GoldwiseDB",
     "SLASH_GOLDWISE1",
+    "SLASH_GOLDWISE2",
     "Goldwise_OnAddonCompartmentClick",
 }
 
@@ -79,6 +80,7 @@ read_globals = {
     "CreateFrame",
     "UIParent",
     "GameTooltip",
+    "Minimap",
     "ItemRefTooltip",
     "Settings",
     "TooltipDataProcessor",
@@ -107,6 +109,8 @@ read_globals = {
     "geterrorhandler",
     "GetProfessionInfo",
     "GetProfessions",
+    "GetCursorPosition",
+    "GetMinimapShape",
     "InCombatLockdown",
     "GetRealmName",
     "GetNormalizedRealmName",

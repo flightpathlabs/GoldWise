@@ -39,5 +39,6 @@ UI\ItemDetail.lua
 UI\ShelfList.lua
 UI\ProspectList.lua
 UI\MainWindow.lua
+UI\MinimapButton.lua
 UI\Tooltip.lua
 UI\Settings.lua

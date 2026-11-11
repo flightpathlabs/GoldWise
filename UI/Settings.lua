@@ -23,10 +23,35 @@ local function AddCheckbox(category, key, label, tooltip)
     end)
 end
 
+-- Our page, once it exists. Kept so it can be opened directly.
+local category
+
+--- Opens the game's Options window on Goldwise's page.
+function ns.OpenOptions()
+    -- The Options window is one of the panels the game won't let addons
+    -- open during combat.
+    if InCombatLockdown() then
+        ns.Print("Options can't be opened in combat. Try again in a moment.")
+        return
+    end
+
+    if category then
+        Settings.OpenToCategory(category:GetID())
+    end
+end
+
 -- Registered at login rather than when the addon loads, so the Options
 -- window has finished setting itself up.
 ns.OnEvent("PLAYER_LOGIN", function()
-    local category = Settings.RegisterVerticalLayoutCategory("Goldwise")
+    category = Settings.RegisterVerticalLayoutCategory("Goldwise")
+
+    AddCheckbox(
+        category,
+        "minimapButton",
+        "Show the minimap button",
+        "Left-click it to open Goldwise, right-click for these options. "
+            .. "You can also type /gw."
+    )
 
     AddCheckbox(
         category,

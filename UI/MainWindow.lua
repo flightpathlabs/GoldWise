@@ -276,12 +276,18 @@ end)
 -- Ways in -----------------------------------------------------------------------------
 
 SLASH_GOLDWISE1 = "/goldwise"
+SLASH_GOLDWISE2 = "/gw"
 SlashCmdList.GOLDWISE = function()
     ns.ToggleWindow()
 end
 
 -- Named in the TOC file. The client calls it when the player picks Goldwise
--- from the addon list by the minimap.
-function Goldwise_OnAddonCompartmentClick()
-    ns.ToggleWindow()
+-- from the addon list by the minimap. Right-click goes to the options, the
+-- same as on the minimap button.
+function Goldwise_OnAddonCompartmentClick(_, mouseButton)
+    if mouseButton == "RightButton" then
+        ns.OpenOptions()
+    else
+        ns.ToggleWindow()
+    end
 end

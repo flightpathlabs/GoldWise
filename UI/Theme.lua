@@ -36,6 +36,7 @@ Theme.VERB_LABELS = {
 }
 
 Theme.PORTRAIT = "Interface\\AddOns\\Goldwise\\Media\\portrait"
+Theme.ICON = "Interface\\AddOns\\Goldwise\\Media\\icon"
 
 --- Wraps an item's name in its quality colour, the way the game does.
 ---@param name string

@@ -39,6 +39,11 @@ local DEFAULT_SETTINGS = {
     -- Whether the goblin delivers advice at full volume.
     auditorMode = false,
 
+    -- The button on the minimap's rim, and where on the rim it sits, in
+    -- degrees anticlockwise from three o'clock.
+    minimapButton = true,
+    minimapAngle = 215,
+
     -- An auction price line on item tooltips. Left to Auctionator when
     -- that's installed, whatever this says.
     tooltipPrice = true,
