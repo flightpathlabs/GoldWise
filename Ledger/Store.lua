@@ -251,23 +251,34 @@ end
 
 -- Reading ----------------------------------------------------------------------
 
+-- Where a price came from, for anything that wants to say so.
+Ledger.OWN = "own" -- the player's own game read it at the auction house
+Ledger.PLAYERS = "players" -- another Goldwise player's game did
+Ledger.FEED = "feed" -- the companion prices addon
+
 --- The newest price we have for an item, from whichever source has one.
---- The player's own readings win; the feed answers when they have none.
+---
+--- The player's own readings come first, unless another player has told us
+--- something more recent. The feed answers when nobody has anything.
 ---@param marketKey string
 ---@param itemID number
 ---@return number|nil price     lowest buyout per unit, in copper
 ---@return number|nil quantity  how many were listed
 ---@return number|nil seenAt    server time of the reading
----@return boolean|nil fromFeed true when the answer came from the feed
+---@return string|nil source    Ledger.OWN, Ledger.PLAYERS or Ledger.FEED
 function Ledger.Price(marketKey, itemID)
     local price, quantity, seenAt = Ledger.LocalPrice(marketKey, itemID)
-    if price then
-        return price, quantity, seenAt
+    local heard, heardQuantity, heardAt = ns.Network.Price(marketKey, itemID)
+
+    if heard and (not price or heardAt > (seenAt or 0)) then
+        return heard, heardQuantity, heardAt, Ledger.PLAYERS
+    elseif price then
+        return price, quantity, seenAt, Ledger.OWN
     end
 
     price, quantity, seenAt = ns.Feed.Price(marketKey, itemID)
     if price then
-        return price, quantity, seenAt, true
+        return price, quantity, seenAt, Ledger.FEED
     end
 end
 

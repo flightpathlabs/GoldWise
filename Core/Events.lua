@@ -75,3 +75,5 @@ end
 --   BAGS_CHANGED                    what the player carries has changed
 --   PROFILE_CHANGED                 the player's level or professions changed
 --   SETTINGS_CHANGED                the player changed an option
+--
+-- PRICES_CHANGED also fires when another player shares prices with us.

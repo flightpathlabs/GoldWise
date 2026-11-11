@@ -149,6 +149,27 @@ local function HeldText(itemID)
     return ("%d: %s"):format(total, table.concat(parts, ", "))
 end
 
+-- Not saying what's already been said --------------------------------------------------
+
+-- Addons that put an auction price on item tooltips. When any of them is
+-- running, a second copy of the same number from us is just clutter, so we
+-- keep to what only Goldwise adds: the chart.
+local PRICE_ADDONS = {
+    "Auctionator",
+    "ForeverProfessions", -- Profession Atlas: its "Atlas AH" line
+    "TradeSkillMaster",
+    "Auc-Advanced", -- Auctioneer
+}
+
+local function AnotherAddonShowsPrices()
+    for _, name in ipairs(PRICE_ADDONS) do
+        if C_AddOns.IsAddOnLoaded(name) then
+            return true
+        end
+    end
+    return false
+end
+
 -- The price line ----------------------------------------------------------------------
 
 local function OnItemTooltip(tooltip, data)
@@ -174,7 +195,7 @@ local function OnItemTooltip(tooltip, data)
     local coin = Theme.COIN
     local found = Lookup(itemID)
 
-    if found.price and settings.tooltipPrice and not C_AddOns.IsAddOnLoaded("Auctionator") then
+    if found.price and settings.tooltipPrice and not AnotherAddonShowsPrices() then
         tooltip:AddDoubleLine(
             "Auction",
             ("%s  (%s)"):format(Theme.Coins(found.price), Theme.Listed(found.listed)),

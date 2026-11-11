@@ -132,12 +132,17 @@ function ItemDetail.Create(parent, onBack)
         end
 
         if row.seenAt then
-            table.insert(lines, "Price read " .. ns.Ago(GetServerTime() - row.seenAt) .. ".")
+            local age = ns.Ago(GetServerTime() - row.seenAt)
+            if row.source == ns.Ledger.PLAYERS then
+                table.insert(lines, "Price shared by another Goldwise player, read " .. age .. ".")
+            else
+                table.insert(lines, "Price read " .. age .. ".")
+            end
         end
 
         -- Credit the feed wherever any of what's shown came from it: the
         -- current price, or days on the chart the player wasn't there for.
-        local usesFeed = row.fromFeed
+        local usesFeed = row.source == ns.Ledger.FEED
         for _, day in ipairs(history) do
             usesFeed = usesFeed or day.fromFeed
         end

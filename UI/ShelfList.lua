@@ -154,7 +154,7 @@ end
 ---@param owner string|nil    the character holding it, if not the current one
 local function DescribeHolding(holding, marketKey, owner)
     local itemID = holding.itemID
-    local price, listed, seenAt, fromFeed = ns.Ledger.Price(marketKey, itemID)
+    local price, listed, seenAt, source = ns.Ledger.Price(marketKey, itemID)
 
     local history = ns.Ledger.History(marketKey, itemID, ns.Stats.USUAL_DAYS)
     local againstUsual = ns.Stats.AgainstUsual(history)
@@ -187,7 +187,7 @@ local function DescribeHolding(holding, marketKey, owner)
         price = price,
         listed = listed,
         seenAt = seenAt,
-        fromFeed = fromFeed,
+        source = source,
         trend = trend,
         againstUsual = againstUsual,
         advice = ns.Advice.ForHolding({

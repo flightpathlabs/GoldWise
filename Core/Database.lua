@@ -44,8 +44,8 @@ local DEFAULT_SETTINGS = {
     minimapButton = true,
     minimapAngle = 215,
 
-    -- An auction price line on item tooltips. Left to Auctionator when
-    -- that's installed, whatever this says.
+    -- An auction price line on item tooltips. Skipped when another addon
+    -- already shows one, whatever this says.
     tooltipPrice = true,
 
     -- A small price chart under item tooltips, for items with history.
@@ -54,6 +54,9 @@ local DEFAULT_SETTINGS = {
     -- A tooltip line saying how many of an item the player's other
     -- characters carry. Left to Bagnon when that's installed.
     tooltipHeld = true,
+
+    -- Trade prices with other Goldwise players over a hidden chat channel.
+    sharePrices = true,
 
     -- Whether the list shows every character's holdings or just this one's.
     allCharacters = true,

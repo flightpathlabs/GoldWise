@@ -71,10 +71,18 @@ ns.OnEvent("PLAYER_LOGIN", function()
 
     AddCheckbox(
         category,
+        "sharePrices",
+        "Share prices with other Goldwise players",
+        "Whoever visited the auction house last keeps everyone's prices fresh, over a "
+            .. "hidden chat channel. Only prices are exchanged, and only a few messages at a time."
+    )
+
+    AddCheckbox(
+        category,
         "tooltipPrice",
         "Show auction prices on item tooltips",
-        "One line with the lowest price and how many are listed. "
-            .. "Left to Auctionator if you have that installed."
+        "One line with the lowest price and how many are listed. Skipped when "
+            .. "another addon, such as Auctionator, already shows a price there."
     )
 
     AddCheckbox(
