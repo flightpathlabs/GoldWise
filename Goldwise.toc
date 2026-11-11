@@ -1,0 +1,41 @@
+## Interface: 16001
+## Title: Goldwise
+## Notes: A clear guide to buying and selling. Tracks prices for what you carry and tells you what's worth doing with it.
+## Version: 0.2.0
+## Author: Flight Path Labs
+## SavedVariables: GoldwiseDB
+## IconTexture: Interface\AddOns\Goldwise\Media\icon
+## AddonCompartmentFunc: Goldwise_OnAddonCompartmentClick
+## X-License: MIT
+
+# Load order matters: each group only uses what the groups above it define.
+
+Core\Init.lua
+Core\Events.lua
+Core\Database.lua
+
+Data\Gathering.lua
+
+Market\Identity.lua
+Market\Throttle.lua
+Ledger\Store.lua
+Ledger\Stats.lua
+Market\Scanner.lua
+Market\DeepScan.lua
+
+Profile\Bags.lua
+Profile\Characters.lua
+Profile\Professions.lua
+
+Advisor\Advice.lua
+Advisor\Prospects.lua
+
+UI\Theme.lua
+UI\Chart.lua
+UI\MapMarks.lua
+UI\ItemDetail.lua
+UI\ShelfList.lua
+UI\ProspectList.lua
+UI\MainWindow.lua
+UI\Tooltip.lua
+UI\Settings.lua

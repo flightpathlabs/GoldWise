@@ -1,0 +1,206 @@
+local _, ns = ...
+
+-- The Prospects tab: what the player could go and gather for gold at their
+-- level, dearest first, with the zones to do it in.
+
+local ProspectList = {}
+ns.ProspectList = ProspectList
+
+local Theme = ns.Theme
+
+local ROW_HEIGHT = 44
+
+-- Columns are placed from the right edge, in pixels.
+local MAP_RIGHT = 10
+local ZONES_RIGHT = 84
+local ZONES_WIDTH = 210
+local PRICE_RIGHT = 306
+local NAME_RIGHT = 410
+
+-- Rows --------------------------------------------------------------------------
+
+local function CreateRowWidgets(row, onSelect)
+    row.created = true
+
+    row.Stripe = row:CreateTexture(nil, "BACKGROUND")
+    row.Stripe:SetAllPoints()
+    row.Stripe:SetAtlas("auctionhouse-rowstripe-1")
+
+    row:SetHighlightAtlas("auctionhouse-ui-row-highlight", "ADD")
+
+    row.Icon = row:CreateTexture(nil, "ARTWORK")
+    row.Icon:SetSize(32, 32)
+    row.Icon:SetPoint("LEFT", 6, 0)
+
+    row.Name = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    row.Name:SetPoint("TOPLEFT", row.Icon, "TOPRIGHT", 8, -2)
+    row.Name:SetPoint("RIGHT", row, "RIGHT", -NAME_RIGHT, 0)
+    row.Name:SetJustifyH("LEFT")
+    row.Name:SetWordWrap(false)
+
+    row.How = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    row.How:SetPoint("TOPLEFT", row.Name, "BOTTOMLEFT", 0, -4)
+    row.How:SetPoint("RIGHT", row, "RIGHT", -NAME_RIGHT, 0)
+    row.How:SetJustifyH("LEFT")
+    row.How:SetWordWrap(false)
+    row.How:SetTextColor(unpack(Theme.MUTED))
+
+    row.Price = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    row.Price:SetPoint("TOPRIGHT", row, "TOPRIGHT", -PRICE_RIGHT, -8)
+    row.Price:SetJustifyH("RIGHT")
+
+    row.Listed = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    row.Listed:SetPoint("TOPRIGHT", row.Price, "BOTTOMRIGHT", 0, -4)
+    row.Listed:SetJustifyH("RIGHT")
+    row.Listed:SetTextColor(unpack(Theme.MUTED))
+
+    row.Zones = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    row.Zones:SetPoint("RIGHT", row, "RIGHT", -ZONES_RIGHT, 0)
+    row.Zones:SetWidth(ZONES_WIDTH)
+    row.Zones:SetJustifyH("LEFT")
+    row.Zones:SetMaxLines(2)
+
+    row.Map = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+    row.Map:SetSize(64, 22)
+    row.Map:SetPoint("RIGHT", row, "RIGHT", -MAP_RIGHT, 0)
+    row.Map:SetText("Map")
+    row.Map:SetScript("OnClick", function(self)
+        local data = self:GetParent():GetElementData()
+        if data.mapIDs[1] then
+            ns.MapMarks.ShowZone(data.mapIDs[1])
+        end
+    end)
+
+    row:SetScript("OnClick", function(self)
+        onSelect(self:GetElementData())
+    end)
+
+    row:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetItemByID(self:GetElementData().itemID)
+        GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", GameTooltip_Hide)
+end
+
+local function FillRow(row, data)
+    row.Stripe:SetShown(row:GetOrderIndex() % 2 == 0)
+    row.Icon:SetTexture(data.icon)
+    row.Name:SetText(
+        ("%s  |cffb9aa8c%s|r"):format(Theme.ItemName(data.name, data.quality), data.kind)
+    )
+    row.How:SetText(data.how)
+    row.Price:SetText(Theme.Coins(data.price))
+    row.Listed:SetText(Theme.Listed(data.listed))
+
+    local zoneNames = {}
+    for index, mapID in ipairs(data.mapIDs) do
+        zoneNames[index] = ns.MapMarks.ZoneName(mapID)
+    end
+    row.Zones:SetText(table.concat(zoneNames, ", "))
+    row.Map:SetShown(#data.mapIDs > 0)
+end
+
+-- Gathering the facts ----------------------------------------------------------------
+
+-- Fills in what only the game can tell us: the item's name in the
+-- player's language, its icon and quality, and how many they carry.
+local function Complete(prospect)
+    local itemID = prospect.itemID
+
+    prospect.name = C_Item.GetItemNameByID(itemID) or prospect.name
+    prospect.icon = C_Item.GetItemIconByID(itemID)
+    prospect.quality = C_Item.GetItemQualityByID(itemID)
+    prospect.count = ns.Bags.Counts()[itemID] or 0
+
+    -- The item page expects a verdict to print under the chart. For a
+    -- prospect, that's how you come by it.
+    prospect.advice = { verb = ns.Advice.UNKNOWN, reason = prospect.how }
+    return prospect
+end
+
+-- The list ---------------------------------------------------------------------------
+
+--- Creates the prospects list. It starts hidden and fills its parent.
+---@param parent table            frame to fill
+---@param onSelect fun(row: table) called when the player clicks a row
+---@return table list             with :Refresh()
+function ProspectList.Create(parent, onSelect)
+    local list = CreateFrame("Frame", nil, parent)
+    list:SetAllPoints()
+    list:Hide()
+
+    local heading = list:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    heading:SetPoint("TOPLEFT", 12, -10)
+    heading:SetText("Prospects")
+
+    local about = list:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    about:SetPoint("LEFT", heading, "RIGHT", 10, 0)
+    about:SetTextColor(unpack(Theme.MUTED))
+    about:SetText("What you could gather at your level, by what each one sells for today")
+
+    local empty = list:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    empty:SetPoint("CENTER")
+    empty:SetWidth(520)
+    empty:SetTextColor(unpack(Theme.MUTED))
+
+    local scrollBox = CreateFrame("Frame", nil, list, "WowScrollBoxList")
+    scrollBox:SetPoint("TOPLEFT", 6, -32)
+    scrollBox:SetPoint("BOTTOMRIGHT", -22, 6)
+
+    local scrollBar = CreateFrame("EventFrame", nil, list, "MinimalScrollBar")
+    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 6, 0)
+    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 6, 0)
+
+    local view = CreateScrollBoxListLinearView()
+    view:SetElementExtent(ROW_HEIGHT)
+    view:SetElementInitializer("Button", function(row, data)
+        if not row.created then
+            CreateRowWidgets(row, onSelect)
+        end
+        FillRow(row, data)
+    end)
+    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+
+    --- Rebuilds the rows for the player's current level, skills and prices.
+    function list:Refresh()
+        local marketKey = ns.Market.Current()
+
+        local profile = {
+            level = UnitLevel("player"),
+            faction = UnitFactionGroup("player"),
+            skills = {
+                skinning = ns.Professions.Skill("skinning"),
+                mining = ns.Professions.Skill("mining"),
+                herbalism = ns.Professions.Skill("herbalism"),
+            },
+        }
+
+        local prospects = ns.Prospects.For(profile, function(itemID)
+            return ns.Ledger.Price(marketKey, itemID)
+        end)
+
+        for _, prospect in ipairs(prospects) do
+            Complete(prospect)
+            -- Follow these properly, so they have long history and price
+            -- depth like anything the player carries.
+            ns.Ledger.Track(marketKey, prospect.itemID)
+        end
+
+        if #prospects == 0 then
+            if ns.Ledger.LastScan(marketKey) then
+                empty:SetText("Nothing gatherable at your level is listed right now.")
+            else
+                empty:SetText("Prospects need prices. Visit an auction house first.")
+            end
+        end
+        empty:SetShown(#prospects == 0)
+
+        scrollBox:SetDataProvider(
+            CreateDataProvider(prospects),
+            ScrollBoxConstants.RetainScrollPosition
+        )
+    end
+
+    return list
+end
