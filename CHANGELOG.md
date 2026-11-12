@@ -1,7 +1,8 @@
 # Changelog
 
-What changed in each release of Goldwise, newest first. "Unreleased" is
-what's on the `dev` branch and will be in the next one.
+What changed in each release of Goldwise, newest first. Work that hasn't
+been released yet is listed under "Unreleased" in the copy of this file on
+the `dev` branch.
 
 ## Unreleased
 
@@ -16,6 +17,13 @@ what's on the `dev` branch and will be in the next one.
   it (a drop to 1 copper has been announced), and it knows that things a
   vendor pays well for take a bigger deposit. It says so in chat when the
   minimum moves.
+
+## 0.3.2 (11 November 2026)
+
+- Carries its CurseForge project ID, so addon managers can match an
+  installed copy to the listing, and new releases reach CurseForge on
+  their own.
+- Nothing else in the addon has changed.
 
 ## 0.3.1 (11 November 2026)
 
