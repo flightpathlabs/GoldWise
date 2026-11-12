@@ -34,10 +34,33 @@ local SETTLE_DELAY = 2
 -- happens to share a map with a trading town.
 local CLOSE_BY = 1000
 
+-- Items pictured on the arrival card. Fewer than a card can hold: it's a
+-- nudge, not an inventory.
+local ITEMS_ON_ARRIVAL = 3
+
 -- Whether we've already prompted during this stay in a rested area.
 local promptedThisStay = false
 
 local checkPending = false
+
+-- The rows for a card: the first few of a list of assets, each with its
+-- icon and a line saying why it's there.
+local function CardItems(assets, limit, detailFor)
+    local items = {}
+    for index = 1, math.min(limit, #assets) do
+        local asset = assets[index]
+        items[index] = {
+            itemID = asset.itemID,
+            link = asset.link,
+            icon = asset.icon,
+            name = asset.name,
+            quality = asset.quality,
+            count = asset.count,
+            detail = detailFor(asset),
+        }
+    end
+    return items
+end
 
 -- Where auction houses are ----------------------------------------------------------
 
@@ -109,7 +132,7 @@ local function Check()
 
     local marketKey = ns.Market.Here()
     local stale = StalePricesText(marketKey)
-    local _, sellable = ns.Assets.InBags(marketKey)
+    local assets, sellable = ns.Assets.InBags(marketKey)
     local worthSelling = sellable >= WORTH_MENTIONING
 
     local reason = stale ~= nil or worthSelling
@@ -132,9 +155,25 @@ local function Check()
         body = stale .. ". A quick visit will bring them up to date."
     end
 
+    -- Show the best of what they'd be selling, so the number isn't abstract.
+    local toSell = {}
+    if worthSelling then
+        for _, asset in ipairs(assets) do
+            if asset.advice.verb == ns.Advice.SELL and (asset.advice.proceeds or 0) > 0 then
+                table.insert(toSell, asset)
+            end
+        end
+        table.sort(toSell, function(a, b)
+            return a.advice.proceeds > b.advice.proceeds
+        end)
+    end
+
     ns.Toast.Show({
         title = "The auction house is close by",
         body = body,
+        items = CardItems(toSell, ITEMS_ON_ARRIVAL, function(asset)
+            return ("About %s at auction"):format(Theme.Coins(asset.advice.proceeds))
+        end),
         primary = {
             label = "Show me",
             onClick = function()
@@ -185,29 +224,21 @@ local function CheckBeforeVendoring()
         return a.gain > b.gain
     end)
 
-    local lines = {}
-    for index = 1, math.min(3, #worthKeeping) do
-        local asset = worthKeeping[index]
-        local name = asset.count > 1 and ("%s x%d"):format(asset.name, asset.count) or asset.name
-        table.insert(
-            lines,
-            ("%s: about %s at auction, %s here."):format(
-                Theme.ItemName(name, asset.quality),
-                Theme.Coins(asset.advice.proceeds),
-                Theme.Coins(asset.advice.fromVendor)
-            )
-        )
-    end
-    if #worthKeeping > 3 then
-        table.insert(
-            lines,
-            ("And %d more. The Assets tab has the full list."):format(#worthKeeping - 3)
-        )
+    local body = "They'd fetch a good deal more at the auction house."
+    local unlisted = #worthKeeping - ns.Toast.MAX_ITEMS
+    if unlisted > 0 then
+        body = body .. (" %d more are on the Assets tab."):format(unlisted)
     end
 
     ns.Toast.Show({
         title = ns.settings.auditorMode and "Do NOT vendor these" or "Before you sell these",
-        body = table.concat(lines, "\n"),
+        body = body,
+        items = CardItems(worthKeeping, ns.Toast.MAX_ITEMS, function(asset)
+            return ("%s at auction, only %s here"):format(
+                Theme.Coins(asset.advice.proceeds),
+                Theme.Coins(asset.advice.fromVendor)
+            )
+        end),
         primary = { label = "Got it" },
     })
 end

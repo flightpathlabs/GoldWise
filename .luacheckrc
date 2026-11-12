@@ -80,6 +80,10 @@ read_globals = {
     "UiMapPoint",
     "CreateVector2D",
     "BuyTrainerService",
+    "C_TooltipInfo",
+
+    -- Other addons we talk to when they're installed
+    "WT_API", -- What's Training?
 
     -- Frames and widgets
     "CreateFrame",

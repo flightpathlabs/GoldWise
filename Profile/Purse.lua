@@ -180,13 +180,44 @@ function Purse.Durability()
     return current / maximum * 100
 end
 
+-- The game works out what each worn item would cost to mend and carries
+-- the figure with the item's tooltip, wherever the player happens to be.
+-- Added up, that's the repair bill before any reputation discount.
+--
+-- It only changes when the gear does, so it's worked out once and kept.
+local gearBill
+local gearBillStale = true
+
+local function GearRepairBill()
+    if not gearBillStale then
+        return gearBill
+    end
+
+    local total = 0
+    for slot = INVSLOT_FIRST_EQUIPPED, INVSLOT_LAST_EQUIPPED do
+        local data = C_TooltipInfo.GetInventoryItem("player", slot)
+        local cost = data and data.repairCost
+        -- In restricted content the client can hand over a figure we
+        -- aren't allowed to do sums with.
+        local usable = type(cost) == "number" and not (issecretvalue and issecretvalue(cost))
+        if usable then
+            total = total + cost
+        end
+    end
+
+    gearBill = total
+    gearBillStale = false
+    return total
+end
+
 --- What a full repair would cost.
 ---
---- Standing at a merchant who repairs, this is the exact figure. Anywhere
---- else it's an estimate, worked out from what repairs cost per point of
---- wear the last time we saw a real bill.
----@return number|nil cost   copper; nil if we've never seen a repair bill
----@return boolean exact
+--- Standing at a merchant who repairs, it's that merchant's price, discount
+--- and all. Anywhere else it's what the game says each worn item costs to
+--- mend. Should the game not say, it's an estimate from what repairs cost
+--- per point of wear the last time we saw a real bill.
+---@return number|nil cost   copper; nil if there's nothing to go on
+---@return boolean exact     false when the figure is the estimate
 function Purse.RepairCost()
     local durability = Purse.Durability()
     if not durability then
@@ -200,6 +231,13 @@ function Purse.RepairCost()
             Book().repairRate = cost / wear
         end
         return cost or 0, true
+    end
+
+    -- A bill of nothing for gear that's plainly worn means the game kept
+    -- the figures to itself, not that repairs are free.
+    local bill = GearRepairBill()
+    if bill > 0 or wear == 0 then
+        return bill, true
     end
 
     local rate = Book().repairRate
@@ -221,6 +259,10 @@ ns.OnEvent("MERCHANT_CLOSED", function()
     ns.Publish("PURSE_CHANGED")
 end)
 
-ns.OnEvent("UPDATE_INVENTORY_DURABILITY", function()
+local function OnGearChanged()
+    gearBillStale = true
     ns.Publish("PURSE_CHANGED")
-end)
+end
+
+ns.OnEvent("UPDATE_INVENTORY_DURABILITY", OnGearChanged)
+ns.OnEvent("PLAYER_EQUIPMENT_CHANGED", OnGearChanged)

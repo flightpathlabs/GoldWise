@@ -2,19 +2,26 @@ local _, ns = ...
 
 -- What class training is going to cost.
 --
--- Nobody ships a reliable table of Forever's training prices, so we learn
--- them the honest way: whenever the player opens their class trainer, we
--- note every skill on offer, what it costs and the level it needs. That is
--- enough to say "level 30 will cost you 3g 40s" well before level 30.
+-- The game won't quote a trainer's prices unless the player is standing in
+-- front of one. There are two ways round that.
 --
--- What we know is only what the trainer window showed. If the player has
--- the "unavailable" filter switched off there, skills above their level
--- aren't listed and we can't see them.
+-- If the player has What's Training? installed, we ask it. That addon
+-- carries a full table of Forever's class skills and prices and keeps
+-- track of which ones the player knows, so the answer is complete from
+-- the first login.
 --
--- Two things are remembered. Prices are kept per class, so an alt of the
--- same class starts out knowing them. Which skills are still to be bought
--- is kept per character, because that's the part that differs: a skill
--- only counts against a character once we know they don't have it.
+-- Otherwise we learn the honest way: whenever the player opens their
+-- class trainer, we note every skill on offer, what it costs and the
+-- level it needs. That is enough to say "level 30 will cost you 3g 40s"
+-- well before level 30. What we know then is only what the trainer window
+-- showed. If the player has the "unavailable" filter switched off there,
+-- skills above their level aren't listed and we can't see them.
+--
+-- Two things are remembered from trainer visits. Prices are kept per
+-- class, so an alt of the same class starts out knowing them. Which
+-- skills are still to be bought is kept per character, because that's the
+-- part that differs: a skill only counts against a character once we know
+-- they don't have it.
 
 local Training = {}
 ns.Training = Training
@@ -150,12 +157,78 @@ local function OnBuy(index)
     end
 end
 
+-- Asking What's Training? -----------------------------------------------------------
+
+-- Everything goes through that addon's public interface, WT_API. Nothing
+-- of its data is copied into Goldwise.
+
+-- Its names for the states of a skill that is still to be paid for:
+-- trainable now, waiting on an earlier rank, or waiting on a level.
+local OWED_STATES = { "AVAILABLE", "MISSINGREQS", "NEXTLEVEL", "NOTLEVEL" }
+
+-- The addon's interface, once it has finished working out what the player
+-- knows. Nil if it isn't installed or isn't ready yet.
+local function WhatsTraining()
+    local api = WT_API
+    if type(api) == "table" and api.IsReady and api.GetSpells and api.IsReady() then
+        return api
+    end
+end
+
+-- The skills still to be bought, as { level, cost }, or nil if What's
+-- Training? can't tell us.
+local function SkillsFromWhatsTraining()
+    local api = WhatsTraining()
+    if not api then
+        return nil
+    end
+
+    -- Another addon's code is outside our control. If it stumbles, or has
+    -- nothing for this class, carry on with what we've learned ourselves.
+    local ok, spells = pcall(api.GetSpells)
+    if not ok or type(spells) ~= "table" or #spells == 0 then
+        return nil
+    end
+
+    local owed = {}
+    for _, name in ipairs(OWED_STATES) do
+        local state = api.Status and api.Status[name]
+        if state then
+            owed[state] = true
+        end
+    end
+
+    local skills = {}
+    for _, spell in ipairs(spells) do
+        -- Quest rewards are free, and tomes are bought from a vendor
+        -- rather than trained.
+        local trained = not spell.quest and not spell.isItem
+        if owed[spell.status] and trained and (spell.cost or 0) > 0 then
+            table.insert(skills, { level = spell.level or 0, cost = spell.cost })
+        end
+    end
+    return skills
+end
+
+-- The same list, from what trainer visits have taught us.
+local function SkillsFromTrainerVisits()
+    local unlearned = Unlearned()
+    local skills = {}
+
+    for key, skill in pairs(ClassBook()) do
+        if unlearned[key] then
+            table.insert(skills, skill)
+        end
+    end
+    return skills
+end
+
 -- Reading it back -------------------------------------------------------------------
 
 --- Whether any training prices are known for this character's class.
 ---@return boolean
 function Training.HasPrices()
-    return next(ClassBook()) ~= nil
+    return WhatsTraining() ~= nil or next(ClassBook()) ~= nil
 end
 
 --- Class training the player hasn't bought yet, added up by level.
@@ -163,21 +236,18 @@ end
 ---@return table levels  list of { level, cost, skills }, lowest level first.
 ---        An entry at or below playerLevel is training they could buy now.
 function Training.Outstanding(playerLevel)
-    local unlearned = Unlearned()
     local byLevel = {}
 
-    for key, skill in pairs(ClassBook()) do
-        if unlearned[key] then
-            -- Everything affordable now is one lump: "waiting at your trainer".
-            local level = math.max(skill.level, playerLevel)
-            local entry = byLevel[level]
-            if not entry then
-                entry = { level = level, cost = 0, skills = 0 }
-                byLevel[level] = entry
-            end
-            entry.cost = entry.cost + skill.cost
-            entry.skills = entry.skills + 1
+    for _, skill in ipairs(SkillsFromWhatsTraining() or SkillsFromTrainerVisits()) do
+        -- Everything affordable now is one lump: "waiting at your trainer".
+        local level = math.max(skill.level, playerLevel)
+        local entry = byLevel[level]
+        if not entry then
+            entry = { level = level, cost = 0, skills = 0 }
+            byLevel[level] = entry
         end
+        entry.cost = entry.cost + skill.cost
+        entry.skills = entry.skills + 1
     end
 
     local levels = {}
@@ -192,7 +262,20 @@ end
 
 ns.OnEvent("TRAINER_SHOW", ScanSoon)
 ns.OnEvent("TRAINER_UPDATE", ScanSoon)
-ns.OnEvent("PLAYER_LOGIN", NoteWhatLiesAhead)
+ns.OnEvent("PLAYER_LOGIN", function()
+    NoteWhatLiesAhead()
+
+    -- What's Training? says when its picture of the player changes: once
+    -- it has finished loading, and again whenever they train or level.
+    local api = WT_API
+    if type(api) == "table" and api.RegisterCallback then
+        for _, event in ipairs({ "Ready", "SpellsChanged", "LevelChanged" }) do
+            pcall(api.RegisterCallback, Training, event, function()
+                ns.Publish("PURSE_CHANGED")
+            end)
+        end
+    end
+end)
 
 if BuyTrainerService then
     hooksecurefunc("BuyTrainerService", OnBuy)
