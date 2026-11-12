@@ -1,0 +1,187 @@
+local _, ns = ...
+
+-- The two moments Goldwise speaks up without being asked.
+--
+--   * Arriving somewhere with an auction house, when a visit would
+--     actually pay: prices have gone stale, or the bags hold something
+--     worth listing.
+--   * Opening a merchant while carrying things that would fetch a good
+--     deal more at auction.
+--
+-- Each happens at most once per visit, each can be switched off, and
+-- neither fires in combat. The rest of the time the only sign is a soft
+-- pulse on the minimap button.
+
+local Theme = ns.Theme
+
+-- Prices older than this are worth a trip to refresh.
+local STALE_AFTER = 24 * 3600
+
+-- Bags have to hold at least this much in sellable goods before we mention
+-- them. Below it, the walk isn't worth it.
+local WORTH_MENTIONING = 2000
+
+-- At a merchant, only speak up for a stack that would clear at least this
+-- much more at auction than the merchant pays.
+local WORTH_KEEPING = 500
+
+-- Things can happen in a rush on arrival (zone, resting state, bags), so
+-- wait for them to settle before deciding anything.
+local SETTLE_DELAY = 2
+
+-- Whether we've already prompted during this stay in a rested area.
+local promptedThisStay = false
+
+local checkPending = false
+
+-- Where auction houses are ----------------------------------------------------------
+
+-- Nobody has to maintain a list. Wherever the player was standing when an
+-- auction house opened, there's an auction house.
+ns.Subscribe("AUCTION_HOUSE_OPENED", function()
+    local mapID = C_Map.GetBestMapForUnit("player")
+    local position = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
+    if position then
+        local x, y = position:GetXY()
+        ns.db.places[mapID] = { x = x, y = y }
+    end
+
+    -- They're here now. Nothing left to prompt about.
+    promptedThisStay = true
+    ns.Toast.Hide()
+    ns.SetButtonAttention(false)
+end)
+
+-- Arriving near an auction house -----------------------------------------------------
+
+local function StalePricesText(marketKey)
+    local lastScan = ns.Ledger.LastScan(marketKey)
+    if not lastScan then
+        return "You haven't read prices here yet"
+    elseif GetServerTime() - lastScan > STALE_AFTER then
+        return "Your prices were read " .. ns.Ago(GetServerTime() - lastScan)
+    end
+end
+
+local function Check()
+    checkPending = false
+
+    if not IsResting() then
+        -- Left town. The next arrival is a fresh visit.
+        promptedThisStay = false
+        ns.SetButtonAttention(false)
+        return
+    end
+
+    local mapID = C_Map.GetBestMapForUnit("player")
+    local place = mapID and ns.db.places[mapID]
+    if not place or ns.Market.IsOpen() then
+        ns.SetButtonAttention(false)
+        return
+    end
+
+    local marketKey = ns.Market.Here()
+    local stale = StalePricesText(marketKey)
+    local _, sellable = ns.Assets.InBags(marketKey)
+    local worthSelling = sellable >= WORTH_MENTIONING
+
+    local reason = stale ~= nil or worthSelling
+    ns.SetButtonAttention(reason)
+
+    if not reason or promptedThisStay or not ns.settings.cityPrompt then
+        return
+    end
+    promptedThisStay = true
+
+    local body
+    if stale and worthSelling then
+        body = ("%s, and you're carrying about %s worth selling."):format(
+            stale,
+            Theme.Coins(sellable)
+        )
+    elseif worthSelling then
+        body = ("You're carrying about %s worth selling."):format(Theme.Coins(sellable))
+    else
+        body = stale .. ". A quick visit will bring them up to date."
+    end
+
+    ns.Toast.Show({
+        title = "The auction house is close by",
+        body = body,
+        primary = {
+            label = "Show me",
+            onClick = function()
+                ns.MapMarks.ShowPoint(mapID, place.x, place.y)
+            end,
+        },
+        secondary = { label = "Not today" },
+    })
+end
+
+local function CheckSoon()
+    if not checkPending then
+        checkPending = true
+        C_Timer.After(SETTLE_DELAY, Check)
+    end
+end
+
+ns.OnEvent("PLAYER_UPDATE_RESTING", CheckSoon)
+ns.OnEvent("ZONE_CHANGED_NEW_AREA", CheckSoon)
+ns.Subscribe("BAGS_CHANGED", CheckSoon)
+ns.Subscribe("AUCTION_HOUSE_CLOSED", CheckSoon)
+
+-- At a merchant ------------------------------------------------------------------------
+
+local function CheckBeforeVendoring()
+    if not ns.settings.vendorCheck then
+        return
+    end
+
+    -- Everything that would clear a good deal more at auction than here.
+    local worthKeeping = {}
+    for _, asset in ipairs(ns.Assets.InBags(ns.Market.Home())) do
+        local advice = asset.advice
+        local gain = (advice.proceeds or 0) - (advice.fromVendor or 0)
+        if advice.verb == ns.Advice.SELL and gain >= WORTH_KEEPING then
+            asset.gain = gain
+            table.insert(worthKeeping, asset)
+        end
+    end
+
+    if #worthKeeping == 0 then
+        return
+    end
+
+    table.sort(worthKeeping, function(a, b)
+        return a.gain > b.gain
+    end)
+
+    local lines = {}
+    for index = 1, math.min(3, #worthKeeping) do
+        local asset = worthKeeping[index]
+        local name = asset.count > 1 and ("%s x%d"):format(asset.name, asset.count) or asset.name
+        table.insert(
+            lines,
+            ("%s: about %s at auction, %s here."):format(
+                Theme.ItemName(name, asset.quality),
+                Theme.Coins(asset.advice.proceeds),
+                Theme.Coins(asset.advice.fromVendor)
+            )
+        )
+    end
+    if #worthKeeping > 3 then
+        table.insert(
+            lines,
+            ("And %d more. The Assets tab has the full list."):format(#worthKeeping - 3)
+        )
+    end
+
+    ns.Toast.Show({
+        title = ns.settings.auditorMode and "Do NOT vendor these" or "Before you sell these",
+        body = table.concat(lines, "\n"),
+        primary = { label = "Got it" },
+    })
+end
+
+ns.OnEvent("MERCHANT_SHOW", CheckBeforeVendoring)
+ns.OnEvent("MERCHANT_CLOSED", ns.Toast.Hide)

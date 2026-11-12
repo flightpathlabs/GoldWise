@@ -136,70 +136,7 @@ local function FillRow(row, data)
     end
 end
 
--- Gathering the facts ----------------------------------------------------------------
-
--- Items whose details we've asked the client to load this session.
-local requested = {}
-
---- Whether the list asked the client to load this item's details, and so
---- has something to gain from redrawing now that they've arrived.
----@param itemID number
----@return boolean
-function ShelfList.IsWaitingFor(itemID)
-    return requested[itemID] == true
-end
-
----@param holding table       one entry from Bags.Holdings or Characters.Others
----@param marketKey string
----@param owner string|nil    the character holding it, if not the current one
-local function DescribeHolding(holding, marketKey, owner)
-    local itemID = holding.itemID
-    local price, listed, seenAt, source = ns.Ledger.Price(marketKey, itemID)
-
-    local history = ns.Ledger.History(marketKey, itemID, ns.Stats.USUAL_DAYS)
-    local againstUsual = ns.Stats.AgainstUsual(history)
-
-    local trend = {}
-    for index, day in ipairs(history) do
-        trend[index] = day.last
-    end
-
-    -- The eleventh value is what a vendor pays. It's missing until the
-    -- client has the item cached. That's nearly always true for the
-    -- player's own bags, but not for another character's, so ask for it;
-    -- the window redraws when the answer arrives.
-    local vendorPrice = select(11, C_Item.GetItemInfo(itemID))
-    if vendorPrice == nil and not requested[itemID] then
-        -- Once per session is enough. If the client can't load an item,
-        -- asking again on every redraw would never end.
-        requested[itemID] = true
-        C_Item.RequestLoadItemDataByID(itemID)
-    end
-
-    return {
-        itemID = itemID,
-        owner = owner,
-        name = holding.name or ("Item " .. itemID),
-        icon = holding.icon,
-        quality = holding.quality,
-        link = holding.link,
-        count = holding.count,
-        price = price,
-        listed = listed,
-        seenAt = seenAt,
-        source = source,
-        trend = trend,
-        againstUsual = againstUsual,
-        advice = ns.Advice.ForHolding({
-            count = holding.count,
-            price = price,
-            vendorPrice = vendorPrice,
-            againstUsual = againstUsual,
-            cut = ns.Market.Cut(marketKey),
-            auditor = ns.settings.auditorMode,
-        }),
-    }
-end
+-- Ordering -----------------------------------------------------------------------------
 
 -- Most valuable first; things we can't price yet go to the bottom.
 local function ByProceeds(a, b)
@@ -270,7 +207,7 @@ function ShelfList.Create(parent, onSelect)
         local total = 0
 
         local function Add(holding, owner)
-            local row = DescribeHolding(holding, marketKey, owner)
+            local row = ns.Assets.Describe(holding, marketKey, owner)
             table.insert(rows, row)
 
             if row.advice.verb == ns.Advice.SELL then

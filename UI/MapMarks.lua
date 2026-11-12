@@ -18,12 +18,12 @@ function MapMarks.ZoneName(mapID)
     return info and info.name or ("Map " .. mapID)
 end
 
---- Opens the world map on a zone and drops the game's waypoint pin there.
----
---- We only know the zone, not a spot within it, so the pin goes in the
---- middle. It's a "head this way", not an X on the treasure.
+--- Opens the world map on a zone and drops the game's waypoint pin at a
+--- spot in it.
 ---@param mapID number
-function MapMarks.ShowZone(mapID)
+---@param x number  0 to 1, left to right
+---@param y number  0 to 1, top to bottom
+function MapMarks.ShowPoint(mapID, x, y)
     -- The world map is one of the panels the game won't let addons open
     -- during combat.
     if InCombatLockdown() then
@@ -32,9 +32,18 @@ function MapMarks.ShowZone(mapID)
     end
 
     if C_Map.CanSetUserWaypointOnMap(mapID) then
-        C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, 0.5, 0.5))
+        C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
         C_SuperTrack.SetSuperTrackedUserWaypoint(true)
     end
 
     OpenWorldMap(mapID)
+end
+
+--- Opens the world map on a zone, with the waypoint in the middle of it.
+---
+--- For when we know the zone but not a spot within it. It's a "head this
+--- way", not an X on the treasure.
+---@param mapID number
+function MapMarks.ShowZone(mapID)
+    MapMarks.ShowPoint(mapID, 0.5, 0.5)
 end

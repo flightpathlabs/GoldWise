@@ -59,6 +59,9 @@ read_globals = {
     "Enum",
     "BACKPACK_CONTAINER",
     "NUM_BAG_SLOTS",
+    "INVSLOT_FIRST_EQUIPPED",
+    "INVSLOT_LAST_EQUIPPED",
+    "SOUNDKIT",
     "NUM_TOTAL_EQUIPPED_BAG_SLOTS",
 
     -- Blizzard's shared Lua helpers
@@ -96,6 +99,7 @@ read_globals = {
     "C_Map",
     "C_GameRules",
     "C_SuperTrack",
+    "C_Trainer",
 
     -- Loose API functions
     "GetBuildInfo",
@@ -109,6 +113,15 @@ read_globals = {
     "geterrorhandler",
     "GetProfessionInfo",
     "GetProfessions",
+    "CanMerchantRepair",
+    "GetInventoryItemDurability",
+    "GetNumTrainerServices",
+    "GetRepairAllCost",
+    "GetTrainerServiceCost",
+    "GetTrainerServiceInfo",
+    "GetTrainerServiceStepIndex",
+    "IsTradeskillTrainer",
+    "PlaySound",
     "IsInInstance",
     "RemoveChatWindowChannel",
     "NUM_CHAT_WINDOWS",

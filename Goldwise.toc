@@ -29,8 +29,11 @@ Market\DeepScan.lua
 Profile\Bags.lua
 Profile\Characters.lua
 Profile\Professions.lua
+Profile\Purse.lua
+Profile\Training.lua
 
 Advisor\Advice.lua
+Advisor\Assets.lua
 Advisor\Prospects.lua
 
 UI\Theme.lua
@@ -39,7 +42,11 @@ UI\MapMarks.lua
 UI\ItemDetail.lua
 UI\ShelfList.lua
 UI\ProspectList.lua
+UI\PurseTab.lua
+UI\AboutTab.lua
 UI\MainWindow.lua
 UI\MinimapButton.lua
+UI\Toast.lua
+UI\NextStep.lua
 UI\Tooltip.lua
 UI\Settings.lua

@@ -44,6 +44,11 @@ local DEFAULT_SETTINGS = {
     minimapButton = true,
     minimapAngle = 215,
 
+    -- The two unprompted cards, and whether they make a sound.
+    cityPrompt = true,
+    vendorCheck = true,
+    promptSound = false,
+
     -- An auction price line on item tooltips. Skipped when another addon
     -- already shows one, whatever this says.
     tooltipPrice = true,

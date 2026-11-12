@@ -8,12 +8,48 @@ local Theme = ns.Theme
 
 local WIDTH, HEIGHT = 780, 520
 
--- The tabs along the bottom edge, in order.
-local ASSETS, PROSPECTS = 1, 2
-local TAB_LABELS = { "Assets", "Prospects" }
+-- The tabs along the bottom edge, in order. Each names the page it shows
+-- (a field on the window) and how to bring that page up to date. Whatever
+-- refresh returns goes in the footer.
+local TABS = {
+    {
+        label = "Assets",
+        page = "List",
+        refresh = function(page)
+            local total = page:Refresh()
+            if total > 0 then
+                return "Selling what's marked Sell should bring in about "
+                    .. Theme.Coins(total)
+                    .. "."
+            end
+        end,
+    },
+    {
+        label = "Prospects",
+        page = "Prospects",
+        refresh = function(page)
+            page:Refresh()
+            return "Ranked by what each one sells for, not by gold per hour. "
+                .. "Level ranges are a guide."
+        end,
+    },
+    {
+        label = "Purse",
+        page = "Purse",
+        refresh = function(page)
+            page:Refresh()
+            return "Costs are learned as you play. Visit your trainer to fill in training."
+        end,
+    },
+    {
+        label = "About",
+        page = "About",
+        refresh = function() end,
+    },
+}
 
 local window
-local currentTab = ASSETS
+local currentTab = 1
 
 -- How far the scan in progress has got, or nil when idle. The deep scan
 -- knows how much there is to do; the ordinary one doesn't.
@@ -83,33 +119,26 @@ local function Refresh()
     window.Status:SetText(StatusText())
     window.ScanButton:SetEnabled(ns.Market.IsOpen() and not ns.Scanner.IsScanning())
 
-    -- Only the tab on show is rebuilt. The other catches up when the
-    -- player switches to it.
-    if currentTab == PROSPECTS then
-        window.Prospects:Refresh()
-        window.Footer:SetText(
-            "Ranked by what each one sells for, not by gold per hour. Level ranges are a guide."
-        )
-        return
-    end
+    -- Only the tab on show is rebuilt. The others catch up when the
+    -- player switches to them. While an item's page covers the tab, the
+    -- footer still belongs to the tab underneath.
+    local tab = TABS[currentTab]
+    window.Footer:SetText(tab.refresh(window[tab.page]) or "")
+end
 
-    local total = window.List:Refresh()
-    if total > 0 then
-        window.Footer:SetText(
-            "Selling what's marked Sell should bring in about " .. Theme.Coins(total) .. "."
-        )
-    else
-        window.Footer:SetText("")
+local function HidePages()
+    for _, tab in ipairs(TABS) do
+        window[tab.page]:Hide()
     end
 end
 
-local function ShowTab(tab)
-    currentTab = tab
-    PanelTemplates_SetTab(window, tab)
+local function ShowTab(index)
+    currentTab = index
+    PanelTemplates_SetTab(window, index)
 
     window.Detail:Hide()
-    window.List:SetShown(tab == ASSETS)
-    window.Prospects:SetShown(tab == PROSPECTS)
+    HidePages()
+    window[TABS[index].page]:Show()
     Refresh()
 end
 
@@ -119,17 +148,16 @@ local function ShowCurrentTab()
 end
 
 local function ShowDetail(row)
-    window.List:Hide()
-    window.Prospects:Hide()
+    HidePages()
     window.Detail:ShowItem(row)
 end
 
 local function CreateTabs(frame)
-    for index, label in ipairs(TAB_LABELS) do
+    for index, definition in ipairs(TABS) do
         -- The template adds each tab to frame.Tabs for us.
         local tab = CreateFrame("Button", nil, frame, "PanelTabButtonTemplate")
         tab:SetID(index)
-        tab:SetText(label)
+        tab:SetText(definition.label)
         PanelTemplates_TabResize(tab, 0)
         tab:SetScript("OnClick", function(self)
             ShowTab(self:GetID())
@@ -141,7 +169,7 @@ local function CreateTabs(frame)
         end
     end
 
-    PanelTemplates_SetNumTabs(frame, #TAB_LABELS)
+    PanelTemplates_SetNumTabs(frame, #TABS)
     PanelTemplates_SetTab(frame, currentTab)
 end
 
@@ -192,6 +220,8 @@ local function CreateWindow()
 
     frame.List = ns.ShelfList.Create(frame.Inset, ShowDetail)
     frame.Prospects = ns.ProspectList.Create(frame.Inset, ShowDetail)
+    frame.Purse = ns.PurseTab.Create(frame.Inset)
+    frame.About = ns.AboutTab.Create(frame.Inset)
     frame.Detail = ns.ItemDetail.Create(frame.Inset, ShowCurrentTab)
     CreateTabs(frame)
 
@@ -243,6 +273,7 @@ for _, message in ipairs({
     "PRICES_CHANGED",
     "BAGS_CHANGED",
     "PROFILE_CHANGED",
+    "PURSE_CHANGED",
     "SETTINGS_CHANGED",
     "AUCTION_HOUSE_CLOSED",
 }) do
@@ -262,7 +293,7 @@ ns.OnEvent("GET_ITEM_INFO_RECEIVED", function(itemID)
 
     -- A deep scan makes the client load thousands of items. Only the ones
     -- the list is actually waiting on are a reason to redraw.
-    if not ns.ShelfList.IsWaitingFor(itemID) then
+    if not ns.Assets.IsWaitingFor(itemID) then
         return
     end
 
@@ -275,10 +306,31 @@ end)
 
 -- Ways in -----------------------------------------------------------------------------
 
+-- "/gw goal 50" sets a savings target of 50 gold; "/gw goal off" clears it.
+local function SetGoal(amount)
+    local gold = tonumber(amount)
+    if gold and gold > 0 then
+        ns.settings.goalCopper = math.floor(gold * ns.COPPER_PER_GOLD)
+        ns.Print("Saving toward %s. The Purse tab tracks it.", ns.Money(ns.settings.goalCopper))
+    elseif amount == "off" or amount == "0" then
+        ns.settings.goalCopper = nil
+        ns.Print("Savings goal cleared.")
+    else
+        ns.Print("Give an amount in gold, like /gw goal 50, or /gw goal off to clear it.")
+        return
+    end
+    ns.Publish("SETTINGS_CHANGED")
+end
+
 SLASH_GOLDWISE1 = "/goldwise"
 SLASH_GOLDWISE2 = "/gw"
-SlashCmdList.GOLDWISE = function()
-    ns.ToggleWindow()
+SlashCmdList.GOLDWISE = function(message)
+    local command, argument = strtrim(message or ""):lower():match("^(%S*)%s*(.-)$")
+    if command == "goal" then
+        SetGoal(argument)
+    else
+        ns.ToggleWindow()
+    end
 end
 
 -- Named in the TOC file. The client calls it when the player picks Goldwise

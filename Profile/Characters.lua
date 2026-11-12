@@ -51,6 +51,21 @@ local function Remember()
     }
 end
 
+--- All the gold on the account: this character's, as it stands now, plus
+--- every other character's as of their last login.
+---@return number copper
+function Characters.TotalMoney()
+    local current = CurrentKey()
+    local total = GetMoney()
+
+    for key, record in pairs(Roster()) do
+        if key ~= current then
+            total = total + (record.money or 0)
+        end
+    end
+    return total
+end
+
 --- Which of the player's other characters carry an item, most first.
 --- Counts bags only, as they stood at each character's last login.
 ---@param itemID number

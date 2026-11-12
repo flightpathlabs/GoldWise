@@ -55,6 +55,28 @@ ns.OnEvent("PLAYER_LOGIN", function()
 
     AddCheckbox(
         category,
+        "cityPrompt",
+        "Tell me when an auction house is worth a visit",
+        "Once per visit, when you arrive somewhere with an auction house and your prices "
+            .. "are a day old or your bags hold something worth listing."
+    )
+
+    AddCheckbox(
+        category,
+        "vendorCheck",
+        "Check my bags when I open a merchant",
+        "A short note if you're carrying things that would fetch a good deal more at auction."
+    )
+
+    AddCheckbox(
+        category,
+        "promptSound",
+        "Play a sound with those prompts",
+        "Off unless you turn it on. Goldwise is otherwise silent."
+    )
+
+    AddCheckbox(
+        category,
         "autoScan",
         "Read prices when the auction house opens",
         "Takes about fifteen seconds and steps aside if you start searching. "

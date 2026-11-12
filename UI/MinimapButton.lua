@@ -115,7 +115,54 @@ local function Create()
     frame:SetScript("OnEnter", ShowTooltip)
     frame:SetScript("OnLeave", GameTooltip_Hide)
 
+    -- A soft ring of light for when there's something worth doing. It
+    -- lives on a child frame because that's what the fade is applied to.
+    local glow = CreateFrame("Frame", nil, frame)
+    glow:SetSize(38, 38)
+    glow:SetPoint("CENTER", frame, "TOPLEFT", 16, -15)
+    glow:Hide()
+
+    local light = glow:CreateTexture(nil, "OVERLAY")
+    light:SetAllPoints()
+    light:SetBlendMode("ADD")
+    light:SetTexture("Interface\\TutorialFrame\\minimap-glow")
+
+    local pulse = glow:CreateAnimationGroup()
+    pulse:SetLooping("BOUNCE")
+    local fade = pulse:CreateAnimation("Alpha")
+    fade:SetFromAlpha(0.7)
+    fade:SetToAlpha(0.1)
+    fade:SetDuration(1.2)
+
+    frame.Glow = glow
+    frame.Pulse = pulse
+
     return frame
+end
+
+-- Whether the button should currently be pulsing. Remembered here so it
+-- survives the button being created, hidden or shown later.
+local wantsAttention = false
+
+local function UpdateAttention()
+    if not button then
+        return
+    end
+
+    if wantsAttention and not button.Pulse:IsPlaying() then
+        button.Glow:Show()
+        button.Pulse:Play()
+    elseif not wantsAttention and button.Pulse:IsPlaying() then
+        button.Pulse:Stop()
+        button.Glow:Hide()
+    end
+end
+
+--- Starts or stops the button's pulse.
+---@param attention boolean  true when there's something worth the player's time
+function ns.SetButtonAttention(attention)
+    wantsAttention = attention and true or false
+    UpdateAttention()
 end
 
 -- Shows or hides the button to match the player's setting.
@@ -124,6 +171,7 @@ local function Update()
         button = button or Create()
         Place()
         button:Show()
+        UpdateAttention()
     elseif button then
         button:Hide()
     end
