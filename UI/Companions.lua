@@ -29,7 +29,8 @@ local function AtlasTooltipsOn()
 
     local saved = ForeverProfessionsDB
     local settings = type(saved) == "table" and saved.settings
-    if type(settings) == "table" and settings.tooltips ~= nil then
+    if type(settings) == "table" then
+        -- Unset means off, as it does to Profession Atlas itself.
         return settings.tooltips == true
     end
     return true
@@ -59,6 +60,27 @@ end
 function Companions.ShowsHoldings()
     -- Bagnon lists bags, bank and mail for every character.
     return IsLoaded("Bagnon") or AtlasTooltipsOn()
+end
+
+-- Addons that read every auction with the game's full read, which the
+-- whole account can use only once in fifteen minutes.
+local FULL_READ_ADDONS = {
+    "Auctionator",
+    "TradeSkillMaster",
+    "Auc-Advanced",
+    "ForeverProfessions",
+}
+
+--- Whether another addon makes full reads of the auction house, and so
+--- has a claim on the cooldown they share with ours.
+---@return boolean
+function Companions.MakesFullReads()
+    for _, name in ipairs(FULL_READ_ADDONS) do
+        if IsLoaded(name) then
+            return true
+        end
+    end
+    return false
 end
 
 --- Whether another addon has its own progress display on the auction house

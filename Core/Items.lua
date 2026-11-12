@@ -47,7 +47,8 @@ ns.OnEvent("GET_ITEM_INFO_RECEIVED", function(itemID, success)
     end
     awaited[itemID] = nil
 
-    if not success then
+    -- Told it loaded, and still nameless: there's no name coming.
+    if not success or not C_Item.GetItemNameByID(itemID) then
         unavailable[itemID] = true
         return
     end

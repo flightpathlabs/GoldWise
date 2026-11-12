@@ -183,7 +183,13 @@ local OWED_STATES = { "AVAILABLE", "MISSINGREQS", "NEXTLEVEL", "NOTLEVEL" }
 -- knows. Nil if it isn't installed or isn't ready yet.
 local function WhatsTraining()
     local api = WT_API
-    if type(api) == "table" and api.IsReady and api.GetSpells and api.IsReady() then
+    if type(api) ~= "table" or not api.IsReady or not api.GetSpells then
+        return nil
+    end
+
+    -- Asked on every redraw of the Purse tab, and not ours to trust.
+    local ok, ready = pcall(api.IsReady)
+    if ok and ready then
         return api
     end
 end

@@ -11,7 +11,7 @@ local _, ns = ...
 
 local Theme = ns.Theme
 
-local WIDTH, HEIGHT = 300, 60
+local WIDTH, HEIGHT = 320, 64
 
 -- How far in from the window's left edge, to clear its round portrait.
 local LEFT_OFFSET = 62
@@ -39,15 +39,16 @@ local function Create()
     icon:SetTexture(Theme.ICON)
 
     local title = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, 1)
+    title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, 6)
     title:SetText("Goldwise")
     title:SetTextColor(unpack(Theme.COIN))
 
     frame.Status = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    frame.Status:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
+    frame.Status:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
     frame.Status:SetWidth(WIDTH - 12 - 32 - 10 - 12)
     frame.Status:SetJustifyH("LEFT")
-    frame.Status:SetWordWrap(false)
+    -- Two lines: the result it exists to give doesn't fit on one.
+    frame.Status:SetMaxLines(2)
 
     -- Only the fuller read knows how much there is to get through, so the
     -- bar only appears for that one.

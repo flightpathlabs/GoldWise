@@ -152,9 +152,21 @@ end
 --- A spot on the map for one of a recipe's vendors, where one can be
 --- placed. That takes Questie; without it we know the zone and no more.
 ---@param recipe table  one entry from Recipes.Unlearned
+---@param zone string|nil  only a vendor in this zone will do: for a plan
+---        about one zone, a pin in another would mislead
 ---@return table|nil spot    { mapID, x, y, name }
 ---@return table|nil vendor  the vendor it belongs to
-function Recipes.VendorSpot(recipe)
+function Recipes.VendorSpot(recipe, zone)
+    if zone then
+        for _, vendor in ipairs(recipe.vendors) do
+            local spot = vendor.zone == zone and ns.Directory.FindNPC(vendor.npc)
+            if spot then
+                return spot, vendor
+            end
+        end
+        return nil
+    end
+
     -- The one in this zone first, if there is one.
     if recipe.here then
         local spot = ns.Directory.FindNPC(recipe.here.npc)

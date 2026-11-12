@@ -324,7 +324,7 @@ end
 local function StandDown(marketKey, entries)
     for question, pending in pairs(pendingAnswers) do
         if pending.marketKey == marketKey then
-            for itemID in entries:gmatch("(%d+):") do
+            for itemID in entries:gmatch("(%d+):%d+:%d+") do
                 if pending.wanted[itemID] then
                     pendingAnswers[question] = nil
                     break
@@ -397,7 +397,16 @@ local function HideChannel()
     end
 end
 
+-- What the sharing setting was when we last acted on it. Other settings
+-- changing is no reason to rejoin a channel the player has left by hand.
+local wasSharing
+
 local function UpdateMembership()
+    if ns.settings.sharePrices == wasSharing then
+        return
+    end
+    wasSharing = ns.settings.sharePrices
+
     if ns.settings.sharePrices then
         if not ChannelNumber() and not turnedAway then
             JoinTemporaryChannel(Channel())

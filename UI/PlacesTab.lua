@@ -212,7 +212,11 @@ function PlacesTab.Create(parent)
         sinceRefresh = sinceRefresh + elapsed
         if sinceRefresh >= REFRESH_EVERY then
             sinceRefresh = 0
-            self:Refresh()
+            -- Not while the mouse is on the list: rebuilding the rows
+            -- under it would swallow a click on a Map button.
+            if not scrollBox:IsMouseOver() then
+                self:Refresh()
+            end
         end
     end)
 

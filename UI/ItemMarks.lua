@@ -23,6 +23,10 @@ local RIM_SCALE = 1.7
 -- goes away takes its mark with it.
 local marks = setmetatable({}, { __mode = "k" })
 
+-- Every bag or bank button we've been shown, marked or not. When prices
+-- change, any of them may have become worth marking. Weak, like the marks.
+local seen = setmetatable({}, { __mode = "k" })
+
 -- Whether a stack is worth auctioning: ["itemID:count"] = true or false.
 -- Thrown away whenever prices change.
 local verdicts = {}
@@ -40,11 +44,13 @@ local function Contents(button)
         return info.itemID, info.stackCount, info.isBound
     end
 
-    -- Blizzard's buttons know which bag and slot they stand for.
+    -- Blizzard's buttons know which bag and slot they stand for. The
+    -- buttons for the bags themselves, down by the micro menu, answer to
+    -- GetBagID as well, so ask for something only a slot has.
     local bag, slot
     if button.GetBankTabID and button.GetContainerSlotID then
         bag, slot = button:GetBankTabID(), button:GetContainerSlotID()
-    elseif button.GetBagID and button.GetID then
+    elseif button.GetSlotAndBagID and button.GetBagID and button.GetID then
         bag, slot = button:GetBagID(), button:GetID()
     end
 
@@ -82,7 +88,6 @@ local function CreateMark(button)
     mark.Rim:SetBlendMode("ADD")
     mark.Rim:SetVertexColor(unpack(Theme.COIN))
     mark.Rim:SetPoint("CENTER")
-    mark.Rim:SetSize(button:GetWidth() * RIM_SCALE, button:GetHeight() * RIM_SCALE)
 
     mark.Coin = button:CreateTexture(nil, "OVERLAY", nil, 7)
     mark.Coin:SetTexture("Interface\\MoneyFrame\\UI-GoldIcon")
@@ -102,6 +107,11 @@ local function SetMarked(button, marked)
         marks[button] = mark
     end
 
+    if marked then
+        -- Sized each time, not once: a button can be made before it has
+        -- been given its size.
+        mark.Rim:SetSize(button:GetWidth() * RIM_SCALE, button:GetHeight() * RIM_SCALE)
+    end
     mark.Rim:SetShown(marked)
     mark.Coin:SetShown(marked)
 end
@@ -110,6 +120,9 @@ local function Update(button)
     local marked = false
     if ns.settings and ns.settings.markSellable then
         local itemID, count, isBound = Contents(button)
+        if itemID then
+            seen[button] = true
+        end
         -- A soulbound item can't be sold to anyone, whatever it's worth.
         if itemID and not isBound then
             marked = WorthAuctioning(itemID, count or 1)
@@ -131,7 +144,7 @@ end)
 -- for buttons that are sitting there unchanged.
 local function UpdateAll()
     verdicts = {}
-    for button in pairs(marks) do
+    for button in pairs(seen) do
         if button:IsVisible() then
             pcall(Update, button)
         else

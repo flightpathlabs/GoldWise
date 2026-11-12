@@ -189,7 +189,7 @@ local function ForSaleThere(zoneName, marketKey)
                 detail = detail,
                 amount = price,
                 amountLabel = "sells for",
-                action = MapAction(ns.Recipes.VendorSpot(recipe)),
+                action = MapAction(ns.Recipes.VendorSpot(recipe, zoneName)),
             })
         end
     end

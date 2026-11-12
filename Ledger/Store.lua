@@ -168,6 +168,14 @@ local function CollapseRows(rows)
     return prices
 end
 
+local function SnapshotCount(market)
+    local count = 0
+    for _ in pairs(market.daily) do
+        count = count + 1
+    end
+    return count
+end
+
 local function DropOldSnapshots(market, today)
     local oldest = today - ns.settings.marketDays
     for day in pairs(market.daily) do
@@ -196,14 +204,22 @@ function Ledger.RecordPrices(marketKey, prices, wholeMarket)
     local today = Ledger.Today()
 
     if wholeMarket then
+        -- A count of the days this market has been read in full, kept
+        -- apart from the snapshots, which are thrown away after a while.
+        if not market.daily[today] then
+            market.daysRead = (market.daysRead or SnapshotCount(market)) + 1
+        end
+
         latest[marketKey] = prices
         market.daily[today] = EncodeSnapshot(prices)
         market.lastScan = now
         DropOldSnapshots(market, today)
     else
+        -- A reading of a few items is newer than the last whole-market
+        -- scan, so each carries its own time.
         local known = LatestPrices(marketKey)
         for itemID, entry in pairs(prices) do
-            known[itemID] = entry
+            known[itemID] = { entry[1], entry[2], now }
         end
     end
 
@@ -312,7 +328,7 @@ function Ledger.LocalPrice(marketKey, itemID)
 
     local entry = LatestPrices(marketKey)[itemID]
     if entry then
-        return entry[1], entry[2], market.lastScan
+        return entry[1], entry[2], entry[3] or market.lastScan
     end
 
     -- Followed, absent from the latest scan, and with no reading of its
@@ -392,17 +408,13 @@ function Ledger.AllPrices(marketKey)
     return LatestPrices(marketKey)
 end
 
---- On how many separate days the given market has been read in full. It
---- stops counting at the number of daily snapshots kept, which is more
---- than anything that asks needs to know.
+--- On how many separate days the given market has been read in full, over
+--- all the time Goldwise has been installed.
 ---@param marketKey string
 ---@return number days
 function Ledger.DaysRecorded(marketKey)
-    local days = 0
-    for _ in pairs(ns.MarketData(marketKey).daily) do
-        days = days + 1
-    end
-    return days
+    local market = ns.MarketData(marketKey)
+    return market.daysRead or SnapshotCount(market)
 end
 
 --- When the given market last had a whole-market scan.
@@ -433,6 +445,16 @@ ns.OnEvent("PLAYER_LOGIN", function()
             -- at the front.
             while record.recent[1] and record.recent[1][1] < oldestTime do
                 table.remove(record.recent, 1)
+            end
+        end
+
+        -- Something with nothing left on record hasn't been held or
+        -- looked at for as long as history is kept. Stop following it, or
+        -- the saved file only ever grows. It's followed again the moment
+        -- it turns up in the player's bags.
+        for itemID, record in pairs(market.tracked or {}) do
+            if next(record.days) == nil and #record.recent == 0 then
+                market.tracked[itemID] = nil
             end
         end
     end

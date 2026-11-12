@@ -19,6 +19,9 @@ local SETTLE_DELAY = 0.5
 
 local readPending = false
 
+-- How many recipes the last read of each profession found.
+local readCounts = {}
+
 -- Saved recipes: [character] = { [profession] = { [recipeID] = recipe } },
 -- where a recipe is { item, makes, needs }: the item made, how many each
 -- time, and the ingredients as a flat list of item, count, item, count.
@@ -79,10 +82,13 @@ local function Read()
 
     local recipes, count = {}, 0
     for _, recipeID in ipairs(list() or {}) do
-        local info = C_TradeSkillUI.GetRecipeInfo(recipeID)
-        local schematic = info
-            and info.learned
-            and C_TradeSkillUI.GetRecipeSchematic(recipeID, false)
+        -- Each recipe is read under protection. One the game chokes on
+        -- shouldn't cost the player all the others.
+        local ok, schematic = pcall(function()
+            local info = C_TradeSkillUI.GetRecipeInfo(recipeID)
+            return info and info.learned and C_TradeSkillUI.GetRecipeSchematic(recipeID, false)
+        end)
+        schematic = ok and schematic or nil
         local needs = schematic and schematic.outputItemID and Ingredients(schematic)
 
         if needs then
@@ -108,7 +114,12 @@ local function Read()
     books[character] = books[character] or {}
     books[character][name] = recipes
 
-    ns.Log("crafts: read %d %s recipes", count, name)
+    -- The window updates after every craft. Only a change in what the
+    -- player knows is worth a line in the log.
+    if readCounts[name] ~= count then
+        readCounts[name] = count
+        ns.Log("crafts: read %d %s recipes", count, name)
+    end
     ns.Publish("CRAFTS_CHANGED")
 end
 

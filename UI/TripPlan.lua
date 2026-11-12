@@ -10,13 +10,13 @@ ns.TripPlan = TripPlan
 
 local Theme = ns.Theme
 
-local ROW_HEIGHT = 40
+local ROW_HEIGHT = 46
 
 -- Columns are placed from the edges, in pixels.
 local NUMBER_WIDTH = 24
 local ACTION_RIGHT = 10
 local AMOUNT_RIGHT = 84
-local AMOUNT_WIDTH = 190
+local AMOUNT_WIDTH = 170
 
 -- Rows --------------------------------------------------------------------------
 
@@ -67,7 +67,8 @@ local function CreateRowWidgets(row)
     row.Detail:SetPoint("TOPLEFT", row.Title, "BOTTOMLEFT", 0, -3)
     row.Detail:SetPoint("RIGHT", row.Amount, "LEFT", -10, 0)
     row.Detail:SetJustifyH("LEFT")
-    row.Detail:SetWordWrap(false)
+    row.Detail:SetJustifyV("TOP")
+    row.Detail:SetMaxLines(2)
     row.Detail:SetTextColor(unpack(Theme.MUTED))
 
     -- A step about an item shows the item when pointed at, and opens its
@@ -108,6 +109,22 @@ local function FillRow(row, data)
     end
 
     row.Number:SetText(data.number and (data.number .. ".") or "")
+
+    -- A step with no figure and no button has the row to itself, and its
+    -- words can run the full width.
+    local fullWidth = data.amount == nil and data.action == nil
+    for _, text in ipairs({ row.Title, row.Detail }) do
+        text:ClearAllPoints()
+    end
+    row.Title:SetPoint("TOPLEFT", row.Number, "TOPRIGHT", 4, 7)
+    row.Detail:SetPoint("TOPLEFT", row.Title, "BOTTOMLEFT", 0, -3)
+    if fullWidth then
+        row.Title:SetPoint("RIGHT", row, "RIGHT", -12, 0)
+        row.Detail:SetPoint("RIGHT", row, "RIGHT", -12, 0)
+    else
+        row.Title:SetPoint("RIGHT", row.Amount, "LEFT", -10, 0)
+        row.Detail:SetPoint("RIGHT", row.Amount, "LEFT", -10, 0)
+    end
 
     -- An item's name in its quality colour, where the step is about one.
     local title = data.title

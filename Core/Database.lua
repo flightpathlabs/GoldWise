@@ -220,9 +220,17 @@ ns.OnEvent("PLAYER_LOGIN", function()
     local passOn = geterrorhandler()
 
     seterrorhandler(function(message, ...)
-        if type(message) == "string" and message:find(addonName, 1, true) then
-            pcall(ns.NoteError, message, debugstack(2, 12, 0))
-        end
+        -- This now runs for every error in the game, so it must never be
+        -- the thing that fails. Looking at the message is done under
+        -- protection: in restricted content it can be a value we aren't
+        -- allowed to read.
+        pcall(function()
+            local readable = type(message) == "string"
+                and not (issecretvalue and issecretvalue(message))
+            if readable and message:find(addonName, 1, true) then
+                ns.NoteError(message, debugstack(3, 12, 0))
+            end
+        end)
         return passOn(message, ...)
     end)
 end)

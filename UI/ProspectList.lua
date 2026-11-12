@@ -205,6 +205,8 @@ function ProspectList.Create(parent, onSelect)
             -- everywhere else for those who know their own mind.
             local near = root:CreateButton("Go to a zone near my level")
             local anywhere = root:CreateButton("Go to any zone")
+            -- Every zone there is makes a long list. Let it scroll.
+            anywhere:SetScrollMode(400)
             for _, zone in ipairs(zones) do
                 local suits = zone.minLevel <= level + 2 and zone.maxLevel >= level - 4
                 if suits then

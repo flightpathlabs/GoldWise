@@ -40,7 +40,7 @@ end
 local function OnError(message)
     if ns.NoteError then
         -- Keeping the note must never be what breaks.
-        pcall(ns.NoteError, message, debugstack(3, 12, 0))
+        pcall(ns.NoteError, message, debugstack(2, 12, 0))
     end
     return geterrorhandler()(message)
 end

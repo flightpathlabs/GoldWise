@@ -116,8 +116,23 @@ function Directory.NoteHere(kind)
     end
 
     local x, y = position:GetXY()
-    Visited(kind)[mapID] = { mapID = mapID, x = x, y = y, name = UnitName("npc") }
+    Visited(kind)[mapID] = {
+        mapID = mapID,
+        x = x,
+        y = y,
+        name = UnitName("npc"),
+        -- Visits are shared by the whole account, and a Horde alt's
+        -- auctioneer is no use to an Alliance character.
+        side = UnitFactionGroup("player"),
+    }
     ns.Publish("PLACES_CHANGED")
+end
+
+-- Whether a place the account has visited is one this character can use.
+-- Places noted before sides were recorded are given the benefit of the
+-- doubt.
+local function IsForUs(spot)
+    return spot.side == nil or spot.side == UnitFactionGroup("player")
 end
 
 --- A place of some kind on a given map.
@@ -126,7 +141,7 @@ end
 ---@return table|nil spot  { mapID, x, y, name, title }
 function Directory.On(kind, mapID)
     local visited = Visited(kind)[mapID]
-    if visited then
+    if visited and IsForUs(visited) then
         return visited
     end
 
@@ -150,13 +165,18 @@ local function WorldPosition(mapID, x, y)
     end
 end
 
--- A spot's place in the world never changes, so it's worked out once.
+-- A spot's place in the world never changes, so it's worked out once a
+-- session and kept here: [spot] = { continent, x, y }, or false if the
+-- game couldn't say. Kept apart from the spots themselves, some of which
+-- are saved data that a passing failure shouldn't be written into.
+local located = setmetatable({}, { __mode = "k" })
+
 local function Locate(spot)
-    if spot.located == nil then
-        spot.continent, spot.worldX, spot.worldY = WorldPosition(spot.mapID, spot.x, spot.y)
-        spot.located = spot.continent ~= nil
+    if located[spot] == nil then
+        local continent, worldX, worldY = WorldPosition(spot.mapID, spot.x, spot.y)
+        located[spot] = continent and { continent, worldX, worldY } or false
     end
-    return spot.located
+    return located[spot]
 end
 
 --- The nearest place of a kind to where the player is standing.
@@ -180,8 +200,9 @@ function Directory.Nearest(kind)
 
     local function Consider(spot)
         fallback = fallback or spot
-        if hereContinent and Locate(spot) and spot.continent == hereContinent then
-            local squared = (spot.worldX - hereX) ^ 2 + (spot.worldY - hereY) ^ 2
+        local world = hereContinent and Locate(spot)
+        if world and world[1] == hereContinent then
+            local squared = (world[2] - hereX) ^ 2 + (world[3] - hereY) ^ 2
             if not nearestSquared or squared < nearestSquared then
                 nearest, nearestSquared = spot, squared
             end
@@ -190,7 +211,9 @@ function Directory.Nearest(kind)
 
     -- Visited places first, so they win a tie and are the fallback.
     for _, spot in pairs(Visited(kind)) do
-        Consider(spot)
+        if IsForUs(spot) then
+            Consider(spot)
+        end
     end
     for _, spot in ipairs(fromQuestie[kind] or {}) do
         Consider(spot)
@@ -452,6 +475,13 @@ local function LookForQuestie(triesLeft)
 end
 
 ns.OnEvent("PLAYER_LOGIN", function()
+    -- An earlier version kept its working-out inside the saved places.
+    for _, places in pairs(type(ns.db.directory) == "table" and ns.db.directory or {}) do
+        for _, spot in pairs(places) do
+            spot.located, spot.continent, spot.worldX, spot.worldY = nil, nil, nil, nil
+        end
+    end
+
     C_Timer.After(QUESTIE_DELAY, function()
         LookForQuestie(QUESTIE_RETRIES)
     end)

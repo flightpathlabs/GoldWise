@@ -33,18 +33,20 @@ end
 -- player buying it, and what it would sell for if they bought it to sell.
 local function ExtrasText(recipe)
     local extras = {}
-    if recipe.locked then
-        table.insert(extras, recipe.locked)
-    end
-    if recipe.favor then
-        table.insert(extras, ("%d Merchant's Favor"):format(recipe.favor))
-    end
 
+    -- The price goes first. The line is short, and what a recipe would
+    -- sell for is the part most worth reading.
     if not recipe.bound then
         local price = ns.Ledger.Price(ns.Market.Current(), recipe.item)
         if price then
             table.insert(extras, ("%s at auction"):format(Theme.Coins(price)))
         end
+    end
+    if recipe.favor then
+        table.insert(extras, ("%d Merchant's Favor"):format(recipe.favor))
+    end
+    if recipe.locked then
+        table.insert(extras, recipe.locked)
     end
     return table.concat(extras, ", ")
 end

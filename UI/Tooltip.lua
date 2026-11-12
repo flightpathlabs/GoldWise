@@ -104,6 +104,10 @@ local function CreatePanel()
     return frame
 end
 
+-- Counts up each time the chart is asked for or sent away, so a step
+-- that was put off by a frame can tell whether it has been overtaken.
+local generation = 0
+
 local function ShowChart(tooltip, history, usesFeed)
     -- A tooltip with no owner is being filled but won't be shown, so it
     -- would never tell us to take the chart away again.
@@ -130,8 +134,11 @@ local function ShowChart(tooltip, history, usesFeed)
     -- We're called while the tooltip is still being built, before it has
     -- its final size and place. Wait a frame for that to settle, then put
     -- the chart below it if there's room and above it if there isn't.
+    generation = generation + 1
+    local thisOne = generation
     C_Timer.After(0, function()
-        if not tooltip:IsShown() then
+        -- Overtaken by a newer request, or by the tooltip going away.
+        if generation ~= thisOne or not tooltip:IsShown() then
             return
         end
 
@@ -145,16 +152,31 @@ local function ShowChart(tooltip, history, usesFeed)
     end)
 end
 
+-- The tooltip has gone, and the chart goes with it at once.
 local function HideChart()
+    generation = generation + 1
     if panel then
         panel:Hide()
     end
 end
 
--- Whenever the tooltip empties or goes away, the chart goes with it. If the
--- next thing shown is an item with history, it comes straight back.
+-- The tooltip has been emptied. That happens when it's about to show
+-- something else, but also several times a second while it rests on one
+-- item and the game rebuilds it. Hiding the chart on the spot would make
+-- it blink on every rebuild, so wait a frame. If the chart has been asked
+-- for again by then, as it will have been for the same item, leave it be.
+local function HideChartSoon()
+    generation = generation + 1
+    local thisOne = generation
+    C_Timer.After(0, function()
+        if generation == thisOne and panel then
+            panel:Hide()
+        end
+    end)
+end
+
 GameTooltip:HookScript("OnHide", HideChart)
-GameTooltip:HookScript("OnTooltipCleared", HideChart)
+GameTooltip:HookScript("OnTooltipCleared", HideChartSoon)
 
 -- Who holds it ------------------------------------------------------------------------
 

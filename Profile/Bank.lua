@@ -72,18 +72,27 @@ local function Scan()
         return
     end
 
-    local vaults = Vaults()
-    vaults[ns.Characters.CurrentKey()] = ReadTabs(Enum.BankType.Character)
-    vaults[ACCOUNT] = ReadTabs(Enum.BankType.Account)
-
-    -- Follow what's banked as closely as what's carried, so it has price
-    -- history by the time the player wonders what it's worth.
     local home = ns.Market.Home()
-    for _, vault in pairs({ vaults[ns.Characters.CurrentKey()], vaults[ACCOUNT] }) do
+
+    local function Read(key, bankType)
+        -- A bank the player can't look into just now reads as empty,
+        -- which isn't the same as being empty. Leave what we knew alone.
+        if C_Bank.CanViewBank and not C_Bank.CanViewBank(bankType) then
+            return
+        end
+
+        local vault = ReadTabs(bankType)
+        Vaults()[key] = vault
+
+        -- Follow what's banked as closely as what's carried, so it has
+        -- price history by the time the player wonders what it's worth.
         for itemID in pairs(vault.holdings) do
             ns.Ledger.Track(home, itemID)
         end
     end
+
+    Read(ns.Characters.CurrentKey(), Enum.BankType.Character)
+    Read(ACCOUNT, Enum.BankType.Account)
 
     ns.Publish("BAGS_CHANGED")
 end

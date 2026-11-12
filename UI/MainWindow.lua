@@ -143,10 +143,9 @@ local function StatusText()
         return "Reading the auction house..."
     end
 
-    if stopReason then
-        return stopReason .. " " .. PriceAgeText()
-    end
-    return PriceAgeText()
+    -- The reason a read stopped has the line to itself. With the age of
+    -- the prices tacked on, neither fits.
+    return stopReason or PriceAgeText()
 end
 
 local function RefreshStatus()

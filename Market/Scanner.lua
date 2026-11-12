@@ -195,6 +195,14 @@ local function OnOwnResults(rows, complete)
     scan.retries = 0
 
     if complete then
+        -- A finished search with nothing in it is the auction house
+        -- failing to answer, not a market with nothing for sale. Filing
+        -- it would mark everything the player follows as sold out.
+        if #rows == 0 then
+            Stop("The auction house returned an empty list.")
+            return
+        end
+
         local seconds = GetTime() - scan.startedAt
         ns.Log("scan finished: %d rows in %.1fs", #rows, seconds)
         scan = nil
@@ -244,7 +252,7 @@ end)
 
 -- Other people's searches ----------------------------------------------------------
 
-local function OnOverheardResults(rows, complete)
+local function OnOverheardResults(complete)
     -- Record a search when its first page arrives and again when it has
     -- all of them. A search typed by hand usually stops after one page and
     -- never becomes complete, and its prices are still worth having.
@@ -254,8 +262,14 @@ local function OnOverheardResults(rows, complete)
     heardFirstPage = true
     heardEverything = complete
 
-    -- Only a finished search with no filters counts as a full snapshot.
-    local wholeMarket = complete and lastSearch ~= nil and lastSearch.wholeMarket
+    -- Fetched only now that we know we want it. Another addon's scan of
+    -- the whole market arrives a page at a time, and asking for the list
+    -- so far on every page would mean building it dozens of times over.
+    local rows = C_AuctionHouse.GetBrowseResults()
+
+    -- Only a finished search with no filters counts as a full snapshot,
+    -- and only if it found something (see OnOwnResults).
+    local wholeMarket = complete and #rows > 0 and lastSearch ~= nil and lastSearch.wholeMarket
     ns.Log("overheard %d rows%s", #rows, wholeMarket and " (whole market)" or "")
     ns.Ledger.RecordScan(ns.Market.Current(), rows, wholeMarket)
 
@@ -268,16 +282,15 @@ local function OnOverheardResults(rows, complete)
 end
 
 local function OnBrowseResults()
-    local rows = C_AuctionHouse.GetBrowseResults()
     local complete = C_AuctionHouse.HasFullBrowseResults()
 
     if scan and scan.sent then
-        OnOwnResults(rows, complete)
+        OnOwnResults(C_AuctionHouse.GetBrowseResults(), complete)
     elseif lastSearch and lastSearch.ours then
         -- A straggling event from a scan of ours that already finished.
         return
     else
-        OnOverheardResults(rows, complete)
+        OnOverheardResults(complete)
     end
 end
 
@@ -329,6 +342,13 @@ end)
 
 -- Everything else: one listing per auction.
 ns.OnEvent("ITEM_SEARCH_RESULTS_UPDATED", function(itemKey)
+    -- Gear with a random suffix is several items under one ID, and we
+    -- keep the cheapest of them all. One variant's listings would replace
+    -- that with its own, so leave those to the market scans.
+    if (itemKey.itemSuffix or 0) ~= 0 then
+        return
+    end
+
     local lowest
     local count = math.min(C_AuctionHouse.GetNumItemSearchResults(itemKey), LISTINGS_CHECKED)
     for index = 1, count do
@@ -386,7 +406,12 @@ ns.Subscribe("AUCTION_HOUSE_OPENED", function(marketKey)
         -- Prefer the deep scan when its cooldown allows. It doesn't touch
         -- the browse list, so it's welcome even mid-search. If it turns
         -- out to be on a cooldown we didn't know about, fall back.
-        if ns.DeepScan.IsAvailable() then
+        --
+        -- That cooldown belongs to the whole account, though. If another
+        -- addon the player has makes full reads of its own, spending it
+        -- unasked would leave their button dead for a quarter of an hour.
+        -- Their reads are ours to share anyway (see DeepScan).
+        if ns.DeepScan.IsAvailable() and not ns.Companions.MakesFullReads() then
             ns.DeepScan.Start(BrowseUnlessBusy)
         else
             BrowseUnlessBusy()

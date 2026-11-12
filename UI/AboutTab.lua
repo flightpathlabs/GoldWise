@@ -149,7 +149,7 @@ local function Sections()
         {
             heading = "The small print",
             text = {
-                "Goldwise is a free, fan-made addon from Flight Path Labs. Its goblin mascot "
+                "Goldwise is a fan-made addon from Flight Path Labs. Its goblin mascot "
                     .. "is an original cartoon character and the branding is a joke. Any "
                     .. "resemblance to real people, shows, apps or companies is parody, and "
                     .. "Goldwise is not affiliated with, endorsed by or sponsored by any of them.",

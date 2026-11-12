@@ -223,7 +223,7 @@ repository root.
 
 ## Disclaimer
 
-Goldwise is a free, fan-made addon. Its goblin mascot is an original
+Goldwise is a fan-made addon. Its goblin mascot is an original
 cartoon character and the branding is a joke. Any resemblance to real
 people, shows, apps or companies is parody, and Goldwise is not affiliated
 with, endorsed by or sponsored by any of them. It offers advice about a
