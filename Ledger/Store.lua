@@ -40,6 +40,20 @@ function Ledger.Today()
     return math.floor(GetServerTime() / ns.SECONDS_PER_DAY)
 end
 
+--- Drops, from a table kept by day, every day older than a given number
+--- of days. Several things are kept that way, each for its own length of
+--- time.
+---@param byDay table      [day] = anything, with days as Ledger.Today counts them
+---@param keepDays number  how many days to keep, counting today
+function Ledger.ForgetOldDays(byDay, keepDays)
+    local oldest = Ledger.Today() - keepDays
+    for day in pairs(byDay) do
+        if day <= oldest then
+            byDay[day] = nil
+        end
+    end
+end
+
 -- Snapshots ----------------------------------------------------------------
 
 -- A snapshot is one long string: ",itemID:price:quantity" for every item.

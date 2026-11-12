@@ -66,11 +66,7 @@ local function Record(delta)
         days[today] = day
 
         -- A new day is as good a moment as any to drop the oldest.
-        for recorded in pairs(days) do
-            if recorded <= today - KEEP_DAYS then
-                days[recorded] = nil
-            end
-        end
+        ns.Ledger.ForgetOldDays(days, KEEP_DAYS)
     end
 
     local side = delta > 0 and day.income or day.spending

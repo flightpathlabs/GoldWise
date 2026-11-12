@@ -35,6 +35,15 @@ local ASSUMED_RATES = {
 -- How many different items to ask about. A handful settles it.
 local SAMPLE = 20
 
+-- Seconds after the auction house opens before asking. It answers
+-- nonsense for a moment while it's still setting itself up.
+local OPEN_DELAY = 1
+
+-- An item only shows the minimum when the minimum is what it's being
+-- charged: when its own share of vendor value would come to less. To be
+-- sure of that, the answer has to beat the share by this much.
+local CLEAR_OF_SHARE = 1.5
+
 local function Saved()
     if type(ns.db.deposits) ~= "table" then
         ns.db.deposits = {}
@@ -62,16 +71,10 @@ function Deposit.Estimate(vendorValue, marketKey, duration)
     return math.max(floor, math.floor(vendorValue * rate + 0.5))
 end
 
---- The least any listing costs in a market.
----@param marketKey string
----@return number copper
----@return boolean measured  false while it's still the assumed figure
-function Deposit.Floor(marketKey)
+-- The least any listing costs in a market, as far as is known.
+local function KnownFloor(marketKey)
     local rule = Saved()[marketKey]
-    if rule then
-        return rule.floor, true
-    end
-    return ASSUMED_FLOOR, false
+    return rule and rule.floor or ASSUMED_FLOOR
 end
 
 -- Measuring ---------------------------------------------------------------------
@@ -102,11 +105,15 @@ local function CanBeListed(location)
 end
 
 local function Measure(marketKey)
-    -- The floor is the least the game asks for anything: one of the
-    -- cheapest thing to hand, for the shortest time. If everything in the
-    -- bags is valuable this comes out a little high, by at most a
-    -- twentieth of the cheapest item's vendor price, which errs on the
-    -- careful side.
+    local saved = Saved()
+    local rule = saved[marketKey] or { rates = {} }
+    local shortRate = rule.rates[SHORTEST] or AssumedRates(marketKey)[SHORTEST]
+
+    -- The minimum is whatever the game asks for one of something too
+    -- cheap for its share of vendor value to matter. Something dearer
+    -- is charged its share, which says nothing about the minimum, and
+    -- taking that for the minimum would have it change with whatever
+    -- happens to be in the bags.
     local floor
 
     -- For the share of vendor value, the most valuable lot gives the most
@@ -125,20 +132,25 @@ local function Measure(marketKey)
                 if CanBeListed(location) then
                     asked = asked + 1
                     local isCommodity = IsCommodity(location)
+                    local vendorPrice = select(11, C_Item.GetItemInfo(item.itemID)) or 0
 
+                    -- Nothing costs nothing to list. An answer of zero is
+                    -- the auction house not being ready to give one.
                     local least = Ask(location, item.itemID, isCommodity, SHORTEST, 1)
-                    if least and (not floor or least < floor) then
+                    local heldUp = least
+                        and least > 0
+                        and vendorPrice * shortRate * CLEAR_OF_SHARE < least
+                    if heldUp and (not floor or least < floor) then
                         floor = least
                     end
 
-                    local vendorPrice = select(11, C_Item.GetItemInfo(item.itemID)) or 0
                     local value = vendorPrice * item.stackCount
                     for duration = SHORTEST, LONGEST do
                         local best = biggest[duration]
                         if value > 0 and (not best or value > best.value) then
                             local deposit =
                                 Ask(location, item.itemID, isCommodity, duration, item.stackCount)
-                            if deposit then
+                            if deposit and deposit > 0 then
                                 biggest[duration] = { value = value, deposit = deposit }
                             end
                         end
@@ -148,33 +160,32 @@ local function Measure(marketKey)
         end
     end
 
-    -- Nothing in the bags can be listed, so there was nothing to ask
-    -- about. What's known from an earlier visit stands.
-    if not floor then
+    -- Nothing in the bags could be asked about. What's known stands.
+    if not floor and next(biggest) == nil then
         return
     end
 
-    local saved = Saved()
-    local before = Deposit.Floor(marketKey)
-    local rule = saved[marketKey] or { rates = {} }
-
-    rule.floor = floor
+    -- With nothing cheap enough to show the minimum, it stays what it was.
+    local before = KnownFloor(marketKey)
+    rule.floor = floor or before
     rule.at = time()
+
     for duration = SHORTEST, LONGEST do
         -- A lot that only costs the minimum says nothing about the share.
         local best = biggest[duration]
-        if best and best.deposit > floor then
+        if best and best.deposit > rule.floor then
             rule.rates[duration] = best.deposit / best.value
         end
     end
     saved[marketKey] = rule
 
-    -- Worth a line when it moves, because the advice moves with it: a
-    -- lower minimum makes cheap things worth listing that weren't before.
-    if floor ~= before then
-        ns.Print(
-            "Listing here now costs as little as %s (it was %s). The advice has been adjusted.",
-            ns.Money(floor),
+    -- The advice moves with the minimum: a lower one makes cheap things
+    -- worth listing that weren't before. Anything showing advice redraws.
+    if rule.floor ~= before then
+        ns.Log(
+            "deposit: the least a listing costs on %s is now %s (was %s)",
+            marketKey,
+            ns.Money(rule.floor),
             ns.Money(before)
         )
         ns.Publish("PRICES_CHANGED", marketKey)
@@ -182,5 +193,9 @@ local function Measure(marketKey)
 end
 
 ns.Subscribe("AUCTION_HOUSE_OPENED", function(marketKey)
-    Measure(marketKey)
+    C_Timer.After(OPEN_DELAY, function()
+        if ns.Market.IsOpen() and ns.Market.Current() == marketKey then
+            Measure(marketKey)
+        end
+    end)
 end)

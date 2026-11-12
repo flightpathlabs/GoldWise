@@ -90,9 +90,11 @@ local function WhatText(entry)
         return name and ("Bid returned: %s"):format(name) or "Bid returned"
     end
 
-    local verb = entry.kind == ns.Trade.SALE and "Sold" or "Bought"
+    local verb = entry.kind == ns.Trade.SALE and "Sold"
+        or entry.kind == ns.Trade.BID and "Bid on"
+        or "Bought"
     if not name then
-        return verb .. " at auction"
+        return entry.kind == ns.Trade.BID and "Bid at auction" or (verb .. " at auction")
     elseif (entry.count or 1) > 1 then
         return ("%s %d %s"):format(verb, entry.count, name)
     end
@@ -104,7 +106,7 @@ local function FillRow(row, entry)
     row.When:SetText(date("%d %b", entry.at))
     row.What:SetText(WhatText(entry))
 
-    local spent = entry.kind == ns.Trade.PURCHASE
+    local spent = entry.kind == ns.Trade.PURCHASE or entry.kind == ns.Trade.BID
     local text, color = Theme.SignedCoins(spent and -entry.amount or entry.amount)
     row.Amount:SetText(text)
     row.Amount:SetTextColor(unpack(color))

@@ -25,9 +25,20 @@ Trade.PURCHASE = "purchase"
 Trade.DEPOSIT = "deposit"
 Trade.REFUND = "refund"
 
+-- Coin put down on an auction that may yet be outbid. It has left the
+-- purse like a purchase, but nothing has been bought until it's won.
+Trade.BID = "bid"
+
 -- Seconds an expected payment is waited for. The mailbox and the auction
 -- house both answer within a moment or two, when they answer at all.
 local EXPECT_FOR = 15
+
+-- A deposit we worked out can be a little off what the auction house
+-- takes. Coin that left is put down to it when the two are within this
+-- share of each other, and never further apart than a few copper on a
+-- small one.
+local DEPOSIT_TOLERANCE = 0.1
+local DEPOSIT_TOLERANCE_LEAST = 10
 
 -- The latest sales and purchases kept for the list on the Profit tab.
 local RECENT_KEPT = 80
@@ -71,11 +82,7 @@ local function Today()
 
         -- A new day is as good a moment as any to drop the oldest, and
         -- with it any note of what was paid for something that long ago.
-        for recorded in pairs(days) do
-            if recorded <= today - ns.settings.historyDays then
-                days[recorded] = nil
-            end
-        end
+        ns.Ledger.ForgetOldDays(days, ns.settings.historyDays)
 
         local oldest = GetServerTime() - ns.settings.historyDays * ns.SECONDS_PER_DAY
         for itemID, paid in pairs(Book().paid) do
@@ -109,12 +116,15 @@ local function File(kind, amount, expected)
     elseif kind == Trade.DEPOSIT then
         day.deposits = day.deposits + amount
     else
+        -- A purchase or a bid. Either way the coin has gone.
         day.bought = day.bought + amount
 
         -- What the player paid for a thing is worth knowing the next time
         -- they wonder whether to sell it. Only where the game said what
-        -- was bought and how many.
-        if expected.itemID and (expected.count or 0) > 0 then
+        -- was bought and how many, and only once it's theirs: a bid can
+        -- still come back.
+        local bought = kind == Trade.PURCHASE
+        if bought and expected.itemID and (expected.count or 0) > 0 then
             Book().paid[expected.itemID] = {
                 each = amount / expected.count,
                 at = GetServerTime(),
@@ -187,14 +197,17 @@ for _, name in ipairs({ "TakeInboxMoney", "AutoLootMailItem" }) do
     end
 end
 
--- The item an auction is for, if the game will say.
-local function ItemOfAuction(auctionID)
+-- The item an auction is for, and what buying it outright costs, if
+-- the game will say.
+local function AuctionDetails(auctionID)
     if not C_AuctionHouse.GetAuctionInfoByID then
         return nil
     end
 
     local ok, info = pcall(C_AuctionHouse.GetAuctionInfoByID, auctionID)
-    return ok and info and info.itemKey and info.itemKey.itemID or nil
+    if ok and info then
+        return info.itemKey and info.itemKey.itemID, info.buyoutAmount
+    end
 end
 
 -- A listing has been posted. Takes what asking the game for its deposit
@@ -212,12 +225,17 @@ end
 -- What the auction house lets a player ask of it, and what each will
 -- cost them. Whatever isn't on this client is skipped.
 local ASKS = {
-    -- A bid, or a buyout, on one auction.
+    -- A bid, or a buyout, on one auction. Both are placed the same way,
+    -- and it's only a purchase when the sum is the buyout price. Where
+    -- the game won't say what that is, it's taken for a bid: calling a
+    -- purchase a bid costs a word, and the other way round puts a price
+    -- paid on record for something never bought.
     PlaceBid = function(auctionID, amount)
+        local itemID, buyout = AuctionDetails(auctionID)
         Expect(leaving, {
-            kind = Trade.PURCHASE,
+            kind = buyout == amount and Trade.PURCHASE or Trade.BID,
             amount = amount,
-            itemID = ItemOfAuction(auctionID),
+            itemID = itemID,
             count = 1,
         })
     end,
@@ -248,24 +266,42 @@ end
 
 -- Matching ------------------------------------------------------------------------
 
--- Coin has arrived. Letters emptied one after another can land as one
--- sum, so take as many expected payments, oldest first, as it covers.
+-- Coin has arrived at the mailbox. It's only ours to file when it's
+-- exactly what a letter was expected to hold: the sum of one letter, or
+-- of the oldest few together, since letters emptied one after another
+-- can land as one. Anything else (a friend's gift between two sales, a
+-- letter we were never told about) is left alone, and what was expected
+-- waits its turn or goes stale.
 local function OnCoinArrived(amount)
     DropStale(arriving)
 
-    while arriving[1] and arriving[1].amount <= amount do
+    for index, expected in ipairs(arriving) do
+        if expected.amount == amount then
+            table.remove(arriving, index)
+            File(expected.kind, expected.amount, expected)
+            return
+        end
+    end
+
+    local together, letters = 0, 0
+    for index, expected in ipairs(arriving) do
+        together = together + expected.amount
+        if together >= amount then
+            letters = together == amount and index or 0
+            break
+        end
+    end
+    for _ = 1, letters do
         local expected = table.remove(arriving, 1)
-        amount = amount - expected.amount
         File(expected.kind, expected.amount, expected)
     end
 end
 
 -- Coin has gone at the auction house. Whatever was asked for that costs
 -- exactly this is the reason. Failing that, the oldest thing asked for
--- without a price; failing that, the oldest thing asked for at all, since
--- the figure we worked out may be a copper or two off. With nothing asked
--- for, it was a purchase made some way we don't watch, and still a
--- purchase.
+-- without a price. Failing that, a deposit we worked out to within a
+-- little of it. And with none of those, it was a purchase made some way
+-- we don't watch: still a purchase, of we don't know what.
 local function OnCoinSpent(amount)
     DropStale(leaving)
 
@@ -284,8 +320,15 @@ local function OnCoinSpent(amount)
             end
         end
     end
-    if not match and leaving[1] then
-        match = 1
+    if not match then
+        local near = math.max(DEPOSIT_TOLERANCE_LEAST, amount * DEPOSIT_TOLERANCE)
+        for index, expected in ipairs(leaving) do
+            local isDeposit = expected.kind == Trade.DEPOSIT
+            if isDeposit and math.abs(expected.amount - amount) <= near then
+                match = index
+                break
+            end
+        end
     end
 
     local expected = match and table.remove(leaving, match) or nil
@@ -293,9 +336,9 @@ local function OnCoinSpent(amount)
 end
 
 ns.Subscribe("MONEY_MOVED", function(delta, context)
-    if delta > 0 then
+    if delta > 0 and context == "mail" then
         OnCoinArrived(delta)
-    elseif context == "auction" then
+    elseif delta < 0 and context == "auction" then
         OnCoinSpent(-delta)
     end
 end)
@@ -307,6 +350,13 @@ end)
 -- (less any bids returned) and what was paid in deposits.
 local function Net(day)
     return day.sold - (day.bought - day.refunds) - day.deposits
+end
+
+-- What a day's buying came to, less the bids that came back. A bid placed
+-- on one day and returned on another would make this less than nothing,
+-- which is true of the coin but nonsense as a figure for "bought".
+local function Bought(day)
+    return math.max(0, day.bought - day.refunds)
 end
 
 --- What the auction house brought in and cost, for each day of a stretch.
@@ -327,7 +377,7 @@ function Trade.Daily(numDays)
         table.insert(days, {
             day = day,
             sold = record and record.sold or 0,
-            bought = record and (record.bought - record.refunds) or 0,
+            bought = record and Bought(record) or 0,
             deposits = record and record.deposits or 0,
             net = record and Net(record) or 0,
         })
@@ -348,7 +398,7 @@ function Trade.Totals(numDays)
         local record = recorded[day]
         if record then
             totals.sold = totals.sold + record.sold
-            totals.bought = totals.bought + record.bought - record.refunds
+            totals.bought = totals.bought + Bought(record)
             totals.deposits = totals.deposits + record.deposits
             totals.cut = totals.cut + record.cut
             totals.net = totals.net + Net(record)

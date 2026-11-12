@@ -43,11 +43,7 @@ local function Count()
 
     if not days[today] then
         -- A new day is as good a moment as any to drop the oldest.
-        for recorded in pairs(days) do
-            if recorded <= today - ns.settings.historyDays then
-                days[recorded] = nil
-            end
-        end
+        ns.Ledger.ForgetOldDays(days, ns.settings.historyDays)
     end
 
     local _, goods = ns.Assets.WorthOfEverything(ns.Market.Home())

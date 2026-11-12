@@ -6,25 +6,30 @@ the `dev` branch.
 
 ## Unreleased
 
-- **A Profit tab.** A line chart of what you came out ahead or behind by
-  on each of the last 30 days, with the auction house on its own line,
-  and a button to see it as a running total. It shows what you sold at
-  auction, what you spent there on purchases and deposits, and your
-  latest sales and purchases. Goldwise starts counting from this version:
-  auction sales and purchases from before it aren't there.
+**New**
 
+- **A Profit tab.** A line chart of what you came out ahead or behind by
+  on each of the last 30 days, with the auction house on its own line.
+  It can show the same days as a running total, or what you're worth:
+  your coin and your goods across your characters, day by day. Above the
+  chart is what you sold at auction and what you spent there on purchases
+  and deposits; below it, your latest sales and purchases. Goldwise
+  starts counting from this version: auction sales and purchases from
+  before it aren't there.
 - **A crafting tree for anything you can make.** Alt-right-click an item
   you can make, or make something from, to see the whole chain: what it
   takes, what those take, and what it goes into. Each step shows its
-  auction price, what it costs to buy and what it costs to make, and the
-  page says what you'd clear by buying the materials, making it and
-  selling it. Click a row to follow the chain. `/gw tree`, a new key
-  binding, the Assets right-click menu and the price history page open
-  it as well.
+  auction price, what it costs to buy and what it costs to make. The page
+  says what you'd clear by buying the materials, making it and selling
+  it, and the price it has to fetch to cover them. Click a row to follow
+  the chain. `/gw tree`, the Assets right-click menu and the price
+  history page open it as well.
 - **A Shortcuts page in the options.** Choose which click opens the
   crafting tree, and give it and the price history a key each, by
   pressing the key. The page warns you when the click or the key is
   already used for something else, and asks before taking a key over.
+
+**Better**
 
 - **Listing deposits are weighed as a risk, not a fee.** You get the
   deposit back when an auction sells and lose it when it doesn't, so
@@ -37,6 +42,18 @@ the `dev` branch.
   it (a drop to 1 copper has been announced), and it knows that things a
   vendor pays well for take a bigger deposit. It says so in chat when the
   minimum moves.
+- **Places sends you to the trainer you need next.** A craft's trainers
+  each teach one stretch of it, and the nearest tailor may be one you've
+  outgrown. Places now picks the nearest who can take you further at
+  your skill, and says so when it doesn't know of one. Trainers you
+  visit are remembered one by one, with their titles.
+- **Assets adds it all up.** A line under the list says what your things
+  are worth at today's auction prices, on this character and across the
+  account.
+- **An item's page says more.** When its price rests on only a few
+  listings, when you hold more of it than the whole market has listed,
+  and what you last paid for it at auction against what it would clear
+  today.
 - **"What materials are worth" fills in as it goes.** The game has to be
   asked about each material, and answers slowly. The list used to show a
   page of "Looking it up..." while it waited. It now shows each kind as
@@ -47,14 +64,9 @@ the `dev` branch.
   reach of your level unless you untick that.
 - **Buying to sell shows its working.** Each line now has the vendor's
   price and the auction price beside the profit.
-- **Places sends you to the trainer you need next.** A craft's trainers
-  each teach one stretch of it, and the nearest tailor may be one you've
-  outgrown. Places now picks the nearest who can take you further at
-  your skill, and says so when it doesn't know of one. Trainers you
-  visit are remembered one by one, with their titles.
-- **Assets adds it all up.** A line under the list says what your things
-  are worth at today's auction prices, on this character and across the
-  account.
+- **`/gw check` is a self-check.** It says whether the game offers what
+  Goldwise needs, and what Goldwise has on record. Useful to send with a
+  report.
 
 ## 0.3.2 (11 November 2026)
 
