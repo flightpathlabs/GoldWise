@@ -29,6 +29,11 @@ local WORTH_KEEPING = 500
 -- wait for them to settle before deciding anything.
 local SETTLE_DELAY = 2
 
+-- How near, in yards, counts as "close by". Wide enough to take in a
+-- capital from gate to gate, but not an inn at the far end of a zone that
+-- happens to share a map with a trading town.
+local CLOSE_BY = 1000
+
 -- Whether we've already prompted during this stay in a rested area.
 local promptedThisStay = false
 
@@ -54,6 +59,28 @@ end)
 
 -- Arriving near an auction house -----------------------------------------------------
 
+-- Whether the player is within walking distance of a known auction house
+-- on their current map.
+local function IsCloseBy(mapID, place)
+    local position = C_Map.GetPlayerMapPosition(mapID, "player")
+    if not position then
+        return false
+    end
+
+    -- Map positions are fractions of the map, and maps come in all sizes,
+    -- so measure in the world's own yards.
+    local _, here = C_Map.GetWorldPosFromMapPos(mapID, position)
+    local _, there = C_Map.GetWorldPosFromMapPos(mapID, CreateVector2D(place.x, place.y))
+    if not here or not there then
+        -- Nothing to measure with. Sharing a map will have to do.
+        return true
+    end
+
+    local hereX, hereY = here:GetXY()
+    local thereX, thereY = there:GetXY()
+    return (hereX - thereX) ^ 2 + (hereY - thereY) ^ 2 <= CLOSE_BY ^ 2
+end
+
 local function StalePricesText(marketKey)
     local lastScan = ns.Ledger.LastScan(marketKey)
     if not lastScan then
@@ -75,7 +102,7 @@ local function Check()
 
     local mapID = C_Map.GetBestMapForUnit("player")
     local place = mapID and ns.db.places[mapID]
-    if not place or ns.Market.IsOpen() then
+    if not place or ns.Market.IsOpen() or not IsCloseBy(mapID, place) then
         ns.SetButtonAttention(false)
         return
     end
@@ -138,11 +165,13 @@ local function CheckBeforeVendoring()
     end
 
     -- Everything that would clear a good deal more at auction than here.
+    -- Things a merchant won't buy at all are in no danger.
     local worthKeeping = {}
     for _, asset in ipairs(ns.Assets.InBags(ns.Market.Home())) do
         local advice = asset.advice
-        local gain = (advice.proceeds or 0) - (advice.fromVendor or 0)
-        if advice.verb == ns.Advice.SELL and gain >= WORTH_KEEPING then
+        local fromVendor = advice.fromVendor or 0
+        local gain = (advice.proceeds or 0) - fromVendor
+        if advice.verb == ns.Advice.SELL and fromVendor > 0 and gain >= WORTH_KEEPING then
             asset.gain = gain
             table.insert(worthKeeping, asset)
         end

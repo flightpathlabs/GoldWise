@@ -26,20 +26,25 @@ local shown = 0
 
 local function Create()
     local frame = CreateFrame("Frame", nil, UIParent, "TooltipBorderedFrameTemplate")
-    frame:SetWidth(WIDTH)
+    frame:SetSize(WIDTH, 1)
     frame:SetPoint("TOP", 0, -150)
     -- High enough to be seen, low enough to sit under real dialogs.
     frame:SetFrameStrata("HIGH")
     frame:Hide()
 
+    -- The text is given its width outright. The card's height is worked
+    -- out from how the text wraps, and text that takes its width from
+    -- anchors hasn't wrapped yet the first time we ask.
+    local textWidth = WIDTH - 2 * PADDING
+
     frame.Title = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalMed3")
     frame.Title:SetPoint("TOPLEFT", PADDING, -PADDING)
-    frame.Title:SetPoint("RIGHT", -PADDING, 0)
+    frame.Title:SetWidth(textWidth)
     frame.Title:SetJustifyH("LEFT")
 
     frame.Body = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     frame.Body:SetPoint("TOPLEFT", frame.Title, "BOTTOMLEFT", 0, -6)
-    frame.Body:SetPoint("RIGHT", -PADDING, 0)
+    frame.Body:SetWidth(textWidth)
     frame.Body:SetJustifyH("LEFT")
     frame.Body:SetSpacing(3)
 

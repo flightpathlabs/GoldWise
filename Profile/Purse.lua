@@ -37,6 +37,16 @@ Purse.SPENDING_LABELS = {
 
 local lastMoney
 
+-- Seconds after the flight map closes in which a payment is still a fare.
+local FARE_DELAY = 2
+
+local flightMapOpen = false
+
+-- Whether a merchant's window is open. Tracked on its own rather than read
+-- from the context above, because the two are set by different events and
+-- nothing promises which arrives first.
+local atMerchant = false
+
 local function Book()
     if type(ns.db.purse) ~= "table" then
         ns.db.purse = { days = {} }
@@ -93,13 +103,20 @@ end)
 
 -- Flight masters don't go through the interaction manager.
 ns.OnEvent("TAXIMAP_OPENED", function()
+    flightMapOpen = true
     context = "travel"
 end)
 
 ns.OnEvent("TAXIMAP_CLOSED", function()
-    if context == "travel" then
-        context = OTHER
-    end
+    flightMapOpen = false
+
+    -- Picking a destination closes the map, and the fare is taken a moment
+    -- later. Keep filing under travel just long enough to catch it.
+    C_Timer.After(FARE_DELAY, function()
+        if context == "travel" and not flightMapOpen then
+            context = OTHER
+        end
+    end)
 end)
 
 -- Reading it back -----------------------------------------------------------------
@@ -177,7 +194,7 @@ function Purse.RepairCost()
     end
     local wear = 100 - durability
 
-    if context == "vendor" and CanMerchantRepair() then
+    if atMerchant and CanMerchantRepair() then
         local cost, canRepair = GetRepairAllCost()
         if canRepair and cost > 0 and wear > 0 then
             Book().repairRate = cost / wear
@@ -194,7 +211,13 @@ end
 
 -- Opening a repairing merchant is our chance to learn what repairs cost.
 ns.OnEvent("MERCHANT_SHOW", function()
+    atMerchant = true
     Purse.RepairCost()
+    ns.Publish("PURSE_CHANGED")
+end)
+
+ns.OnEvent("MERCHANT_CLOSED", function()
+    atMerchant = false
     ns.Publish("PURSE_CHANGED")
 end)
 

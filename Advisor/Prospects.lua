@@ -65,10 +65,12 @@ end
 ---   level    the player's level
 ---   faction  "Alliance" or "Horde"
 ---   skills   { skinning = n, mining = n, herbalism = n }, absent if untrained
----@param priceOf fun(itemID: number): number|nil, number|nil
----        returns the price per unit and the quantity listed
+---@param priceOf fun(itemID: number): number|nil, number|nil, number|nil, string|nil
+---        returns what Ledger.Price does: the price per unit, the quantity
+---        listed, when that was read and where it came from
 ---@return table prospects  list of { itemID, name, kind, how, price, listed,
----        mapIDs }, dearest first. Items with no known price are left out.
+---        seenAt, source, mapIDs }, dearest first. Items with no known price
+---        are left out.
 function Prospects.For(profile, priceOf)
     local level = profile.level
     local low, high = level - LEVELS_BELOW, level + LEVELS_ABOVE
@@ -80,7 +82,7 @@ function Prospects.For(profile, priceOf)
             return
         end
 
-        local price, listed = priceOf(source.itemID)
+        local price, listed, seenAt, priceSource = priceOf(source.itemID)
         if not price then
             return
         end
@@ -92,6 +94,10 @@ function Prospects.For(profile, priceOf)
             how = how:format(source.minLevel, source.maxLevel),
             price = price,
             listed = listed,
+            -- Carried along so the item's page can say how old the price
+            -- is and who it came from.
+            seenAt = seenAt,
+            source = priceSource,
             mapIDs = ZonesFor(source, level, profile.faction),
         })
     end

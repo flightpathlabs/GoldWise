@@ -35,9 +35,14 @@ local KNOWN_HOUSES = {
 -- How alike a feed house and our own scan must be before we believe
 -- they're the same market: this share of the house's busiest items priced
 -- within PRICE_TOLERANCE of ours, and clear of the next best by a margin.
+--
+-- The tolerance has to be tight. Rulesets of the same faction price most
+-- things within a third of each other, so a loose one can't tell them
+-- apart; at 15% a neighbouring house scores about half what the right
+-- one does.
 local MATCH_NEEDED = 0.6
 local MATCH_MARGIN = 0.15
-local PRICE_TOLERANCE = 0.35
+local PRICE_TOLERANCE = 0.15
 
 -- House addons that refused to load, so we only try once.
 local unavailable = {}
@@ -49,8 +54,9 @@ function Feed.IsInstalled()
 end
 
 local function HouseKeyFor(marketKey)
+    -- A house we've confirmed ourselves outranks one worked out on the fly.
     local learned = ns.db.feedHouses and ns.db.feedHouses[marketKey]
-    return learned or KNOWN_HOUSES[marketKey]
+    return KNOWN_HOUSES[marketKey] or learned
 end
 
 -- The feed's data for a market, loading its addon if this is the first
@@ -106,6 +112,7 @@ local function Lookup(marketKey, itemID)
     cache.marketKey = marketKey
     cache.itemID = itemID
     cache.days = nil
+    cache.newestDay = nil
     cache.quantity = nil
     cache.updated = nil
 
@@ -131,7 +138,15 @@ local function Lookup(marketKey, itemID)
 
     cache.days = days
     cache.quantity = quantity
-    cache.updated = data.updated
+
+    -- The feed goes on carrying an item's last price for a while after it
+    -- stops being listed. That price is as old as the day it was read,
+    -- not as new as the feed.
+    if cache.newestDay and cache.newestDay < data.lastDay then
+        cache.updated = (cache.newestDay + 1) * ns.SECONDS_PER_DAY - 1
+    else
+        cache.updated = data.updated
+    end
     return cache
 end
 
@@ -149,7 +164,7 @@ end
 ---@param itemID number
 ---@return number|nil price     lowest buyout per unit, in copper
 ---@return number|nil quantity  how many were listed when the feed last read
----@return number|nil updated   server time of that read
+---@return number|nil updated   server time the price dates from
 function Feed.Price(marketKey, itemID)
     local found = Lookup(marketKey, itemID)
     if not found.days then

@@ -63,16 +63,22 @@ local function PriceAgeText()
     local marketKey = ns.Market.Current()
     local lastScan = ns.Ledger.LastScan(marketKey)
 
+    -- The feed may cover this market too. Wherever its prices can appear,
+    -- say where they come from, as Blizzard's terms ask.
+    local feedUpdated = ns.Feed.UpdatedAt(marketKey)
+
     if lastScan then
-        return ("%s. Prices read %s."):format(
+        local text = ("%s. Prices read %s."):format(
             ns.Market.Label(marketKey),
             ns.Ago(GetServerTime() - lastScan)
         )
+        if feedUpdated then
+            text = text .. " Gaps filled from " .. ns.Feed.SOURCE .. "."
+        end
+        return text
     end
 
-    -- Nothing of the player's own yet, but the feed may cover this market.
-    -- Say where those prices come from, as Blizzard's terms ask.
-    local feedUpdated = ns.Feed.UpdatedAt(marketKey)
+    -- Nothing of the player's own yet.
     if feedUpdated then
         return ("Prices from %s, updated %s. Visit an auction house for live ones."):format(
             ns.Feed.SOURCE,
@@ -273,12 +279,18 @@ for _, message in ipairs({
     "PRICES_CHANGED",
     "BAGS_CHANGED",
     "PROFILE_CHANGED",
-    "PURSE_CHANGED",
     "SETTINGS_CHANGED",
     "AUCTION_HOUSE_CLOSED",
 }) do
     ns.Subscribe(message, Refresh)
 end
+
+-- Money and durability change constantly, and only one tab cares.
+ns.Subscribe("PURSE_CHANGED", function()
+    if TABS[currentTab].page == "Purse" then
+        Refresh()
+    end
+end)
 
 -- Item details the client had to fetch (a vendor price for something on
 -- another character, say) arrive a moment after they're asked for. The
@@ -306,10 +318,14 @@ end)
 
 -- Ways in -----------------------------------------------------------------------------
 
+-- More gold than this isn't a goal, it's a typo (or "inf", which Lua will
+-- happily read as a number).
+local MAX_GOAL_GOLD = 1e7
+
 -- "/gw goal 50" sets a savings target of 50 gold; "/gw goal off" clears it.
 local function SetGoal(amount)
     local gold = tonumber(amount)
-    if gold and gold > 0 then
+    if gold and gold > 0 and gold <= MAX_GOAL_GOLD then
         ns.settings.goalCopper = math.floor(gold * ns.COPPER_PER_GOLD)
         ns.Print("Saving toward %s. The Purse tab tracks it.", ns.Money(ns.settings.goalCopper))
     elseif amount == "off" or amount == "0" then

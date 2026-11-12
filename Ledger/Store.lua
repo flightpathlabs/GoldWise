@@ -259,7 +259,8 @@ Ledger.FEED = "feed" -- the companion prices addon
 --- The newest price we have for an item, from whichever source has one.
 ---
 --- The player's own readings come first, unless another player has told us
---- something more recent. The feed answers when nobody has anything.
+--- something more recent. The feed answers when nobody has anything, or
+--- when what we have is more than a day staler than what it has.
 ---@param marketKey string
 ---@param itemID number
 ---@return number|nil price     lowest buyout per unit, in copper
@@ -268,18 +269,22 @@ Ledger.FEED = "feed" -- the companion prices addon
 ---@return string|nil source    Ledger.OWN, Ledger.PLAYERS or Ledger.FEED
 function Ledger.Price(marketKey, itemID)
     local price, quantity, seenAt = Ledger.LocalPrice(marketKey, itemID)
+    local source = price and Ledger.OWN
+
     local heard, heardQuantity, heardAt = ns.Network.Price(marketKey, itemID)
-
     if heard and (not price or heardAt > (seenAt or 0)) then
-        return heard, heardQuantity, heardAt, Ledger.PLAYERS
-    elseif price then
-        return price, quantity, seenAt, Ledger.OWN
+        price, quantity, seenAt, source = heard, heardQuantity, heardAt, Ledger.PLAYERS
     end
 
-    price, quantity, seenAt = ns.Feed.Price(marketKey, itemID)
-    if price then
-        return price, quantity, seenAt, Ledger.FEED
+    -- A reading taken in the game is first-hand, so it wins a close call.
+    -- But a price from last week shouldn't stand while the feed has
+    -- today's.
+    local fed, fedQuantity, fedAt = ns.Feed.Price(marketKey, itemID)
+    if fed and (not price or fedAt - (seenAt or 0) > ns.SECONDS_PER_DAY) then
+        return fed, fedQuantity, fedAt, Ledger.FEED
     end
+
+    return price, quantity, seenAt, source
 end
 
 --- The newest price from the player's own scans only.

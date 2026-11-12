@@ -32,7 +32,7 @@ function Assets.Describe(holding, marketKey, owner)
     local price, listed, seenAt, source = ns.Ledger.Price(marketKey, itemID)
 
     local history = ns.Ledger.History(marketKey, itemID, ns.Stats.USUAL_DAYS)
-    local againstUsual = ns.Stats.AgainstUsual(history)
+    local againstUsual = ns.Stats.AgainstUsual(history, price)
 
     local trend = {}
     for index, day in ipairs(history) do

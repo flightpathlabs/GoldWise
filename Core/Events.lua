@@ -74,6 +74,7 @@ end
 --   PRICES_CHANGED   marketKey      the ledger has new prices
 --   BAGS_CHANGED                    what the player carries has changed
 --   PROFILE_CHANGED                 the player's level or professions changed
+--   PURSE_CHANGED                   money, gear wear or known costs changed
 --   SETTINGS_CHANGED                the player changed an option
 --
 -- PRICES_CHANGED also fires when another player shares prices with us.

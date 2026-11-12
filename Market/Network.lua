@@ -13,7 +13,7 @@ local _, ns = ...
 -- player who has them answers (a few messages). Everyone on the channel
 -- hears the answer, so one question helps many.
 --
--- Three rules that matter:
+-- Four rules that matter:
 --
 --   * We only pass on what our own game read at the auction house. Never
 --     prices from the feed: those come from Blizzard's API, and its terms
@@ -21,6 +21,10 @@ local _, ns = ...
 --   * What we hear is hearsay. It's used for "what is this worth now" when
 --     we have nothing fresher, it's labelled as coming from another
 --     player, and it never goes into the price history.
+--   * Anyone can type anything into a chat channel, so nothing heard is
+--     trusted further than it has to be. Messages from anywhere but our
+--     channel are ignored, as are markets we've never dealt in and prices
+--     that are absurd or wildly out of line with what we know.
 --   * We stay well inside the game's limits on addon chatter, and go
 --     silent altogether if the channel gets busy.
 
@@ -34,6 +38,9 @@ local CHANNEL = "GoldwiseNet"
 -- and new versions ignore each other instead of misreading.
 local VERSION = "1"
 
+-- The game refuses addon messages longer than this.
+local MAX_MESSAGE_BYTES = 255
+
 -- How recent a scan must be to be worth sharing, or to make asking
 -- unnecessary.
 local FRESH = 2 * 3600
@@ -46,9 +53,8 @@ local JOIN_DELAY = 15 -- after login, before joining: channels need to settle
 local ASK_COOLDOWN = 10 * 60
 local ANSWER_COOLDOWN = 5
 
--- Sizes, chosen to keep each message under the 255-byte limit.
+-- Sizes. A question of this many items fits in one message.
 local MAX_ASK_ITEMS = 30
-local ITEMS_PER_REPLY = 12
 local MAX_REPLIES = 3
 
 -- If we hear more than this many Goldwise messages in a minute, the
@@ -59,14 +65,25 @@ local BUSY_MESSAGES_PER_MINUTE = 40
 -- ignored as a mistake or a prank.
 local MAX_DISAGREEMENT = 10
 
-local lastAsked = 0
-local lastAnswered = 0
+-- Nothing costs more than this (100,000 gold each), and no item is listed
+-- in greater numbers. Anything beyond is somebody having fun.
+local MAX_PRICE = 1e9
+local MAX_QUANTITY = 1e7
+
+-- GetTime() counts from when the computer started, so these begin far
+-- enough back that the first question isn't mistaken for a repeat.
+local lastAsked = -ASK_COOLDOWN
+local lastAnswered = -ANSWER_COOLDOWN
 
 -- Times of recently heard messages, for judging how busy the channel is.
 local heardTimes = {}
 
--- Answers we mean to send unless someone beats us to it: [firstItemID] = true.
+-- Answers we mean to send unless someone beats us to it, keyed by the
+-- question: [marketKey|itemList] = { marketKey, wanted = { [itemID] = true } }.
 local pendingAnswers = {}
+
+-- Set if the channel turns us away, so we don't keep knocking.
+local turnedAway = false
 
 -- Sending -------------------------------------------------------------------------
 
@@ -75,11 +92,15 @@ local function ChannelNumber()
     return type(number) == "number" and number > 0 and number or nil
 end
 
-local function ChannelIsBusy()
+local function ForgetOldMessages()
     local cutoff = GetTime() - 60
     while heardTimes[1] and heardTimes[1] < cutoff do
         table.remove(heardTimes, 1)
     end
+end
+
+local function ChannelIsBusy()
+    ForgetOldMessages()
     return #heardTimes > BUSY_MESSAGES_PER_MINUTE
 end
 
@@ -109,6 +130,12 @@ end
 
 -- Hearsay ---------------------------------------------------------------------------
 
+-- A market key off the wire could be anything. Only ones this account has
+-- actually dealt in are worth our attention, or a place in the saved file.
+local function IsKnownMarket(marketKey)
+    return ns.db.markets[marketKey] ~= nil
+end
+
 local function Hearsay(marketKey)
     local market = ns.MarketData(marketKey)
     if type(market.heard) ~= "table" then
@@ -130,7 +157,11 @@ function Network.Price(marketKey, itemID)
     end
 end
 
-local function Believable(marketKey, itemID, price)
+local function Believable(marketKey, itemID, price, quantity)
+    if price <= 0 or price > MAX_PRICE or quantity > MAX_QUANTITY then
+        return false
+    end
+
     -- Compare with our own readings or the feed, whichever we have.
     local known = ns.Ledger.LocalPrice(marketKey, itemID) or ns.Feed.Price(marketKey, itemID)
     if not known then
@@ -158,7 +189,7 @@ local function Remember(marketKey, scannedAt, entries)
         local wanted = market.tracked[itemID] ~= nil
         local newer = not heard[itemID] or heard[itemID][3] < scannedAt
 
-        if wanted and newer and price > 0 and Believable(marketKey, itemID, price) then
+        if wanted and newer and Believable(marketKey, itemID, price, quantity) then
             heard[itemID] = { price, quantity, scannedAt }
             learned = true
         end
@@ -212,7 +243,6 @@ end
 
 local function Answer(marketKey, itemList)
     local now = GetServerTime()
-    local scannedAt = ns.Ledger.LastScan(marketKey)
     local found = {}
 
     for itemID in itemList:gmatch("%d+") do
@@ -223,27 +253,29 @@ local function Answer(marketKey, itemList)
         end
     end
 
-    local sent = 0
-    for first = 1, #found, ITEMS_PER_REPLY do
-        if sent == MAX_REPLIES then
-            break
+    local header = ("P|%s|%d|"):format(marketKey, ns.Ledger.LastScan(marketKey) or now)
+    local room = MAX_MESSAGE_BYTES - #VERSION - #header
+
+    -- Fill each message with as many prices as will fit, since dear items
+    -- take more characters to write down than cheap ones.
+    local first, sent = 1, 0
+    while first <= #found and sent < MAX_REPLIES do
+        local last, bytes = first, #found[first]
+        while found[last + 1] and bytes + 1 + #found[last + 1] <= room do
+            last = last + 1
+            bytes = bytes + 1 + #found[last]
         end
 
-        local last = math.min(first + ITEMS_PER_REPLY - 1, #found)
-        local entries = table.concat(found, ",", first, last)
-        if not Send(("P|%s|%d|%s"):format(marketKey, scannedAt, entries)) then
+        if not Send(header .. table.concat(found, ",", first, last)) then
             break
         end
         sent = sent + 1
+        first = last + 1
     end
 
     if sent > 0 then
         lastAnswered = GetTime()
-        ns.Log(
-            "network: answered with %d of %d items",
-            math.min(#found, sent * ITEMS_PER_REPLY),
-            #found
-        )
+        ns.Log("network: answered with %d of %d items", first - 1, #found)
     end
 end
 
@@ -256,18 +288,41 @@ local function ConsiderAnswering(marketKey, itemList)
 
     -- Several players may be able to answer. Each waits a random moment,
     -- and stands down if it hears someone else answer first.
-    local firstItem = itemList:match("%d+")
-    if not firstItem or pendingAnswers[firstItem] then
+    local question = marketKey .. "|" .. itemList
+    if pendingAnswers[question] then
         return
     end
-    pendingAnswers[firstItem] = true
+
+    local wanted = {}
+    for itemID in itemList:gmatch("%d+") do
+        wanted[itemID] = true
+    end
+    if not next(wanted) then
+        return
+    end
+    pendingAnswers[question] = { marketKey = marketKey, wanted = wanted }
 
     C_Timer.After(1 + math.random() * 4, function()
-        if pendingAnswers[firstItem] then
-            pendingAnswers[firstItem] = nil
+        if pendingAnswers[question] then
+            pendingAnswers[question] = nil
             Answer(marketKey, itemList)
         end
     end)
+end
+
+-- Someone has answered with these prices. Any question of ours they cover
+-- has been dealt with.
+local function StandDown(marketKey, entries)
+    for question, pending in pairs(pendingAnswers) do
+        if pending.marketKey == marketKey then
+            for itemID in entries:gmatch("(%d+):") do
+                if pending.wanted[itemID] then
+                    pendingAnswers[question] = nil
+                    break
+                end
+            end
+        end
+    end
 end
 
 -- Listening ---------------------------------------------------------------------------
@@ -277,39 +332,47 @@ local function IsOurs(sender)
     return sender and sender:match("^[^-]+") == UnitName("player")
 end
 
-ns.OnEvent("CHAT_MSG_ADDON", function(prefix, text, _, sender)
+-- The same prefix can be whispered, or sent to a party or guild, by anyone
+-- who cares to. We only ever talk on our own channel, so only listen there.
+local function IsFromOurChannel(kind, localID, name)
+    return kind == "CHANNEL" and (localID == ChannelNumber() or name == CHANNEL)
+end
+
+ns.OnEvent("CHAT_MSG_ADDON", function(prefix, text, kind, sender, _, _, localID, channelName)
     if prefix ~= PREFIX or not ns.settings.sharePrices or IsOurs(sender) then
         return
     end
+    if not IsFromOurChannel(kind, localID, channelName) then
+        return
+    end
+
+    ForgetOldMessages()
     table.insert(heardTimes, GetTime())
 
     if text:sub(1, 1) ~= VERSION then
         return
     end
 
-    local kind, marketKey, rest = text:match("^.(%a)|([^|]+)|?(.*)$")
-    if not kind then
+    local messageType, marketKey, rest = text:match("^.(%a)|([^|]+)|?(.*)$")
+    if not messageType then
         return
     end
 
-    if kind == "A" then
+    if messageType == "A" then
         -- Someone has just scanned this market. If it's ours and we're in
         -- need, this is the moment to ask. A short random wait keeps a
         -- crowd from all asking in the same second.
         if marketKey == ns.Market.Home() then
             C_Timer.After(3 + math.random() * 12, Ask)
         end
-    elseif kind == "Q" then
+    elseif not IsKnownMarket(marketKey) then
+        return
+    elseif messageType == "Q" then
         ConsiderAnswering(marketKey, rest)
-    elseif kind == "P" then
+    elseif messageType == "P" then
         local scannedAt, entries = rest:match("^(%d+)|(.*)$")
         if scannedAt then
-            -- Someone answered. If we were about to answer the same
-            -- question, there's no need now.
-            local firstItem = entries:match("%d+")
-            if firstItem then
-                pendingAnswers[firstItem] = nil
-            end
+            StandDown(marketKey, entries)
             Remember(marketKey, tonumber(scannedAt), entries)
         end
     end
@@ -327,14 +390,34 @@ end
 
 local function UpdateMembership()
     if ns.settings.sharePrices then
-        if not ChannelNumber() then
+        if not ChannelNumber() and not turnedAway then
             JoinTemporaryChannel(CHANNEL)
+            -- The join is confirmed by a notice (below), which is the
+            -- proper moment to hide the channel. This is for the day the
+            -- notice doesn't come.
             C_Timer.After(2, HideChannel)
         end
     elseif ChannelNumber() then
         LeaveChannelByName(CHANNEL)
     end
 end
+
+-- The game tells us how joining went. The ninth value is the channel's name.
+ns.OnEvent("CHAT_MSG_CHANNEL_NOTICE", function(notice, _, _, _, _, _, _, _, channelName)
+    if type(channelName) ~= "string" or channelName:lower() ~= CHANNEL:lower() then
+        return
+    end
+
+    if notice == "YOU_JOINED" or notice == "YOU_CHANGED" then
+        HideChannel()
+    elseif notice == "WRONG_PASSWORD" or notice == "BANNED" then
+        -- Somebody has locked the channel or thrown us out. Asking again
+        -- would only put a password prompt in front of the player each
+        -- time, so sharing is off until the next login.
+        turnedAway = true
+        ns.Log("network: turned away from the channel (%s)", notice)
+    end
+end)
 
 C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
 

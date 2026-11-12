@@ -20,9 +20,12 @@ local function Roster()
     return ns.db.characters
 end
 
--- Names are unique across a region on Forever, but the realm string also
--- carries the ruleset, and the same name could exist on two of those.
-local function CurrentKey()
+--- The key the current character's records are kept under.
+---
+--- Names are unique across a region on Forever, but the realm string also
+--- carries the ruleset, and the same name could exist on two of those.
+---@return string
+function Characters.CurrentKey()
     return ("%s-%s"):format(UnitName("player") or "?", GetRealmName() or "")
 end
 
@@ -38,7 +41,7 @@ local function Remember()
         }
     end
 
-    Roster()[CurrentKey()] = {
+    Roster()[Characters.CurrentKey()] = {
         name = UnitName("player"),
         -- Which auction house this character sells at. Only characters who
         -- share a market belong in the same list.
@@ -55,7 +58,7 @@ end
 --- every other character's as of their last login.
 ---@return number copper
 function Characters.TotalMoney()
-    local current = CurrentKey()
+    local current = Characters.CurrentKey()
     local total = GetMoney()
 
     for key, record in pairs(Roster()) do
@@ -71,7 +74,7 @@ end
 ---@param itemID number
 ---@return table holders  list of { name, count }
 function Characters.HoldersOf(itemID)
-    local current = CurrentKey()
+    local current = Characters.CurrentKey()
     local holders = {}
 
     for key, record in pairs(Roster()) do
@@ -93,7 +96,7 @@ end
 ---@return table others  list of { name, money, seenAt, holdings }, where
 ---        holdings is a list shaped like Bags.Holdings()
 function Characters.Others(marketKey)
-    local current = CurrentKey()
+    local current = Characters.CurrentKey()
     local others = {}
 
     for key, record in pairs(Roster()) do
@@ -134,7 +137,7 @@ end
 
 ns.Subscribe("BAGS_CHANGED", Remember)
 ns.OnEvent("PLAYER_MONEY", function()
-    local record = Roster()[CurrentKey()]
+    local record = Roster()[Characters.CurrentKey()]
     if record then
         record.money = GetMoney()
     end

@@ -78,6 +78,8 @@ read_globals = {
     "ScrollBoxConstants",
     "ScrollUtil",
     "UiMapPoint",
+    "CreateVector2D",
+    "BuyTrainerService",
 
     -- Frames and widgets
     "CreateFrame",

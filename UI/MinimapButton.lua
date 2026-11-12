@@ -69,14 +69,16 @@ local function Create()
     frame:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 
     -- The standard look: a dark disc, the icon, and the gold ring on top.
+    -- The sizes are the ones other addons' buttons use on this client, so
+    -- ours lines up with its neighbours.
     local background = frame:CreateTexture(nil, "BACKGROUND")
-    background:SetSize(20, 20)
-    background:SetPoint("TOPLEFT", 7, -5)
+    background:SetSize(24, 24)
+    background:SetPoint("CENTER")
     background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
 
     local icon = frame:CreateTexture(nil, "ARTWORK")
     icon:SetSize(18, 18)
-    icon:SetPoint("TOPLEFT", 7, -6)
+    icon:SetPoint("CENTER")
     icon:SetTexture(Theme.ICON)
 
     -- The icon is square and the ring is round, so trim its corners.
@@ -90,7 +92,7 @@ local function Create()
     icon:AddMaskTexture(mask)
 
     local ring = frame:CreateTexture(nil, "OVERLAY")
-    ring:SetSize(53, 53)
+    ring:SetSize(50, 50)
     ring:SetPoint("TOPLEFT")
     ring:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
 
@@ -119,7 +121,7 @@ local function Create()
     -- lives on a child frame because that's what the fade is applied to.
     local glow = CreateFrame("Frame", nil, frame)
     glow:SetSize(38, 38)
-    glow:SetPoint("CENTER", frame, "TOPLEFT", 16, -15)
+    glow:SetPoint("CENTER")
     glow:Hide()
 
     local light = glow:CreateTexture(nil, "OVERLAY")
@@ -149,12 +151,14 @@ local function UpdateAttention()
         return
     end
 
-    if wantsAttention and not button.Pulse:IsPlaying() then
-        button.Glow:Show()
-        button.Pulse:Play()
-    elseif not wantsAttention and button.Pulse:IsPlaying() then
+    -- The glow is set outright rather than only when the pulse is running:
+    -- hiding the button can stop the animation behind our back, and the
+    -- glow mustn't be left lit when that happens.
+    button.Glow:SetShown(wantsAttention)
+    if not wantsAttention then
         button.Pulse:Stop()
-        button.Glow:Hide()
+    elseif not button.Pulse:IsPlaying() then
+        button.Pulse:Play()
     end
 end
 

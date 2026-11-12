@@ -20,6 +20,12 @@ local MIN_DAYS_FOR_CHART = 3
 local CHART_WIDTH, CHART_HEIGHT = 220, 66
 local PADDING = 8
 
+-- Extra height for the line crediting the feed, when the chart needs one.
+local CREDIT_HEIGHT = 13
+
+-- Short enough for a tooltip. The full name is on the item's own page.
+local FEED_CREDIT = "Blizzard API"
+
 -- Looking up -------------------------------------------------------------------
 
 -- A tooltip is rebuilt several times a second while the mouse rests on an
@@ -31,8 +37,14 @@ local function Lookup(itemID)
     if cache.itemID ~= itemID or cache.marketKey ~= marketKey then
         cache.itemID = itemID
         cache.marketKey = marketKey
-        cache.price, cache.listed = ns.Ledger.Price(marketKey, itemID)
+        cache.price, cache.listed, cache.seenAt, cache.source = ns.Ledger.Price(marketKey, itemID)
         cache.history = ns.Ledger.History(marketKey, itemID, ns.Stats.USUAL_DAYS)
+
+        -- Whether any day on the chart is one the feed supplied.
+        cache.chartUsesFeed = false
+        for _, day in ipairs(cache.history) do
+            cache.chartUsesFeed = cache.chartUsesFeed or day.fromFeed == true
+        end
     end
     return cache
 end
@@ -61,13 +73,21 @@ local function CreatePanel()
     -- The stock fonts carry a dark shadow, which smears on a light page.
     frame.Caption:SetShadowOffset(0, 0)
 
+    -- Hung from the top, so the credit line can be added underneath
+    -- without moving it.
     frame.Trend = ns.Chart.CreateSparkline(frame, CHART_WIDTH - 2 * PADDING, CHART_HEIGHT - 30)
-    frame.Trend:SetPoint("BOTTOMLEFT", PADDING, 7)
+    frame.Trend:SetPoint("TOPLEFT", PADDING, -23)
+
+    frame.Credit = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    frame.Credit:SetPoint("BOTTOMLEFT", PADDING, 6)
+    frame.Credit:SetTextColor(unpack(Theme.FADED_INK))
+    frame.Credit:SetShadowOffset(0, 0)
+    frame.Credit:SetText("Includes prices from the " .. FEED_CREDIT)
 
     return frame
 end
 
-local function ShowChart(tooltip, history)
+local function ShowChart(tooltip, history, usesFeed)
     -- A tooltip with no owner is being filled but won't be shown, so it
     -- would never tell us to take the chart away again.
     if not tooltip:GetOwner() then
@@ -85,6 +105,11 @@ local function ShowChart(tooltip, history)
     panel.Caption:SetText(("%d days: %s to %s"):format(#history, ns.Money(low), ns.Money(high)))
     panel.Trend:SetValues(values, Theme.INK)
 
+    -- Blizzard's terms ask that its data is credited where it's shown.
+    local height = CHART_HEIGHT + (usesFeed and CREDIT_HEIGHT or 0)
+    panel.Credit:SetShown(usesFeed)
+    panel:SetHeight(height)
+
     -- We're called while the tooltip is still being built, before it has
     -- its final size and place. Wait a frame for that to settle, then put
     -- the chart below it if there's room and above it if there isn't.
@@ -94,7 +119,7 @@ local function ShowChart(tooltip, history)
         end
 
         panel:ClearAllPoints()
-        if (tooltip:GetBottom() or 0) > CHART_HEIGHT + 8 then
+        if (tooltip:GetBottom() or 0) > height + 8 then
             panel:SetPoint("TOPLEFT", tooltip, "BOTTOMLEFT", 0, -2)
         else
             panel:SetPoint("BOTTOMLEFT", tooltip, "TOPLEFT", 0, 2)
@@ -196,8 +221,9 @@ local function OnItemTooltip(tooltip, data)
     local found = Lookup(itemID)
 
     if found.price and settings.tooltipPrice and not AnotherAddonShowsPrices() then
+        local fromFeed = found.source == ns.Ledger.FEED
         tooltip:AddDoubleLine(
-            "Auction",
+            fromFeed and ("Auction (" .. FEED_CREDIT .. ")") or "Auction",
             ("%s  (%s)"):format(Theme.Coins(found.price), Theme.Listed(found.listed)),
             coin[1],
             coin[2],
@@ -219,7 +245,7 @@ local function OnItemTooltip(tooltip, data)
 
     if settings.tooltipChart and tooltip == GameTooltip then
         if #found.history >= MIN_DAYS_FOR_CHART then
-            ShowChart(tooltip, found.history)
+            ShowChart(tooltip, found.history, found.chartUsesFeed)
         end
     end
 end

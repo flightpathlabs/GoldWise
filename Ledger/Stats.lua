@@ -32,15 +32,19 @@ function Stats.UsualPrice(history)
     return total / earlier
 end
 
---- How the newest price compares with the usual one.
+--- How a price compares with the usual one.
 ---@param history table
+---@param price number|nil  the price to judge. Defaults to the newest in the
+---        history, but the price on show can come from somewhere the
+---        history doesn't cover (another player, say), and whatever is said
+---        about a price should be about the one the player is looking at.
 ---@return number|nil difference  0.18 means 18% above usual, -0.1 means 10% below
-function Stats.AgainstUsual(history)
+function Stats.AgainstUsual(history, price)
     local usual = Stats.UsualPrice(history)
     if not usual or usual == 0 then
         return nil
     end
-    return history[#history].last / usual - 1
+    return (price or history[#history].last) / usual - 1
 end
 
 --- The lowest and highest prices seen across a history.

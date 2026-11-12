@@ -95,7 +95,7 @@ local function UpcomingCosts(level)
     end
 
     local training = ns.Training.Outstanding(level)
-    if #training == 0 then
+    if not ns.Training.HasPrices() then
         table.insert(costs, {
             when = "Training",
             what = "Open your class trainer once and Goldwise will learn the prices.",
@@ -141,13 +141,15 @@ end
 
 -- The sentence at the bottom: can they cover what's next?
 local function Verdict(money, income, spending, costs)
-    -- "Next" is the repairs plus the first thing with a price that isn't
-    -- the long-term goal.
-    local due, name = 0, nil
+    -- "Next" is the repairs, if we can put a price on them, plus the first
+    -- thing with a price that isn't the long-term goal.
+    local due, name, repairs = 0, nil, false
     for _, cost in ipairs(costs) do
         if cost.amount and cost.when ~= "Your goal" then
             due = due + cost.amount
-            if cost.when ~= "Repairs" then
+            if cost.when == "Repairs" then
+                repairs = cost.amount > 0
+            else
                 name = cost.when
                 break
             end
@@ -161,16 +163,21 @@ local function Verdict(money, income, spending, costs)
     if name then
         local label = name == "Training now" and "the training waiting for you"
             or (name:lower() .. " training")
+        -- Only speak for the repairs when their cost is in the sum.
+        if repairs then
+            label = "repairs and " .. label
+        end
+
         if money >= due then
             table.insert(
                 lines,
-                ("You can cover repairs and %s, with about %s to spare."):format(
+                ("You can cover %s, with about %s to spare."):format(
                     label,
                     Theme.Coins(money - due)
                 )
             )
         elseif net > 0 then
-            local short = "You're about %s short for repairs and %s. "
+            local short = "You're about %s short for %s. "
                 .. "At your recent pace that's about %d days of play."
             table.insert(
                 lines,
@@ -179,10 +186,7 @@ local function Verdict(money, income, spending, costs)
         else
             table.insert(
                 lines,
-                ("You're about %s short for repairs and %s."):format(
-                    Theme.Coins(due - money),
-                    label
-                )
+                ("You're about %s short for %s."):format(Theme.Coins(due - money), label)
             )
         end
     end
@@ -274,7 +278,7 @@ function PurseTab.Create(parent)
             goingOut.Figure:SetText("-")
             goingOut.Note:SetText("Nothing recorded yet")
         else
-            local span = activeDays == 1 and "today"
+            local span = activeDays == 1 and "from one day of play so far"
                 or ("over your last %d days played"):format(activeDays)
             comingIn.Figure:SetText(Theme.Coins(income) .. " a day")
             comingIn.Note:SetText(span)
