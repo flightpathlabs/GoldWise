@@ -83,6 +83,41 @@ function ns.Ago(seconds)
     return ("%d days ago"):format(math.floor(seconds / ns.SECONDS_PER_DAY))
 end
 
+-- How far the player's clock is from UTC, and when that was last worked
+-- out. It moves twice a year at most, so it's looked at again every few
+-- minutes and no more often.
+local CLOCK_CHECK = 300
+local clockOffset, clockCheckedAt
+
+--- How many seconds the player's own clock runs ahead of UTC, in whole
+--- hours. Negative west of Greenwich: -28,800 on the American west coast.
+---
+--- The game counts time in UTC, where a new day starts in the middle of
+--- an American afternoon and of an Australian morning. Anything Goldwise
+--- files by day uses this to file it by the player's day instead.
+---@return number seconds
+function ns.ClockOffset()
+    local uptime = GetTime()
+    if not clockOffset or uptime - clockCheckedAt > CLOCK_CHECK then
+        local now = time()
+
+        -- The same moment as UTC would write it, read back as though it
+        -- were local. The gap between that and now is the offset. Summer
+        -- time has to be carried across, or it's an hour out for half the
+        -- year.
+        local elsewhere = date("!*t", now)
+        elsewhere.isdst = date("*t", now).isdst
+
+        -- Taken to the nearest hour. Some of what's filed by day is kept
+        -- by the hour underneath, and a zone on the half hour (India,
+        -- central Australia) would have those two disagree about where
+        -- midnight falls. There a day starts half an hour off the clock's.
+        clockOffset = math.floor((now - time(elsewhere)) / 3600 + 0.5) * 3600
+        clockCheckedAt = uptime
+    end
+    return clockOffset
+end
+
 --- Prints a line to chat with the addon's name in front.
 --- Used for slash-command replies only. Goldwise doesn't narrate in chat.
 function ns.Print(text, ...)

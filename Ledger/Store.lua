@@ -21,8 +21,15 @@ local _, ns = ...
 local Ledger = {}
 ns.Ledger = Ledger
 
--- Individual readings kept per tracked item, newest last.
-local RECENT_LIMIT = 40
+-- Individual readings kept per tracked item, newest last. These are what
+-- show how a price moved within a day, so there are enough of them to
+-- cover a week or two of visiting several times a day.
+local RECENT_LIMIT = 120
+
+-- Readings closer together than this are one reading. Buying a stack a
+-- piece at a time asks the auction house about the same item over and
+-- over, and a chart gains nothing from thirty points inside a minute.
+local READING_GAP = 5 * 60
 
 -- Positions in a tracked item's day record. Stored as a plain list because
 -- there can be thousands of these in the saved file.
@@ -33,11 +40,24 @@ local LOW, HIGH, LAST, QUANTITY = 1, 2, 3, 4
 -- Rebuilt from the most recent saved snapshot the first time it's needed.
 local latest = {}
 
---- Today as a whole number of days. Server time, so it doesn't depend on
---- the player's clock or time zone.
+--- Today as a whole number of days, where a day runs from midnight to
+--- midnight on the player's own clock.
+---
+--- It used to be the UTC day, which turns over at four or five in the
+--- afternoon for an American player: an evening's play and the next
+--- morning's landed on the same day, and nothing on a chart moved on.
+--- Records made before the change sit a few hours out of place, on their
+--- last day only.
 ---@return number day
 function Ledger.Today()
-    return math.floor(GetServerTime() / ns.SECONDS_PER_DAY)
+    return Ledger.DayOf(GetServerTime())
+end
+
+--- The day a moment falls on, counted as Ledger.Today counts them.
+---@param serverTime number
+---@return number day
+function Ledger.DayOf(serverTime)
+    return math.floor((serverTime + ns.ClockOffset()) / ns.SECONDS_PER_DAY)
 end
 
 --- Drops, from a table kept by day, every day older than a given number
@@ -91,6 +111,14 @@ local function FindInSnapshot(snapshot, itemID)
 end
 
 local function NewestDay(market)
+    -- Today's is the newest whatever else is there. A snapshot filed
+    -- back when days were counted in UTC can sit under tomorrow's number
+    -- for a few hours, and it's older than anything read today.
+    local today = Ledger.Today()
+    if market.daily[today] then
+        return today
+    end
+
     local newest
     for day in pairs(market.daily) do
         if not newest or day > newest then
@@ -122,7 +150,18 @@ local function AddReading(record, day, now, price, quantity)
         record.days[day] = { price, price, price, quantity }
     end
 
-    table.insert(record.recent, { now, price, quantity })
+    -- The newest reading is always the last one, whether it's added or
+    -- brings one made a moment ago up to date. The earlier one keeps its
+    -- time: were it to take the new time, a run of readings each a few
+    -- minutes after the last would go on folding into one for as long as
+    -- it lasted, and an hour's movement would be a single point.
+    local newest = record.recent[#record.recent]
+    if newest and now - newest[1] < READING_GAP then
+        newest[2], newest[3] = price, quantity
+    else
+        table.insert(record.recent, { now, price, quantity })
+    end
+
     while #record.recent > RECENT_LIMIT do
         table.remove(record.recent, 1)
     end
@@ -356,7 +395,10 @@ function Ledger.LocalPrice(marketKey, itemID)
             end
         end
         if newest then
-            return record.days[newest][LAST], 0, newest * ns.SECONDS_PER_DAY
+            -- Dated to the start of that day, which is the one moment of
+            -- it sure to be in the past.
+            local startOfDay = newest * ns.SECONDS_PER_DAY - ns.ClockOffset()
+            return record.days[newest][LAST], 0, startOfDay
         end
     end
 end
@@ -411,6 +453,36 @@ function Ledger.History(marketKey, itemID, numDays)
     end
 
     return history
+end
+
+--- Every separate reading of an item's price over the last few days,
+--- oldest first, for seeing how it moved within a day. Only items the
+--- player holds or follows have these, and only the player's own game's
+--- readings are among them.
+---@param marketKey string
+---@param itemID number
+---@param numDays number  how far back to look
+---@return table readings  shaped like Ledger.History's days, but with
+---        day a moment and not a whole number: 12.5 is noon on day 12
+function Ledger.Readings(marketKey, itemID, numDays)
+    local record = ns.MarketData(marketKey).tracked[itemID]
+    local oldest = GetServerTime() - numDays * ns.SECONDS_PER_DAY
+    local offset = ns.ClockOffset()
+    local readings = {}
+
+    for _, reading in ipairs(record and record.recent or {}) do
+        local at, price, quantity = reading[1], reading[2], reading[3]
+        if at >= oldest then
+            table.insert(readings, {
+                day = (at + offset) / ns.SECONDS_PER_DAY,
+                low = price,
+                high = price,
+                last = price,
+                quantity = quantity,
+            })
+        end
+    end
+    return readings
 end
 
 --- The newest price of everything seen on a market, for the few callers
