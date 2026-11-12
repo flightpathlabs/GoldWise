@@ -235,7 +235,25 @@ an item on your tooltips, Goldwise leaves those to it and adds only the
 chart. Turn the other addon's version off and Goldwise's comes back.
 
 It also reads along when another addon scans the auction house first, so
-nobody's scan is wasted.
+nobody's scan is wasted, and the auction house isn't asked for the same
+thing twice. When another addon has asked for every auction, Goldwise
+waits for that answer and uses it.
+
+None of these is needed, and there's nothing to switch on. Goldwise
+notices what you have:
+
+| With this installed | Goldwise |
+|---|---|
+| Auctionator | Reads the results of its scan instead of sending a search of its own, and leaves the price on item tooltips to it |
+| Profession Atlas | Waits for its read of every auction and uses that list, and leaves its tooltip lines and its progress panel alone |
+| Questie | Knows where every trainer and recipe vendor stands from the start, not only the ones you've visited |
+| Bagnon and other bag addons | Draws its gold rim in their bags and bank, and leaves the list of which characters hold an item to them |
+| What's Training? | Asks it what your class training costs |
+| TradeSkillMaster, Auctioneer | Leaves tooltip prices to them, and doesn't spend the full read of the auction house they share with it |
+
+Auctionator, Profession Atlas, Questie and Bagnon are the ones Goldwise
+is played beside every day. TradeSkillMaster and Auctioneer are
+recognised but haven't had the same testing.
 
 ## Where its knowledge comes from
 

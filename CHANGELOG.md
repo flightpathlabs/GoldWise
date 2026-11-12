@@ -6,6 +6,20 @@ the `dev` branch.
 
 ## Unreleased
 
+- **Fewer requests to the auction house when other addons are reading
+  it.** When another addon asks for every auction, as Profession Atlas
+  does, Goldwise now waits for that answer and uses it instead of reading
+  the market itself at the same moment. If its own read is already under
+  way when the list arrives, it stops. With Auctionator or Profession
+  Atlas installed it also gives them a few seconds' head start on
+  opening, so one read serves both.
+- **About lists the addons Goldwise works with**, and what it does
+  differently beside each.
+- **Professions are recognised in any language.** They were matched by
+  their English names, so on a German or French client Goldwise thought
+  you had none. The rest of Goldwise is still in English.
+- **A bid handed back is recognised in any language**, from the wording
+  of the letter's subject, not only from the sender's English name.
 - Carries its Wago Addons project ID, so new releases reach Wago as well
   as CurseForge.
 

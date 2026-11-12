@@ -136,6 +136,38 @@ local function Sections()
             text = { "Every price can tell you how old it is and which of these it came from." },
         },
         {
+            heading = "Alongside your other addons",
+            intro = {
+                "Goldwise is built to share. It doesn't show what another addon is "
+                    .. "already showing, and it doesn't ask the auction house for anything "
+                    .. "another addon has just fetched. There's nothing to switch on: it "
+                    .. "notices what you have.",
+            },
+            list = {
+                "Auctionator: when it reads the auction house, Goldwise reads the same "
+                    .. "results instead of sending a search of its own, and leaves the "
+                    .. "price on item tooltips to it.",
+                "Profession Atlas: the same. When Atlas reads every auction, Goldwise "
+                    .. "waits for that list and uses it, and leaves Atlas's tooltip lines "
+                    .. "and its progress panel alone.",
+                "Questie: with it installed, Places and Recipes know where every trainer "
+                    .. "and recipe vendor stands from the start, not only the ones you've "
+                    .. "visited.",
+                "Bagnon and other bag addons: the gold rim on what's worth auctioning "
+                    .. "shows in their bags and bank, and the list of which characters hold "
+                    .. "an item is left to them.",
+                "What's Training?: when it's installed, Goldwise asks it what your class "
+                    .. "training costs.",
+                "TradeSkillMaster and Auctioneer: Goldwise leaves tooltip prices to them, "
+                    .. "and doesn't spend the full read of the auction house they share "
+                    .. "with it.",
+            },
+            text = {
+                "None of these is needed. Goldwise does all of it alone, only with more "
+                    .. "trips to the auction house and more to learn as you go.",
+            },
+        },
+        {
             heading = "Auditor mode",
             text = {
                 "An option. The goblin delivers the same advice at full volume. The facts "
