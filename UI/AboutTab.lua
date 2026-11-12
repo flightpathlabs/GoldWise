@@ -37,6 +37,11 @@ local function Sections()
                     .. "worth the walk to the auction house.",
                 "Rest your mouse on any item, anywhere, for its price and a small chart "
                     .. "of how it's moved.",
+                "For the full history of anything you can point at, type /gw history, or "
+                    .. "give it a key under Options, Keybindings, Goldwise. You can also "
+                    .. "shift-click an item after typing /gw and a space.",
+                "In your bags and bank, a gold rim and a coin mark what's worth taking to "
+                    .. "the auction house.",
                 "On Purse, press Where beside a line of training to see which city's "
                     .. "trainers are cheapest for you, and put them on your map.",
                 "Lost? Places lists the nearest trainer, repairer, bank and flight master, "

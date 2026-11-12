@@ -51,6 +51,10 @@ local DEFAULT_SETTINGS = {
     -- Goldwise is reading and what it found.
     scanPanel = true,
 
+    -- A gold rim and coin on items in bags and the bank that are worth
+    -- taking to the auction house.
+    markSellable = true,
+
     -- The two unprompted cards, and whether they make a sound.
     cityPrompt = true,
     vendorCheck = true,

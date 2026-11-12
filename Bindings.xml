@@ -1,0 +1,6 @@
+<!-- Key bindings, found under Options > Keybindings > Goldwise. The game loads
+     this file by its name; it isn't listed in the TOC. The label for each
+     binding is set in UI\MainWindow.lua. -->
+<Bindings>
+	<Binding name="GOLDWISE_HISTORY" category="Goldwise">Goldwise_ShowHoveredItemHistory()</Binding>
+</Bindings>

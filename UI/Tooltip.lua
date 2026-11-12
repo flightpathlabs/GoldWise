@@ -53,6 +53,18 @@ ns.Subscribe("PRICES_CHANGED", function()
     cache.itemID = nil
 end)
 
+-- The item the player last pointed at, so a key press or "/gw history"
+-- can open its full price history. Kept after the tooltip goes, since the
+-- mouse has usually wandered by the time a command is typed.
+local pointedAt = {}
+
+--- The item the player last had a tooltip up for.
+---@return number|nil itemID
+---@return string|nil link
+function ns.PointedAtItem()
+    return pointedAt.itemID, pointedAt.link
+end
+
 -- The chart under the tooltip -------------------------------------------------------
 
 local panel
@@ -216,6 +228,11 @@ local function OnItemTooltip(tooltip, data)
     if not itemID or (issecretvalue and issecretvalue(itemID)) then
         return
     end
+
+    -- The link says which exact item it is (its suffix or level, for
+    -- gear). The ID alone will do if the tooltip won't say.
+    local _, link = TooltipUtil.GetDisplayedItem(tooltip)
+    pointedAt.itemID, pointedAt.link = itemID, link
 
     local coin = Theme.COIN
     local found = Lookup(itemID)

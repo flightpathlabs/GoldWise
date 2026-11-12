@@ -61,4 +61,5 @@ UI\MinimapButton.lua
 UI\Toast.lua
 UI\NextStep.lua
 UI\Tooltip.lua
+UI\ItemMarks.lua
 UI\Settings.lua

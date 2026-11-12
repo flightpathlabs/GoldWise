@@ -265,6 +265,48 @@ function ns.ShowWindow()
     window:Show()
 end
 
+--- Opens the window on one item's price history, whether or not the
+--- player is carrying any.
+---@param itemID number
+---@param link string|nil  the item's link, if there is one to hand
+function ns.ShowItemHistory(itemID, link)
+    local marketKey = ns.Market.Current()
+    local name, itemLink, quality, _, _, _, _, _, _, icon = C_Item.GetItemInfo(link or itemID)
+    local count = ns.Bags.Counts()[itemID] or 0
+
+    -- Asking about an item is a sign of interest in it. Follow it from
+    -- here on, so the history is longer the next time they look.
+    ns.Ledger.Track(marketKey, itemID)
+
+    local row = ns.Assets.Describe({
+        itemID = itemID,
+        name = name,
+        icon = icon or C_Item.GetItemIconByID(itemID),
+        quality = quality,
+        link = itemLink or link,
+        count = count,
+    }, marketKey)
+
+    -- A verdict is advice on what to do with a holding. With nothing
+    -- held, there's none to give.
+    if count == 0 then
+        row.advice = { verb = ns.Advice.UNKNOWN, reason = "You aren't carrying any of these." }
+    end
+
+    ns.ShowWindow()
+    ShowDetail(row)
+end
+
+-- Opens the history of whatever the player last pointed at.
+local function ShowPointedAtItem()
+    local itemID, link = ns.PointedAtItem()
+    if itemID then
+        ns.ShowItemHistory(itemID, link)
+    else
+        ns.Print("Point at an item first, then try again.")
+    end
+end
+
 -- Keeping it current -----------------------------------------------------------------
 
 ns.Subscribe("SCAN_STARTED", function()
@@ -371,12 +413,31 @@ end
 SLASH_GOLDWISE1 = "/goldwise"
 SLASH_GOLDWISE2 = "/gw"
 SlashCmdList.GOLDWISE = function(message)
-    local command, argument = strtrim(message or ""):lower():match("^(%S*)%s*(.-)$")
+    message = strtrim(message or "")
+
+    -- An item shift-clicked into the command: "/gw [Light Leather]".
+    local linkedItem = message:match("|Hitem:(%d+)")
+    if linkedItem then
+        ns.ShowItemHistory(tonumber(linkedItem), message:match("|c.-|h|r"))
+        return
+    end
+
+    local command, argument = message:lower():match("^(%S*)%s*(.-)$")
     if command == "goal" then
         SetGoal(argument)
+    elseif command == "history" then
+        ShowPointedAtItem()
     else
         ns.ToggleWindow()
     end
+end
+
+-- The key binding, declared in Bindings.xml. The game finds the function
+-- and these labels by name, so they have to be global.
+BINDING_NAME_GOLDWISE_HISTORY = "Price history for the item under the mouse"
+
+function Goldwise_ShowHoveredItemHistory()
+    ShowPointedAtItem()
 end
 
 -- Named in the TOC file. The client calls it when the player picks Goldwise

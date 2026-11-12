@@ -33,6 +33,8 @@ globals = {
     "SLASH_GOLDWISE1",
     "SLASH_GOLDWISE2",
     "Goldwise_OnAddonCompartmentClick",
+    "Goldwise_ShowHoveredItemHistory",
+    "BINDING_NAME_GOLDWISE_HISTORY",
 }
 
 read_globals = {
@@ -83,6 +85,8 @@ read_globals = {
     "GetTrainerServiceSkillLine",
     "C_TooltipInfo",
     "C_SpellBook",
+    "C_Container",
+    "TooltipUtil",
     "bit",
     "C_Spell",
     "MenuUtil",

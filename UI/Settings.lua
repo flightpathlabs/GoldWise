@@ -96,6 +96,14 @@ ns.OnEvent("PLAYER_LOGIN", function()
 
     AddCheckbox(
         category,
+        "markSellable",
+        "Mark items worth auctioning in my bags and bank",
+        "A gold rim and a coin on anything Goldwise would tell you to sell at the auction "
+            .. "house. Works in the default bags and bank and in bag addons such as Bagnon."
+    )
+
+    AddCheckbox(
+        category,
         "promptSound",
         "Play a sound with those prompts",
         "Off unless you turn it on. Goldwise is otherwise silent."
