@@ -23,13 +23,41 @@ ns.Feed = Feed
 
 Feed.SOURCE = "Blizzard's Game Data API"
 
--- Which feed house serves which market, for the ones we've confirmed by
--- matching an in-game scan. Anything else is worked out the same way on
--- the player's own machine, after their first scan (see Learn below).
+-- Which feed house serves which market.
+--
+-- Blizzard numbers the houses the same way in every region, and doesn't
+-- say which ruleset each belongs to. These are the ones we've confirmed
+-- ourselves, by matching an in-game scan.
 local KNOWN_HOUSES = {
     ["US-PvE-Alliance"] = "US-111",
     ["US-PvE-Horde"] = "US-114",
     ["US-PvE-Neutral"] = "US-117",
+}
+
+-- And these rest on what other people have confirmed and published, by
+-- comparing a house's prices with what they saw in game: a PvP house in
+-- America and one in Europe, and Europe's PvE Horde house. The rest of
+-- each row follows from Blizzard's numbering, which runs PvP then PvE
+-- within each faction. Oceanic players are in the American region and share its
+-- houses.
+--
+-- Being second-hand, they only stand until the player's own scan has
+-- picked a house (see Learn below), and that pick wins if it differs.
+--
+-- Not here: the roleplay and roleplay-PvP houses (119 to 121 and 123 to
+-- 125; nobody has published which set is which), and Korea and Taiwan,
+-- where nobody has checked a house against the game. Those are worked
+-- out on the player's machine after their first scan.
+local REPORTED_HOUSES = {
+    ["US-PvP-Alliance"] = "US-110",
+    ["US-PvP-Horde"] = "US-113",
+    ["US-PvP-Neutral"] = "US-116",
+    ["EU-PvE-Alliance"] = "EU-111",
+    ["EU-PvE-Horde"] = "EU-114",
+    ["EU-PvE-Neutral"] = "EU-117",
+    ["EU-PvP-Alliance"] = "EU-110",
+    ["EU-PvP-Horde"] = "EU-113",
+    ["EU-PvP-Neutral"] = "EU-116",
 }
 
 -- How alike a feed house and our own scan must be before we believe
@@ -54,9 +82,10 @@ function Feed.IsInstalled()
 end
 
 local function HouseKeyFor(marketKey)
-    -- A house we've confirmed ourselves outranks one worked out on the fly.
+    -- A house we've confirmed ourselves outranks one worked out on the
+    -- fly, and that outranks one we only have somebody's word for.
     local learned = ns.db.feedHouses and ns.db.feedHouses[marketKey]
-    return KNOWN_HOUSES[marketKey] or learned
+    return KNOWN_HOUSES[marketKey] or learned or REPORTED_HOUSES[marketKey]
 end
 
 -- The feed's data for a market, loading its addon if this is the first

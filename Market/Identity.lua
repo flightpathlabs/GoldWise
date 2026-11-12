@@ -23,10 +23,27 @@ local NEUTRAL_ZONES = {
 local openMarket
 
 -- The API has no "which ruleset am I on" call, but the realm name ends
--- with it: "CAMWOW US1 Realm 1 PvE".
+-- with it: "CAMWOW US1 Realm 1 PvE", "CAMWOW EU4 Realm 4 PvP". The part
+-- before it changes from one cluster of servers to the next and means
+-- nothing to the auction house.
+--
+-- A roleplay world ends "RP". A roleplay-PvP one is listed by Blizzard as
+-- "RP PvP", two words, and has been seen written "RPPVP" and "RP-PvP".
+-- The last word alone would file it with the PvP worlds, whose auction
+-- house it doesn't share, so all three are read as one name.
 local function Ruleset()
     local realm = GetRealmName() or ""
-    return realm:match("(%S+)%s*$") or "Unknown"
+    local last = realm:match("(%S+)%s*$")
+    if not last then
+        return "Unknown"
+    end
+
+    local before = realm:match("(%S+)%s+%S+%s*$") or ""
+    local joined = last:upper():gsub("%-", "")
+    if joined == "RPPVP" or (joined == "PVP" and before:upper() == "RP") then
+        return "RP-PvP"
+    end
+    return last
 end
 
 local function Key(faction)

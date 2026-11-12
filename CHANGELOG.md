@@ -20,6 +20,11 @@ the `dev` branch.
   you had none. The rest of Goldwise is still in English.
 - **A bid handed back is recognised in any language**, from the wording
   of the letter's subject, not only from the sender's English name.
+- **Roleplay-PvP worlds get a market of their own.** Their realm name
+  ends in two words, and Goldwise read only the last, which filed their
+  prices with the PvP worlds' and had the two swapping prices between
+  players. If you play on one, your price history starts afresh under
+  the right market.
 - Carries its Wago Addons project ID, so new releases reach Wago as well
   as CurseForge.
 
