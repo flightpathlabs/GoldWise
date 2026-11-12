@@ -15,6 +15,10 @@ buys or cancels anything for you.
 on an English client. Expect rough edges, and please
 [report them](#when-something-goes-wrong).
 
+[Download](https://github.com/flightpathlabs/GoldWise/releases/latest) ·
+[What's new](CHANGELOG.md) ·
+[Report a problem](https://github.com/flightpathlabs/GoldWise/issues/new/choose)
+
 ## Installing
 
 Until Goldwise is on the addon sites, install it from here.
@@ -33,12 +37,15 @@ To update, do the same again and let it replace the old folder. Your price
 history lives with your game settings, not in the addon folder, so it
 stays.
 
-If you use git, you can follow the latest work instead. Clone it into the
-addon folder under the right name and update with `git pull`:
+If you use git, clone it into the addon folder under the right name and
+update with `git pull`. The `main` branch is always the latest release:
 
 ```
 git clone https://github.com/flightpathlabs/GoldWise.git Goldwise
 ```
+
+Work in progress is on the `dev` branch. Add `-b dev` to try what's
+coming next, knowing it has been tested less.
 
 What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
@@ -145,13 +152,19 @@ fill in as you play.
 The rules are cautious on purpose. Bad advice costs trust quickly, so when
 the gain is small or the data is thin, the answer is the safe one.
 
-- If a stack is worth less than the 1 silver listing deposit, vendor it.
+- If a stack is worth no more than the deposit it takes to list it,
+  vendor it.
 - If the auction house would pay no more than a vendor after its cut,
   vendor it.
-- If the gain over a vendor is smaller than the deposit you'd lose if it
-  didn't sell, vendor it.
+- You get the deposit back when an auction sells and lose it when it
+  doesn't, so Goldwise treats it as a stake. It assumes one listing in
+  three comes back unsold: if the gain over a vendor isn't worth that
+  risk, vendor it.
 - Otherwise sell, unless the price is well below its usual level, in which
   case hold.
+
+What a listing costs isn't fixed, and Blizzard has changed it before.
+Goldwise asks the game each time you open the auction house and adjusts.
 
 "Usual" needs at least four days of history. Until then the advice says so
 rather than guessing.
@@ -207,6 +220,11 @@ Then [open a report](https://github.com/flightpathlabs/GoldWise/issues/new/choos
 and paste it in. Ideas are welcome at the same address.
 
 ## For contributors
+
+Work happens on `dev`, and that's the branch to base a pull request on.
+`main` only moves when a release is made, so it always matches what the
+addon sites are handing out. Changes are noted under "Unreleased" in
+[CHANGELOG.md](CHANGELOG.md) as they're made.
 
 ```
 Core/      startup, events, saved data, item names

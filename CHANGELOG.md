@@ -1,6 +1,21 @@
 # Changelog
 
-What changed in each release of Goldwise, newest first.
+What changed in each release of Goldwise, newest first. "Unreleased" is
+what's on the `dev` branch and will be in the next one.
+
+## Unreleased
+
+- **Listing deposits are weighed as a risk, not a fee.** You get the
+  deposit back when an auction sells and lose it when it doesn't, so
+  Goldwise now asks whether the gain over a vendor is worth that stake,
+  assuming one listing in three comes back unsold. Things with a decent
+  margin that used to say "vendor" now say "sell".
+- **What listing costs is measured, not assumed.** Goldwise used to take
+  the deposit to be a flat 1 silver. It now asks the game each time you
+  open the auction house, so it follows the minimum when Blizzard changes
+  it (a drop to 1 copper has been announced), and it knows that things a
+  vendor pays well for take a bigger deposit. It says so in chat when the
+  minimum moves.
 
 ## 0.3.1 (11 November 2026)
 
