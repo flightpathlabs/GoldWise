@@ -6,6 +6,13 @@ the `dev` branch.
 
 ## Unreleased
 
+- **A Profit tab.** A line chart of what you came out ahead or behind by
+  on each of the last 30 days, with the auction house on its own line,
+  and a button to see it as a running total. It shows what you sold at
+  auction, what you spent there on purchases and deposits, and your
+  latest sales and purchases. Goldwise starts counting from this version:
+  auction sales and purchases from before it aren't there.
+
 - **A crafting tree for anything you can make.** Alt-right-click an item
   you can make, or make something from, to see the whole chain: what it
   takes, what those take, and what it goes into. Each step shows its

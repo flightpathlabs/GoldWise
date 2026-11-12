@@ -77,6 +77,36 @@ function Theme.Listed(quantity)
     return FormatLargeNumber(quantity) .. " listed"
 end
 
+--- Creates one of the boxes the money tabs put across the top: a label,
+--- a figure and a footnote.
+---@param parent table  frame
+---@param label string  what the figure is, shown small and in capitals
+---@return table tile   with .Figure and .Note, both font strings
+function Theme.CreateTile(parent, label)
+    local tile = CreateFrame("Frame", nil, parent)
+    tile:SetSize(240, 66)
+
+    local background = tile:CreateTexture(nil, "BACKGROUND")
+    background:SetAllPoints()
+    background:SetColorTexture(0, 0, 0, 0.35)
+
+    local caption = tile:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    caption:SetPoint("TOPLEFT", 10, -8)
+    caption:SetText(label:upper())
+
+    tile.Figure = tile:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    tile.Figure:SetPoint("TOPLEFT", caption, "BOTTOMLEFT", 0, -5)
+
+    tile.Note = tile:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    tile.Note:SetPoint("TOPLEFT", tile.Figure, "BOTTOMLEFT", 0, -4)
+    tile.Note:SetPoint("RIGHT", -8, 0)
+    tile.Note:SetJustifyH("LEFT")
+    tile.Note:SetWordWrap(false)
+    tile.Note:SetTextColor(unpack(Theme.MUTED))
+
+    return tile
+end
+
 --- Money with the game's own coin icons.
 ---@param copper number
 ---@return string

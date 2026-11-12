@@ -75,6 +75,10 @@ local function Record(delta)
 
     local side = delta > 0 and day.income or day.spending
     side[context] = (side[context] or 0) + math.abs(delta)
+
+    -- For anything that wants to look closer at one kind of money than a
+    -- daily total (see Trade.lua).
+    ns.Publish("MONEY_MOVED", delta, context)
 end
 
 ns.OnEvent("PLAYER_MONEY", function()

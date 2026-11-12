@@ -52,6 +52,7 @@ Profile\Characters.lua
 Profile\Bank.lua
 Profile\Professions.lua
 Profile\Purse.lua
+Profile\Trade.lua
 Profile\Directory.lua
 Profile\Training.lua
 Profile\Recipes.lua
@@ -77,6 +78,7 @@ UI\ShelfList.lua
 UI\TripPlan.lua
 UI\ProspectList.lua
 UI\PurseTab.lua
+UI\ProfitTab.lua
 UI\PlacesTab.lua
 UI\RecipesTab.lua
 UI\AboutTab.lua

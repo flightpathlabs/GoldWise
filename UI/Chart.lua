@@ -235,6 +235,153 @@ function Chart.Create(parent, width, height)
     return chart
 end
 
+-- Lines over days ------------------------------------------------------------------
+
+-- How many lines one chart can carry. Past two or three, nobody can tell
+-- them apart.
+local MOST_SERIES = 3
+
+-- A sum that can be below nothing: "-2g 40s".
+local function SignedMoney(copper)
+    return (copper < 0 and "-" or "") .. ns.Money(math.abs(copper))
+end
+
+--- Creates a chart of one or more lines across a run of days, for sums
+--- that can fall below nothing. A level line marks zero.
+---@param parent table  frame
+---@param width number
+---@param height number
+---@return table chart  with :SetSeries(series, firstDay, lastDay, emptyText)
+function Chart.CreateLines(parent, width, height)
+    local chart = CreateFrame("Frame", nil, parent)
+    chart:SetSize(width, height)
+    chart.lines = {}
+    chart.linesUsed = 0
+
+    local page = chart:CreateTexture(nil, "BACKGROUND")
+    page:SetAllPoints()
+    page:SetColorTexture(0, 0, 0, Theme.CHART_WASH)
+
+    local plotWidth = width - MARGIN_LEFT - MARGIN_RIGHT
+    local plotHeight = height - MARGIN_TOP - MARGIN_BOTTOM
+
+    local highLabel = CreateLabel(chart, "RIGHT")
+    highLabel:SetPoint("TOPRIGHT", chart, "TOPLEFT", MARGIN_LEFT - 6, -MARGIN_TOP + 5)
+
+    local lowLabel = CreateLabel(chart, "RIGHT")
+    lowLabel:SetPoint("BOTTOMRIGHT", chart, "BOTTOMLEFT", MARGIN_LEFT - 6, MARGIN_BOTTOM - 5)
+
+    local zeroLabel = CreateLabel(chart, "RIGHT")
+    zeroLabel:SetText("0")
+
+    local firstDayLabel = CreateLabel(chart, "LEFT")
+    firstDayLabel:SetPoint("BOTTOMLEFT", MARGIN_LEFT, 5)
+
+    local lastDayLabel = CreateLabel(chart, "RIGHT")
+    lastDayLabel:SetPoint("BOTTOMRIGHT", -MARGIN_RIGHT, 5)
+
+    -- Which line is which, written in each line's own colour along the
+    -- bottom edge, between the dates.
+    local keys = {}
+    for index = 1, MOST_SERIES do
+        keys[index] = CreateLabel(chart, "LEFT")
+        if index == 1 then
+            keys[index]:SetPoint("BOTTOMLEFT", MARGIN_LEFT + 80, 5)
+        else
+            keys[index]:SetPoint("LEFT", keys[index - 1], "RIGHT", 18, 0)
+        end
+    end
+
+    local emptyLabel = CreateLabel(chart, "CENTER")
+    emptyLabel:SetPoint("CENTER")
+    emptyLabel:SetWidth(width - 60)
+
+    --- Draws the lines given.
+    ---@param series table       list of { label, color, values }, where
+    ---        values has one number for each day from firstDay to lastDay
+    ---@param firstDay number
+    ---@param lastDay number
+    ---@param emptyText string   what to say when every value is nothing
+    function chart:SetSeries(series, firstDay, lastDay, emptyText)
+        ReleaseLines(self)
+
+        local low, high, any = 0, 0, false
+        for _, line in ipairs(series) do
+            for _, value in ipairs(line.values) do
+                low, high = math.min(low, value), math.max(high, value)
+                any = any or value ~= 0
+            end
+        end
+
+        for index, key in ipairs(keys) do
+            local line = any and series[index] or nil
+            key:SetShown(line ~= nil)
+            if line then
+                key:SetText(line.label)
+                key:SetTextColor(unpack(line.color))
+            end
+        end
+
+        if not any or lastDay <= firstDay then
+            highLabel:SetText("")
+            lowLabel:SetText("")
+            zeroLabel:Hide()
+            firstDayLabel:SetText("")
+            lastDayLabel:SetText("")
+            emptyLabel:SetText(emptyText)
+            emptyLabel:Show()
+            return
+        end
+        emptyLabel:Hide()
+
+        -- A little air above and below, so no line runs along the edge.
+        local padding = (high - low) * 0.08
+        low, high = low - (low < 0 and padding or 0), high + (high > 0 and padding or 0)
+
+        local function Place(day, value)
+            local x = MARGIN_LEFT + (day - firstDay) / (lastDay - firstDay) * plotWidth
+            local y = MARGIN_BOTTOM + (value - low) / (high - low) * plotHeight
+            return x, y
+        end
+
+        local left, right = MARGIN_LEFT, MARGIN_LEFT + plotWidth
+        local bottom, top = MARGIN_BOTTOM, MARGIN_BOTTOM + plotHeight
+        DrawLine(self, left, bottom, right, bottom, 1, Theme.MUTED, 0.2)
+        DrawLine(self, left, top, right, top, 1, Theme.MUTED, 0.2)
+
+        -- The line everything is measured from.
+        local _, zero = Place(firstDay, 0)
+        DrawLine(self, left, zero, right, zero, 1, Theme.MUTED, 0.6)
+
+        -- Drawn last first, so the first line given lies on top.
+        for index = #series, 1, -1 do
+            local line = series[index]
+            local points = {}
+            for offset, value in ipairs(line.values) do
+                points[offset] = { Place(firstDay + offset - 1, value) }
+            end
+            DrawPath(self, points, 2, line.color)
+        end
+
+        highLabel:SetText(high > 0 and SignedMoney(high) or "")
+        lowLabel:SetText(low < 0 and SignedMoney(low) or "")
+
+        -- Zero is only worth marking where it isn't the top or bottom of
+        -- the chart, and where it wouldn't sit on top of their labels.
+        local clear = zero - bottom > 14 and top - zero > 14
+        zeroLabel:SetShown(clear)
+        if clear then
+            zeroLabel:ClearAllPoints()
+            zeroLabel:SetPoint("RIGHT", self, "BOTTOMLEFT", MARGIN_LEFT - 6, zero)
+        end
+
+        firstDayLabel:SetText(DayLabel(firstDay))
+        lastDayLabel:SetText(DayLabel(lastDay))
+    end
+
+    return chart
+end
+
 -- Cash flow ----------------------------------------------------------------------
 
 -- Money coming in and money going out are drawn in Theme.INCOME and

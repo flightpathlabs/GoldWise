@@ -152,6 +152,8 @@ read_globals = {
     "GetTrainerServiceInfo",
     "GetTrainerServiceStepIndex",
     "IsTradeskillTrainer",
+    "GetInboxHeaderInfo",
+    "GetInboxInvoiceInfo",
     "HandleModifiedItemClick",
     "IsAltKeyDown",
     "GetMouseButtonClicked",

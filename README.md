@@ -131,6 +131,19 @@ reputation makes it cheaper, and **Where** puts the trainer on your map.
 
 ![The Purse tab, with a month of income and spending](docs/images/purse.png)
 
+### Profit: are you coming out ahead?
+
+A line for each of the last 30 days: everything that came in less
+everything that went out, and the auction house on a line of its own.
+Press **Running total** to see the same days added up as they went. Above
+the chart is what you sold at auction, what you spent there on purchases
+and deposits, and the difference. Below it are your latest sales and
+purchases.
+
+A sale is counted when you take the coin out of your mailbox. Everything
+you buy at auction counts against the auction house's line, whatever you
+bought it for.
+
 ### Places: the nearest of everything
 
 The nearest trainer for your class and each profession, and the nearest

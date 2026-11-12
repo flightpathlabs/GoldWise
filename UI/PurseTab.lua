@@ -28,32 +28,6 @@ local ROWS_TOP = CHART_TOP + CHART_HEIGHT + 32
 
 -- Building blocks ---------------------------------------------------------------
 
--- One of the three boxes across the top: a label, a figure, a footnote.
-local function CreateTile(parent, label)
-    local tile = CreateFrame("Frame", nil, parent)
-    tile:SetSize(240, 66)
-
-    local background = tile:CreateTexture(nil, "BACKGROUND")
-    background:SetAllPoints()
-    background:SetColorTexture(0, 0, 0, 0.35)
-
-    local caption = tile:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-    caption:SetPoint("TOPLEFT", 10, -8)
-    caption:SetText(label:upper())
-
-    tile.Figure = tile:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    tile.Figure:SetPoint("TOPLEFT", caption, "BOTTOMLEFT", 0, -5)
-
-    tile.Note = tile:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    tile.Note:SetPoint("TOPLEFT", tile.Figure, "BOTTOMLEFT", 0, -4)
-    tile.Note:SetPoint("RIGHT", -8, 0)
-    tile.Note:SetJustifyH("LEFT")
-    tile.Note:SetWordWrap(false)
-    tile.Note:SetTextColor(unpack(Theme.MUTED))
-
-    return tile
-end
-
 -- One line of the "Coming up" list: when, what, how much.
 local function CreateRow(parent, index)
     local row = CreateFrame("Frame", nil, parent)
@@ -400,11 +374,11 @@ function PurseTab.Create(parent)
     about:SetTextColor(unpack(Theme.MUTED))
     about:SetText("What's coming, and whether you can afford it")
 
-    local have = CreateTile(tab, "In your purse")
+    local have = Theme.CreateTile(tab, "In your purse")
     have:SetPoint("TOPLEFT", 12, -34)
-    local comingIn = CreateTile(tab, "Coming in")
+    local comingIn = Theme.CreateTile(tab, "Coming in")
     comingIn:SetPoint("LEFT", have, "RIGHT", 13, 0)
-    local goingOut = CreateTile(tab, "Going out")
+    local goingOut = Theme.CreateTile(tab, "Going out")
     goingOut:SetPoint("LEFT", comingIn, "RIGHT", 13, 0)
 
     local flowHeading = tab:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")

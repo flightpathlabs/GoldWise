@@ -59,6 +59,15 @@ local TABS = {
         end,
     },
     {
+        label = "Profit",
+        page = "Profit",
+        refresh = function(page)
+            page:Refresh()
+            return "Sales count when you take the coin from your mailbox. "
+                .. "Everything bought at auction counts, whatever it was for."
+        end,
+    },
+    {
         label = "Places",
         page = "Places",
         refresh = function(page)
@@ -273,6 +282,7 @@ local function CreateWindow()
     frame.List = ns.ShelfList.Create(frame.Inset, ShowDetail)
     frame.Prospects = ns.ProspectList.Create(frame.Inset, ShowDetail)
     frame.Purse = ns.PurseTab.Create(frame.Inset)
+    frame.Profit = ns.ProfitTab.Create(frame.Inset)
     frame.Places = ns.PlacesTab.Create(frame.Inset)
     frame.Recipes = ns.RecipesTab.Create(frame.Inset)
     frame.About = ns.AboutTab.Create(frame.Inset)
@@ -420,12 +430,15 @@ for _, message in ipairs({
     ns.Subscribe(message, Refresh)
 end
 
--- Money and durability change constantly, and only one tab cares.
-ns.Subscribe("PURSE_CHANGED", function()
-    if TABS[currentTab].page == "Purse" then
-        Refresh()
-    end
-end)
+-- Money and durability change constantly, and only two tabs care.
+for _, message in ipairs({ "PURSE_CHANGED", "TRADE_CHANGED" }) do
+    ns.Subscribe(message, function()
+        local page = TABS[currentTab].page
+        if page == "Purse" or page == "Profit" then
+            Refresh()
+        end
+    end)
+end
 
 -- Likewise a newly learned place. It also names a trainer on the Purse
 -- tab's map menu, but that's built fresh each time it's opened.

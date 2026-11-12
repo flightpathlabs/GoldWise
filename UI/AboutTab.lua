@@ -95,6 +95,9 @@ local function Sections()
                 "Purse: what you have, a chart of what's come in and gone out each day "
                     .. "for the last month, and what's about to cost you: repairs, training, "
                     .. "and whatever you're saving for.",
+                "Profit: whether you're coming out ahead, a day at a time, with the "
+                    .. "auction house drawn on its own line: what you sold there, what "
+                    .. "you bought, and what it took in deposits and its cut.",
                 "Places: the nearest trainer for your class and each profession, and the "
                     .. "nearest auction house, repairer, bank, flight master and inn.",
                 "Recipes: what vendors sell that you haven't learned, for the professions "
