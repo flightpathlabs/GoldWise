@@ -1,0 +1,64 @@
+name: Release
+
+# Pushing a tag such as v0.3.0-beta builds the zip people install and
+# publishes it as a release, with that version's notes from CHANGELOG.md.
+#
+#   1. Set "## Version" in Goldwise.toc and add a section to CHANGELOG.md.
+#   2. Commit, then: git tag v<version> && git push origin main v<version>
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The version the game shows comes from the TOC, so a tag that
+      # disagrees with it would put a mislabelled addon in people's hands.
+      - name: Check the tag against the TOC
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          toc="$(sed -n 's/^## Version: *//p' Goldwise.toc | tr -d '\r')"
+          if [ "$version" != "$toc" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match the TOC, which says $toc."
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      # The game wants a folder named after the TOC file, so everything
+      # goes under Goldwise/. What's marked export-ignore in .gitattributes
+      # is left out.
+      - name: Build the zip
+        run: |
+          git archive --format=zip --prefix=Goldwise/ \
+            --output="Goldwise-$GITHUB_REF_NAME.zip" HEAD
+          unzip -l "Goldwise-$GITHUB_REF_NAME.zip" | tail -n 1
+
+      - name: Pick this version's notes out of the changelog
+        run: |
+          awk -v version="$VERSION" '
+            /^## / { wanted = ($2 == version); next }
+            wanted
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no section for $VERSION."
+            exit 1
+          fi
+
+      # A tag with a hyphen in it (-beta, -rc1) is marked as a pre-release.
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=""
+          case "$GITHUB_REF_NAME" in
+            *-*) flags="--prerelease" ;;
+          esac
+          gh release create "$GITHUB_REF_NAME" "Goldwise-$GITHUB_REF_NAME.zip" \
+            --title "Goldwise $VERSION" --notes-file notes.md $flags

@@ -17,24 +17,30 @@ on an English client. Expect rough edges, and please
 
 ## Installing
 
-Until Goldwise is on the addon sites, install it straight from here.
+Until Goldwise is on the addon sites, install it from here.
 
-1. Press the green **Code** button at the top of this page and choose
-   **Download ZIP**.
-2. Unzip it. You'll have a folder called `GoldWise-main`.
-3. Rename that folder to `Goldwise`. The name matters: the game looks for
-   a folder with the same name as the `Goldwise.toc` file inside it.
-4. Move the folder into your game's addon folder:
+1. Open [Releases](https://github.com/flightpathlabs/GoldWise/releases)
+   and, from the newest one, download the file whose name starts with
+   `Goldwise-v`. Not "Source code": that one unpacks under the wrong
+   folder name and the game won't see it.
+2. Unzip it into your game's addon folder:
    `World of Warcraft\_forever_\Interface\AddOns\`
-5. Start the game, or type `/reload` if it's already running. On the
+   You should end up with `AddOns\Goldwise\Goldwise.toc`.
+3. Start the game, or type `/reload` if it's already running. On the
    character screen, check that Goldwise is ticked under **AddOns**.
 
-If you use git, clone it into the addon folder under the right name and
-update with `git pull`:
+To update, do the same again and let it replace the old folder. Your price
+history lives with your game settings, not in the addon folder, so it
+stays.
+
+If you use git, you can follow the latest work instead. Clone it into the
+addon folder under the right name and update with `git pull`:
 
 ```
 git clone https://github.com/flightpathlabs/GoldWise.git Goldwise
 ```
+
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Your first ten minutes
 
@@ -242,3 +248,7 @@ The class training prices in `Data/Training/` and the vendor recipes in
 `Data/Recipes/` come from What's Training? by Sveng, also MIT licensed. Its
 licence and the details are in [THIRD-PARTY.md](THIRD-PARTY.md). Those
 files are generated, and shouldn't be edited by hand.
+
+<p align="center">
+  <a href="https://github.com/flightpathlabs"><img src="docs/images/flight-path-labs.png" width="400" alt="Flight Path Labs"></a>
+</p>
