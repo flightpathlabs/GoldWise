@@ -60,7 +60,65 @@ local function ZonesFor(source, level, faction)
     return mapIDs
 end
 
---- Lists what's worth gathering.
+-- Calls visit(source, kind, how) for everything the player is able to
+-- gather with the skills they have, whatever level it's found at.
+local function ForEachSource(skills, visit)
+    for _, source in ipairs(Gathering.CLOTH) do
+        visit(source, "Cloth", "Drops from humanoids around level %d to %d.")
+    end
+
+    if skills.skinning then
+        for _, source in ipairs(Gathering.SKINNING) do
+            visit(source, "Skinning", "Skinned from beasts around level %d to %d.")
+        end
+    end
+
+    local function VisitNodes(sources, kind, skill, how)
+        for _, source in ipairs(skill and sources or {}) do
+            if skill >= source.skill then
+                visit(source, kind, how)
+            end
+        end
+    end
+
+    VisitNodes(Gathering.MINING, "Mining", skills.mining, "Mined in zones around level %d to %d.")
+    VisitNodes(
+        Gathering.HERBALISM,
+        "Herbalism",
+        skills.herbalism,
+        "Picked in zones around level %d to %d."
+    )
+end
+
+local function DearestFirst(a, b)
+    if a.price ~= b.price then
+        return a.price > b.price
+    end
+    return a.name < b.name
+end
+
+-- One row of either list. Returns nil for something with no known price.
+local function Describe(source, kind, how, priceOf)
+    local price, listed, seenAt, priceSource = priceOf(source.itemID)
+    if not price then
+        return nil
+    end
+
+    return {
+        itemID = source.itemID,
+        name = source.name,
+        kind = kind,
+        how = how:format(source.minLevel, source.maxLevel),
+        price = price,
+        listed = listed,
+        -- Carried along so the item's page can say how old the price is
+        -- and who it came from.
+        seenAt = seenAt,
+        source = priceSource,
+    }
+end
+
+--- Lists what's worth gathering at the player's level.
 ---@param profile table with:
 ---   level    the player's level
 ---   faction  "Alliance" or "Horde"
@@ -76,71 +134,58 @@ function Prospects.For(profile, priceOf)
     local low, high = level - LEVELS_BELOW, level + LEVELS_ABOVE
     local prospects = {}
 
-    local function Consider(source, kind, how)
+    ForEachSource(profile.skills, function(source, kind, how)
         -- Only things found among creatures or zones near the player's level.
-        if not Overlaps(source.minLevel, source.maxLevel, low, high) then
-            return
-        end
-
-        local price, listed, seenAt, priceSource = priceOf(source.itemID)
-        if not price then
-            return
-        end
-
-        table.insert(prospects, {
-            itemID = source.itemID,
-            name = source.name,
-            kind = kind,
-            how = how:format(source.minLevel, source.maxLevel),
-            price = price,
-            listed = listed,
-            -- Carried along so the item's page can say how old the price
-            -- is and who it came from.
-            seenAt = seenAt,
-            source = priceSource,
-            mapIDs = ZonesFor(source, level, profile.faction),
-        })
-    end
-
-    for _, source in ipairs(Gathering.CLOTH) do
-        Consider(source, "Cloth", "Drops from humanoids around level %d to %d.")
-    end
-
-    if profile.skills.skinning then
-        for _, source in ipairs(Gathering.SKINNING) do
-            Consider(source, "Skinning", "Skinned from beasts around level %d to %d.")
-        end
-    end
-
-    local function ConsiderNodes(sources, kind, skill, how)
-        if not skill then
-            return
-        end
-        for _, source in ipairs(sources) do
-            if skill >= source.skill then
-                Consider(source, kind, how)
+        if Overlaps(source.minLevel, source.maxLevel, low, high) then
+            local prospect = Describe(source, kind, how, priceOf)
+            if prospect then
+                prospect.mapIDs = ZonesFor(source, level, profile.faction)
+                table.insert(prospects, prospect)
             end
         end
+    end)
+
+    table.sort(prospects, DearestFirst)
+    return prospects
+end
+
+--- Lists what the player could gather in one particular zone.
+---@param zone table  an entry of Gathering.ZONES
+---@param profile table  as for Prospects.For
+---@param priceOf function  as for Prospects.For
+---@return table prospects  as from Prospects.For, without mapIDs
+function Prospects.InZone(zone, profile, priceOf)
+    local prospects = {}
+
+    ForEachSource(profile.skills, function(source, kind, how)
+        if Overlaps(source.minLevel, source.maxLevel, zone.minLevel, zone.maxLevel) then
+            local prospect = Describe(source, kind, how, priceOf)
+            if prospect then
+                table.insert(prospects, prospect)
+            end
+        end
+    end)
+
+    table.sort(prospects, DearestFirst)
+    return prospects
+end
+
+--- The zones the player's side can travel in, for choosing between.
+---@param faction string  "Alliance" or "Horde"
+---@return table zones  entries of Gathering.ZONES, lowest level first
+function Prospects.Zones(faction)
+    local zones = {}
+    for _, zone in ipairs(Gathering.ZONES) do
+        if not zone.faction or zone.faction == faction then
+            table.insert(zones, zone)
+        end
     end
 
-    ConsiderNodes(
-        Gathering.MINING,
-        "Mining",
-        profile.skills.mining,
-        "Mined in zones around level %d to %d."
-    )
-    ConsiderNodes(
-        Gathering.HERBALISM,
-        "Herbalism",
-        profile.skills.herbalism,
-        "Picked in zones around level %d to %d."
-    )
-
-    table.sort(prospects, function(a, b)
-        if a.price ~= b.price then
-            return a.price > b.price
+    table.sort(zones, function(a, b)
+        if a.minLevel ~= b.minLevel then
+            return a.minLevel < b.minLevel
         end
-        return a.name < b.name
+        return a.mapID < b.mapID
     end)
-    return prospects
+    return zones
 end

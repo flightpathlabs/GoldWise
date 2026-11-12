@@ -137,7 +137,70 @@ function ProspectList.Create(parent, onSelect)
     local about = list:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     about:SetPoint("LEFT", heading, "RIGHT", 10, 0)
     about:SetTextColor(unpack(Theme.MUTED))
-    about:SetText("What you could gather at your level, by what each one sells for today")
+
+    -- What the player has said they want to do. Nil is the plain ranked
+    -- list of what's worth gathering; otherwise it's the zone they've
+    -- decided to go to, and the tab shows a plan for the trip.
+    local destination
+
+    -- The button that chooses between them, and the plan it can show.
+    local course = CreateFrame("Button", nil, list, "UIPanelButtonTemplate")
+    course:SetSize(210, 20)
+    course:SetPoint("TOPRIGHT", -24, -6)
+
+    local plan = ns.TripPlan.Create(list)
+    plan:SetPoint("TOPLEFT", 6, -32)
+    plan:SetPoint("BOTTOMRIGHT", -6, 6)
+
+    local function GoTo(zone)
+        destination = zone
+        list:Refresh()
+    end
+
+    course:SetScript("OnClick", function(self)
+        local level = UnitLevel("player")
+        local zones = ns.Prospects.Zones(UnitFactionGroup("player"))
+        local hereID = C_Map.GetBestMapForUnit("player")
+
+        local function ZoneLabel(zone)
+            return ("%s (%d to %d)"):format(
+                ns.MapMarks.ZoneName(zone.mapID),
+                zone.minLevel,
+                zone.maxLevel
+            )
+        end
+
+        MenuUtil.CreateContextMenu(self, function(_, root)
+            root:CreateTitle("I want to...")
+            root:CreateButton("Make gold gathering", function()
+                GoTo(nil)
+            end)
+
+            for _, zone in ipairs(zones) do
+                if zone.mapID == hereID then
+                    root:CreateButton("Make the most of where I am", function()
+                        GoTo(zone)
+                    end)
+                end
+            end
+
+            -- Zones a player of this level would actually go to, then
+            -- everywhere else for those who know their own mind.
+            local near = root:CreateButton("Go to a zone near my level")
+            local anywhere = root:CreateButton("Go to any zone")
+            for _, zone in ipairs(zones) do
+                local suits = zone.minLevel <= level + 2 and zone.maxLevel >= level - 4
+                if suits then
+                    near:CreateButton(ZoneLabel(zone), function()
+                        GoTo(zone)
+                    end)
+                end
+                anywhere:CreateButton(ZoneLabel(zone), function()
+                    GoTo(zone)
+                end)
+            end
+        end)
+    end)
 
     local empty = list:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     empty:SetPoint("CENTER")
@@ -162,8 +225,26 @@ function ProspectList.Create(parent, onSelect)
     end)
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
 
-    --- Rebuilds the rows for the player's current level, skills and prices.
+    --- Rebuilds the tab for what the player has chosen to do.
+    ---@return string footer  a line about what's on show, for the window
     function list:Refresh()
+        scrollBox:SetShown(destination == nil)
+        scrollBar:SetShown(destination == nil)
+        plan:SetShown(destination ~= nil)
+
+        if destination then
+            local zoneName = ns.MapMarks.ZoneName(destination.mapID)
+            course:SetText("Going to " .. zoneName)
+            about:SetText("What to do before you leave, and while you're there")
+            empty:Hide()
+
+            plan:SetPlan(ns.Trip.Plan(destination))
+            return "A plan, not a promise: what's found where is a guide, and prices move."
+        end
+
+        course:SetText("I want to...")
+        about:SetText("What you could gather at your level, by what each sells for today")
+
         local marketKey = ns.Market.Current()
 
         local profile = {
@@ -200,6 +281,8 @@ function ProspectList.Create(parent, onSelect)
             CreateDataProvider(prospects),
             ScrollBoxConstants.RetainScrollPosition
         )
+        return "Ranked by what each one sells for, not by gold per hour. "
+            .. "Level ranges are a guide."
     end
 
     return list

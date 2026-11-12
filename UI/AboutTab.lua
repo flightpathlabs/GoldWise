@@ -77,7 +77,9 @@ local function Sections()
                 "Assets: what's in your bags, or on all your characters, with the lowest "
                     .. "price, a two-week trend and a verdict. Click a row for its history.",
                 "Prospects: what you could gather at your level and with your professions, "
-                    .. "by what each one sells for today, and where to do it.",
+                    .. 'by what each one sells for today. Or press "I want to..." and pick '
+                    .. "a zone, and it plans the trip: what to see to before you leave, "
+                    .. "what to gather and buy while you're there, and who's on the spot.",
                 "Purse: what you have, what comes in and goes out, and what's about to "
                     .. "cost you: repairs, training, and whatever you're saving for.",
                 "Places: the nearest trainer for your class and each profession, and the "

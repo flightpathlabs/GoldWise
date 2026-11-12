@@ -42,9 +42,9 @@ local TABS = {
         label = "Prospects",
         page = "Prospects",
         refresh = function(page)
-            page:Refresh()
-            return "Ranked by what each one sells for, not by gold per hour. "
-                .. "Level ranges are a guide."
+            -- The tab has more than one thing it can show, and knows what
+            -- to say about each.
+            return page:Refresh()
         end,
     },
     {
@@ -463,6 +463,8 @@ SlashCmdList.GOLDWISE = function(message)
         SetGoal(argument)
     elseif command == "history" then
         ShowPointedAtItem()
+    elseif command == "check" then
+        ns.RunCheck()
     else
         ns.ToggleWindow()
     end

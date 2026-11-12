@@ -56,6 +56,7 @@ Profile\Keep.lua
 Advisor\Advice.lua
 Advisor\Assets.lua
 Advisor\Prospects.lua
+Advisor\Trip.lua
 
 UI\Theme.lua
 UI\Companions.lua
@@ -63,6 +64,7 @@ UI\Chart.lua
 UI\MapMarks.lua
 UI\ItemDetail.lua
 UI\ShelfList.lua
+UI\TripPlan.lua
 UI\ProspectList.lua
 UI\PurseTab.lua
 UI\PlacesTab.lua
@@ -75,4 +77,5 @@ UI\Toast.lua
 UI\NextStep.lua
 UI\Tooltip.lua
 UI\ItemMarks.lua
+UI\Check.lua
 UI\Settings.lua
