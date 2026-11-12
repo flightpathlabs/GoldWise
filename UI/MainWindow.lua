@@ -42,6 +42,18 @@ local TABS = {
         end,
     },
     {
+        label = "Places",
+        page = "Places",
+        refresh = function(page)
+            page:Refresh()
+            if ns.Directory.HasQuestie() then
+                return "Nearest in a straight line. The road there may be longer."
+            end
+            return "Goldwise learns places as you visit them. "
+                .. "With Questie installed it knows them from the start."
+        end,
+    },
+    {
         label = "About",
         page = "About",
         refresh = function() end,
@@ -227,6 +239,7 @@ local function CreateWindow()
     frame.List = ns.ShelfList.Create(frame.Inset, ShowDetail)
     frame.Prospects = ns.ProspectList.Create(frame.Inset, ShowDetail)
     frame.Purse = ns.PurseTab.Create(frame.Inset)
+    frame.Places = ns.PlacesTab.Create(frame.Inset)
     frame.About = ns.AboutTab.Create(frame.Inset)
     frame.Detail = ns.ItemDetail.Create(frame.Inset, ShowCurrentTab)
     CreateTabs(frame)
@@ -288,6 +301,14 @@ end
 -- Money and durability change constantly, and only one tab cares.
 ns.Subscribe("PURSE_CHANGED", function()
     if TABS[currentTab].page == "Purse" then
+        Refresh()
+    end
+end)
+
+-- Likewise a newly learned place. It also names a trainer on the Purse
+-- tab's map menu, but that's built fresh each time it's opened.
+ns.Subscribe("PLACES_CHANGED", function()
+    if TABS[currentTab].page == "Places" then
         Refresh()
     end
 end)

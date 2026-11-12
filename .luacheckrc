@@ -80,6 +80,7 @@ read_globals = {
     "UiMapPoint",
     "CreateVector2D",
     "BuyTrainerService",
+    "GetTrainerServiceSkillLine",
     "C_TooltipInfo",
     "C_SpellBook",
     "bit",

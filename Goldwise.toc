@@ -39,7 +39,7 @@ Profile\Bags.lua
 Profile\Characters.lua
 Profile\Professions.lua
 Profile\Purse.lua
-Profile\TrainerSpots.lua
+Profile\Directory.lua
 Profile\Training.lua
 
 Advisor\Advice.lua
@@ -53,6 +53,7 @@ UI\ItemDetail.lua
 UI\ShelfList.lua
 UI\ProspectList.lua
 UI\PurseTab.lua
+UI\PlacesTab.lua
 UI\AboutTab.lua
 UI\MainWindow.lua
 UI\MinimapButton.lua

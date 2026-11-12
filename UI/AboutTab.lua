@@ -33,6 +33,9 @@ local function PageText()
         "Prospects: what you could gather at your level and with your professions, "
             .. "by what each one sells for today, and where to do it.",
         "Purse: what you have, what comes in and goes out, and what's about to cost you.",
+        "Places: the nearest trainer for your class and each profession, and the "
+            .. "nearest auction house, repairer, bank, flight master and inn, each "
+            .. "with a button that puts it on your map.",
         "",
         Heading("How it decides"),
         "Sell, if it clears more than a vendor pays by at least the listing deposit.",

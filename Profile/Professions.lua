@@ -1,6 +1,6 @@
 local _, ns = ...
 
--- Which gathering professions the player has, and how skilled they are.
+-- Which professions the player has, and how skilled they are.
 
 local Professions = {}
 ns.Professions = Professions
@@ -19,8 +19,13 @@ local GATHERING = {
 -- [key] = skill level, for the gathering professions the player has.
 local skills = {}
 
+-- [name] = skill level, for every profession they have, under the name
+-- the game gives it.
+local byName = {}
+
 local function Read(...)
     table.wipe(skills)
+    table.wipe(byName)
 
     -- GetProfessions returns one index per slot and nil for empty slots,
     -- so walk by count rather than stopping at the first gap.
@@ -30,6 +35,10 @@ local function Read(...)
             -- The eighth value is the bonus from gear and racial traits,
             -- which counts toward what the player can gather.
             local name, _, skill, _, _, _, _, bonus = GetProfessionInfo(index)
+            if name then
+                byName[name] = skill or 0
+            end
+
             local key = name and GATHERING[name]
             if key then
                 skills[key] = (skill or 0) + (bonus or 0)
@@ -48,6 +57,13 @@ end
 ---@return number|nil skill  nil if they don't have it
 function Professions.Skill(key)
     return skills[key]
+end
+
+--- The player's skill in any profession, by the game's name for it.
+---@param name string  "Blacksmithing", "First Aid" and so on
+---@return number|nil skill  nil if they don't have it
+function Professions.SkillByName(name)
+    return byName[name]
 end
 
 ns.OnEvent("PLAYER_LOGIN", Refresh)

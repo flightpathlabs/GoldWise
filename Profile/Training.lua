@@ -414,7 +414,7 @@ NoteTrainerSpot = function(offered)
         end
     end
 
-    ns.TrainerSpots.NoteHere()
+    ns.Directory.NoteHere(ns.Directory.ClassTrainerKind())
 end
 
 --- Whose trainers teach this character's class, where they are, and what
@@ -434,7 +434,7 @@ end
 ---   discountStanding  the name of the standing that earns the discount
 ---   mapID             the map they're on, if we know it
 ---   spot              { x, y } of a trainer on that map, if we know of
----                     one (see TrainerSpots)
+---                     one (see Directory)
 --- Empty when we don't know this class's trainers.
 function Training.Places()
     local data = ClassTable()
@@ -464,7 +464,7 @@ function Training.Places()
                         or nil,
                     discountStanding = StandingLabel(DISCOUNT_STANDING),
                     mapID = map and mapID or nil,
-                    spot = map and ns.TrainerSpots.On(mapID) or nil,
+                    spot = map and ns.Directory.On(ns.Directory.ClassTrainerKind(), mapID) or nil,
                 })
             end
         end
