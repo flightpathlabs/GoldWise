@@ -47,8 +47,49 @@ local DEPOSIT_TOLERANCE_LEAST = 10
 local RECENT_KEPT = 80
 
 -- Who auction letters come from: "Alliance Auction House" and its like.
--- English, as the rest of what Goldwise knows about the mailbox is.
+-- That's the English, and the game has no list of what they're called in
+-- other languages.
 local AUCTION_SENDER = "Auction House"
+
+-- What it does have is how it words the subject of a letter handing a bid
+-- back, in whatever language it's running: "Outbid on %s", and "Auction
+-- cancelled: %s" when the seller withdrew.
+local REFUND_SUBJECTS = { "AUCTION_OUTBID_MAIL_SUBJECT", "AUCTION_REMOVED_MAIL_SUBJECT" }
+
+-- Those wordings as patterns to hold a subject against. Made on first use.
+local refundPatterns
+
+local function IsRefundSubject(subject)
+    if not refundPatterns then
+        refundPatterns = {}
+        for _, name in ipairs(REFUND_SUBJECTS) do
+            local wording = _G[name]
+            if type(wording) == "string" and wording ~= "" then
+                -- Mark where the item's name goes, make everything else
+                -- literal, then let the name be anything.
+                local pattern = wording:gsub("%%%d?%$?s", "\001")
+                pattern = pattern:gsub("%p", "%%%0"):gsub("\001", ".+")
+                table.insert(refundPatterns, "^" .. pattern .. "$")
+            end
+        end
+    end
+
+    for _, pattern in ipairs(refundPatterns) do
+        if subject:find(pattern) then
+            return true
+        end
+    end
+    return false
+end
+
+-- Whether a letter with money in it and no invoice is the auction house
+-- handing a bid back.
+local function IsRefund(sender, subject)
+    if sender and sender:find(AUCTION_SENDER, 1, true) then
+        return true
+    end
+    return subject ~= nil and IsRefundSubject(subject)
+end
 
 -- Coin we've been given reason to expect, oldest first:
 -- { kind, amount, at, itemID, name, count, cut }. Two queues, because
@@ -184,7 +225,7 @@ local function OnMoneyAskedFor(index)
             count = count,
             cut = cut,
         })
-    elseif sender and sender:find(AUCTION_SENDER, 1, true) then
+    elseif IsRefund(sender, subject) then
         -- No invoice, but money, from the auction house: a bid handed
         -- back because someone bid higher or the seller withdrew.
         Expect(arriving, { kind = Trade.REFUND, amount = money, name = subject })
