@@ -97,6 +97,10 @@ local function IsClassTrainer()
     return C_Trainer.GetTrainerType() == Enum.TrainerType.General and not IsTradeskillTrainer()
 end
 
+-- Defined further down, with the rest of what we know about where
+-- trainers are.
+local NoteTrainerSpot
+
 local function Scan()
     scanPending = false
     if not IsClassTrainer() then
@@ -106,6 +110,9 @@ local function Scan()
     local book = ClassBook()
     local unlearned = Unlearned()
     local now = GetTime()
+
+    -- The names of everything on offer, to tell what kind of trainer this is.
+    local offered = {}
 
     -- One row is a "step" marker rather than a skill. Blizzard's own list
     -- skips it the same way.
@@ -117,6 +124,8 @@ local function Scan()
             local cost = GetTrainerServiceCost(index)
 
             if name then
+                offered[name] = true
+
                 local key = SkillKey(name, rank)
                 local justBought = boughtAt[key] and now - boughtAt[key] < PURCHASE_GRACE
 
@@ -132,6 +141,7 @@ local function Scan()
         end
     end
 
+    NoteTrainerSpot(offered)
     ns.Publish("PURSE_CHANGED")
 end
 
@@ -365,24 +375,91 @@ local REPUTATION_DISCOUNT = 0.10
 
 Training.REPUTATION_DISCOUNT = REPUTATION_DISCOUNT
 
+-- The map each reputation's trainers are found on, by faction ID. Two can
+-- share a city: the gnomes teach in Ironforge, the Darkspear in Orgrimmar.
+local TRAINER_MAPS = {
+    [72] = 1453, -- Stormwind
+    [47] = 1455, -- Ironforge
+    [54] = 1455, -- Gnomeregan Exiles, in Ironforge
+    [69] = 1457, -- Darnassus
+    [76] = 1454, -- Orgrimmar
+    [530] = 1454, -- Darkspear Trolls, in Orgrimmar
+    [81] = 1456, -- Thunder Bluff
+    [68] = 1458, -- Undercity
+    [21] = 1434, -- Booty Bay, in Stranglethorn Vale
+    [609] = 1450, -- Cenarion Circle, in Moonglade
+}
+
 local function StandingLabel(standing)
     return _G["FACTION_STANDING_LABEL" .. standing] or ""
 end
 
---- Whose trainers teach this character's class, and what the player's
---- standing with each is worth. Prices everywhere else in this file are
---- before any of these discounts.
+-- Where this class's trainers have been found, by map: [mapID] = { x, y }.
+-- Learned the same way as auction houses: wherever the player was standing
+-- when they opened one, there's a trainer. Shared by characters of a class.
+local function TrainerSpots()
+    if type(ns.db.trainerSpots) ~= "table" then
+        ns.db.trainerSpots = {}
+    end
+
+    local _, class = UnitClass("player")
+    class = class or "UNKNOWN"
+    if type(ns.db.trainerSpots[class]) ~= "table" then
+        ns.db.trainerSpots[class] = {}
+    end
+    return ns.db.trainerSpots[class]
+end
+
+-- Called with the names of the skills a trainer has on offer.
+NoteTrainerSpot = function(offered)
+    -- Weapon masters and their like open the same window. Only someone
+    -- selling this class's own skills marks the spot.
+    local data = ClassTable()
+    if data then
+        local teachesClass = false
+        for _, skill in ipairs(data.skills) do
+            local name = C_Spell.GetSpellName(skill[1])
+            if name and offered[name] then
+                teachesClass = true
+                break
+            end
+        end
+        if not teachesClass then
+            return
+        end
+    end
+
+    local mapID = C_Map.GetBestMapForUnit("player")
+    local position = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
+    if position then
+        local x, y = position:GetXY()
+        TrainerSpots()[mapID] = { x = x, y = y }
+    end
+end
+
+--- Whose trainers teach this character's class, where they are, and what
+--- the player's standing with each is worth. Prices everywhere else in
+--- this file are before any of these discounts.
 ---
 --- Capital cities are always listed. Out-of-the-way trainers only when
 --- they'd actually be cheaper.
----@return table places  list of { name, standing, discount, shortBy,
----        discountStanding }, cheapest first. discount is a fraction (0.1
----        is 10% off). shortBy is the reputation still needed, for someone
----        one standing short of a discount, and discountStanding names the
----        standing that earns it. Empty when we don't know the trainers.
+---@return table places  list, cheapest first, of:
+---   city              the place's name, in the player's language
+---   faction           whose trainers they are, where that isn't the city's
+---                     own people (the gnomes in Ironforge, say)
+---   standing          the player's standing with them, as the game words it
+---   discount          as a fraction: 0.1 is 10% off
+---   shortBy           reputation still needed, for someone one standing
+---                     short of a discount
+---   discountStanding  the name of the standing that earns the discount
+---   mapID             the map they're on, if we know it
+---   spot              { x, y } on that map, once the player has visited a
+---                     trainer there
+--- Empty when we don't know this class's trainers.
 function Training.Places()
     local data = ClassTable()
     local factions = data and data.trainers[UnitFactionGroup("player")]
+    local spots = TrainerSpots()
     local places = {}
 
     for _, factionID in ipairs(factions or {}) do
@@ -393,15 +470,22 @@ function Training.Places()
             local discount = faction.reaction >= DISCOUNT_STANDING and REPUTATION_DISCOUNT or 0
             local nearly = faction.reaction == DISCOUNT_STANDING - 1
 
+            local mapID = TRAINER_MAPS[factionID]
+            local map = mapID and C_Map.GetMapInfo(mapID)
+            local city = map and map.name or faction.name
+
             if data.capitals[factionID] or discount > 0 then
                 table.insert(places, {
-                    name = faction.name,
+                    city = city,
+                    faction = city ~= faction.name and faction.name or nil,
                     standing = StandingLabel(faction.reaction),
                     discount = discount,
                     capital = data.capitals[factionID] == true,
                     shortBy = nearly and (faction.nextReactionThreshold - faction.currentStanding)
                         or nil,
                     discountStanding = StandingLabel(DISCOUNT_STANDING),
+                    mapID = map and mapID or nil,
+                    spot = map and spots[mapID] or nil,
                 })
             end
         end
@@ -412,8 +496,11 @@ function Training.Places()
             return a.discount > b.discount
         elseif a.capital ~= b.capital then
             return a.capital
+        elseif a.city ~= b.city then
+            return a.city < b.city
         end
-        return a.name < b.name
+        -- A city's own trainers before the guests who teach there.
+        return a.faction == nil and b.faction ~= nil
     end)
     return places
 end

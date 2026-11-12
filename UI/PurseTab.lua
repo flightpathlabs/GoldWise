@@ -57,8 +57,22 @@ local function CreateRow(parent, index)
     row.When:SetWidth(120)
     row.When:SetJustifyH("LEFT")
 
+    -- A button at the far end, for the lines that can point at a map. The
+    -- amounts keep clear of it on every line, so they stay in a column.
+    row.Where = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+    row.Where:SetSize(64, 22)
+    row.Where:SetPoint("RIGHT", -4, 0)
+    row.Where:SetText("Where")
+    row.Where:Hide()
+    row.Where:SetScript("OnClick", function(self)
+        local line = self:GetParent()
+        if line.pickPlace then
+            line.pickPlace(line, self)
+        end
+    end)
+
     row.Amount = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    row.Amount:SetPoint("RIGHT", -4, 0)
+    row.Amount:SetPoint("RIGHT", row.Where, "LEFT", -10, 0)
     row.Amount:SetJustifyH("RIGHT")
 
     row.What = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
@@ -100,6 +114,53 @@ local function Percent(fraction)
     return math.floor(fraction * 100 + 0.5)
 end
 
+-- "Stormwind", or "Ironforge (Gnomeregan Exiles)" where the trainers are
+-- guests in someone else's city.
+local function PlaceName(place)
+    return place.faction and ("%s (%s)"):format(place.city, place.faction) or place.city
+end
+
+local function PriceAt(place, fullPrice)
+    return math.floor(fullPrice * (1 - place.discount) + 0.5)
+end
+
+local function ShowOnMap(place)
+    if place.spot then
+        ns.MapMarks.ShowPoint(place.mapID, place.spot.x, place.spot.y)
+    else
+        ns.MapMarks.ShowZone(place.mapID)
+        ns.Print(
+            "That's %s, not the trainer's door. Goldwise marks the trainer "
+                .. "once you've visited one there.",
+            place.city
+        )
+    end
+end
+
+-- The menu behind a training line's Where button: each city's trainers and
+-- what they'd charge. Picking one opens the map there.
+local function PickTrainingPlace(row, button)
+    local places = ns.Training.Places()
+
+    MenuUtil.CreateContextMenu(button, function(_, root)
+        root:CreateTitle("Where to train")
+
+        for _, place in ipairs(places) do
+            local label = ("%s: %s"):format(PlaceName(place), ns.Money(PriceAt(place, row.amount)))
+            if place.discount > 0 then
+                label = label .. (", %d%% off"):format(Percent(place.discount))
+            end
+
+            local choice = root:CreateButton(label, function()
+                ShowOnMap(place)
+            end)
+            -- Somewhere we can't put on a map is still worth listing for
+            -- its price.
+            choice:SetEnabled(place.mapID ~= nil)
+        end
+    end)
+end
+
 -- The hover card for a line of training: what the same skills cost from
 -- each city's trainers, given what the player's reputation there earns.
 local function ShowTrainingPlaces(row)
@@ -121,15 +182,14 @@ local function ShowTrainingPlaces(row)
             )
         end
 
-        local price = math.floor(row.amount * (1 - place.discount) + 0.5)
         local red, green, blue = 1, 1, 1
         if place.discount > 0 then
             red, green, blue = GREEN_FONT_COLOR:GetRGB()
         end
 
         GameTooltip:AddDoubleLine(
-            ("%s (%s)"):format(place.name, standing),
-            ns.Money(price),
+            ("%s: %s"):format(PlaceName(place), standing),
+            ns.Money(PriceAt(place, row.amount)),
             1,
             1,
             1,
@@ -150,14 +210,16 @@ local function ShowTrainingPlaces(row)
         muted[3],
         true
     )
+    GameTooltip:AddLine("Press Where to find them on the map.", muted[1], muted[2], muted[3])
     GameTooltip:Show()
 end
 
 -- What's coming up -------------------------------------------------------------------
 
--- Each entry is { when, what, amount, showMore }: amount in copper, or nil
--- if unknown, and showMore a function that puts up a tooltip for the row,
--- where there's one worth having.
+-- Each entry is { when, what, amount, showMore, pickPlace }. amount is in
+-- copper, or nil if unknown. showMore puts up a tooltip for the line, and
+-- pickPlace answers its Where button; both only where there's something
+-- worth having.
 local function UpcomingCosts(level)
     local costs = {}
 
@@ -187,12 +249,10 @@ local function UpcomingCosts(level)
     local cheapest = places[1]
     local discountNote = ""
     if cheapest and cheapest.discount > 0 then
-        discountNote = (" %d%% off from %s trainers."):format(
-            Percent(cheapest.discount),
-            cheapest.name
-        )
+        discountNote = (" %d%% off in %s."):format(Percent(cheapest.discount), cheapest.city)
     end
     local showMore = #places > 0 and ShowTrainingPlaces or nil
+    local pickPlace = #places > 0 and PickTrainingPlace or nil
 
     for index, entry in ipairs(training) do
         if index > LEVELS_SHOWN then
@@ -206,6 +266,7 @@ local function UpcomingCosts(level)
                 what = skills .. " waiting at your trainer." .. discountNote,
                 amount = entry.cost,
                 showMore = showMore,
+                pickPlace = pickPlace,
             })
         else
             local away = entry.level - level
@@ -218,6 +279,7 @@ local function UpcomingCosts(level)
                 ),
                 amount = entry.cost,
                 showMore = showMore,
+                pickPlace = pickPlace,
             })
         end
     end
@@ -394,6 +456,9 @@ function PurseTab.Create(parent)
                 row.amount = cost.amount
                 row.showMore = cost.showMore
                 row:EnableMouse(cost.showMore ~= nil)
+
+                row.pickPlace = cost.pickPlace
+                row.Where:SetShown(cost.pickPlace ~= nil)
             end
         end
 

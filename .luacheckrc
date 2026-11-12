@@ -82,6 +82,8 @@ read_globals = {
     "BuyTrainerService",
     "C_TooltipInfo",
     "C_SpellBook",
+    "C_Spell",
+    "MenuUtil",
     "C_Reputation",
     "GREEN_FONT_COLOR",
     "UnitRace",
