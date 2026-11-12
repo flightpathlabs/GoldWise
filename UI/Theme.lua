@@ -38,6 +38,10 @@ Theme.VERB_LABELS = {
 Theme.PORTRAIT = "Interface\\AddOns\\Goldwise\\Media\\portrait"
 Theme.ICON = "Interface\\AddOns\\Goldwise\\Media\\icon"
 
+-- The whole picture: the goblin mid-audit, and the adventurer on the
+-- receiving end of it.
+Theme.SCENE = "Interface\\AddOns\\Goldwise\\Media\\scene"
+
 --- Wraps an item's name in its quality colour, the way the game does.
 ---@param name string
 ---@param quality number|nil  Enum.ItemQuality
