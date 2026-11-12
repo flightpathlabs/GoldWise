@@ -241,11 +241,6 @@ end
 -- them apart.
 local MOST_SERIES = 3
 
--- A sum that can be below nothing: "-2g 40s".
-local function SignedMoney(copper)
-    return (copper < 0 and "-" or "") .. ns.Money(math.abs(copper))
-end
-
 --- Creates a chart of one or more lines across a run of days, for sums
 --- that can fall below nothing. A level line marks zero.
 ---@param parent table  frame
@@ -313,8 +308,10 @@ function Chart.CreateLines(parent, width, height)
             end
         end
 
+        -- With nothing to plot there's nothing for a key to explain.
+        local drawable = any and lastDay > firstDay
         for index, key in ipairs(keys) do
-            local line = any and series[index] or nil
+            local line = drawable and series[index] or nil
             key:SetShown(line ~= nil)
             if line then
                 key:SetText(line.label)
@@ -322,7 +319,7 @@ function Chart.CreateLines(parent, width, height)
             end
         end
 
-        if not any or lastDay <= firstDay then
+        if not drawable then
             highLabel:SetText("")
             lowLabel:SetText("")
             zeroLabel:Hide()
@@ -363,8 +360,8 @@ function Chart.CreateLines(parent, width, height)
             DrawPath(self, points, 2, line.color)
         end
 
-        highLabel:SetText(high > 0 and SignedMoney(high) or "")
-        lowLabel:SetText(low < 0 and SignedMoney(low) or "")
+        highLabel:SetText(high > 0 and ns.Money(high) or "")
+        lowLabel:SetText(low < 0 and ns.Money(low) or "")
 
         -- Zero is only worth marking where it isn't the top or bottom of
         -- the chart, and where it wouldn't sit on top of their labels.

@@ -76,7 +76,8 @@ local function Sections()
                     .. 'under "I want to..." on Prospects. It compares making a thing with '
                     .. "selling what goes into it.",
                 "Want the whole chain? Alt-right-click anything you can make, or make "
-                    .. "something from, for its crafting tree: what it takes, what that "
+                    .. "something from (or whichever click you've chosen), for its "
+                    .. "crafting tree: what it takes, what that "
                     .. "takes, what it goes into, and what each costs to buy or to make. "
                     .. "/gw tree does the same for the item you last pointed at. To change "
                     .. "the click or give it a key, see Shortcuts under Goldwise in the "

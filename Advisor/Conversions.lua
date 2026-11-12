@@ -46,9 +46,9 @@ local function IngredientValue(itemID, marketKey, cut)
         return price * (1 - cut), true
     end
 
-    local sellsFor = select(11, C_Item.GetItemInfo(itemID))
-    if sellsFor and sellsFor > 0 then
-        return sellsFor * ns.VENDOR_MARKUP, false
+    local fromVendor = ns.VendorGuess(itemID)
+    if fromVendor then
+        return fromVendor, false
     end
 end
 

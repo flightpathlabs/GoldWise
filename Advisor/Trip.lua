@@ -61,10 +61,14 @@ end
 
 -- The sections ------------------------------------------------------------------------
 
--- Each returns a list of steps: { title, detail, amount, amountLabel,
--- action }. amount is in copper, and action is { label, onClick }. A step
--- with more than one figure to show gives figures, a list of
--- { amount, caption }, in place of amount (see Advisor\Resale).
+-- Each returns a list of steps, drawn by UI\TripPlan. A step is
+-- { title, detail } and any of:
+--   itemID       the item it's about, for a tooltip and its price history
+--   amount       a sum in copper, with amountLabel before it ("costs")
+--                or amountAfter behind it ("each")
+--   figures      several sums side by side in place of amount, as a list
+--                of { amount, caption } (see Advisor\Resale)
+--   action       a button: { label, onClick }
 
 local function BeforeLeaving(zone, level)
     local steps = {}
@@ -106,7 +110,7 @@ local function BeforeLeaving(zone, level)
         local cost = ns.Purse.RepairCost()
         table.insert(steps, {
             title = "Repair",
-            detail = ("Your gear is at %d%%."):format(durability),
+            detail = ("Your gear is at %d%%."):format(math.floor(durability)),
             amount = cost,
             amountLabel = "costs",
             action = MapAction(ns.Directory.Nearest(ns.Directory.REPAIR)),

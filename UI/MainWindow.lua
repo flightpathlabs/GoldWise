@@ -172,17 +172,21 @@ local function Refresh()
     window.Status:SetText(StatusText())
     window.ScanButton:SetEnabled(ns.Market.IsOpen() and not ns.Scanner.IsScanning())
 
-    -- Only the tab on show is rebuilt. The others catch up when the
-    -- player switches to them. While an item's page covers the tab, the
-    -- footer still belongs to the tab underneath.
-    local tab = TABS[currentTab]
-    window.Footer:SetText(tab.refresh(window[tab.page]) or "")
-
     -- The crafting tree is made of prices and names, and both can change
-    -- under it.
+    -- under it. While it or an item's page covers the tab, the tab isn't
+    -- rebuilt: nobody can see it, and it catches up when they go back.
+    -- The footer stays the tab's.
     if window.Tree:IsShown() then
         window.Tree:Refresh()
+        return
+    elseif window.Detail:IsShown() then
+        return
     end
+
+    -- Only the tab on show is rebuilt. The others catch up when the
+    -- player switches to them.
+    local tab = TABS[currentTab]
+    window.Footer:SetText(tab.refresh(window[tab.page]) or "")
 end
 
 -- Puts away every tab's page, and the two pages that can cover them.
@@ -208,9 +212,28 @@ local function ShowCurrentTab()
     ShowTab(currentTab)
 end
 
+-- Whether the item's page on show was reached from the crafting tree,
+-- in which case that's where Back returns to.
+local detailFromTree = false
+
 local function ShowDetail(row)
+    detailFromTree = false
     HidePages()
     window.Detail:ShowItem(row)
+end
+
+-- Back from an item's page: to the tree if that's where it was opened
+-- from, with the trail the player had walked still in place, and to the
+-- tab otherwise.
+local function LeaveDetail()
+    if detailFromTree then
+        detailFromTree = false
+        HidePages()
+        window.Tree:Show()
+        window.Tree:Refresh()
+    else
+        ShowCurrentTab()
+    end
 end
 
 local function CreateTabs(frame)
@@ -286,9 +309,10 @@ local function CreateWindow()
     frame.Places = ns.PlacesTab.Create(frame.Inset)
     frame.Recipes = ns.RecipesTab.Create(frame.Inset)
     frame.About = ns.AboutTab.Create(frame.Inset)
-    frame.Detail = ns.ItemDetail.Create(frame.Inset, ShowCurrentTab)
+    frame.Detail = ns.ItemDetail.Create(frame.Inset, LeaveDetail)
     frame.Tree = ns.CraftTreeView.Create(frame.Inset, ShowCurrentTab, function(itemID)
         ns.ShowItemHistory(itemID)
+        detailFromTree = true
     end)
     CreateTabs(frame)
 
@@ -446,30 +470,6 @@ ns.Subscribe("PLACES_CHANGED", function()
     if TABS[currentTab].page == "Places" then
         Refresh()
     end
-end)
-
--- Item details the client had to fetch (a vendor price for something on
--- another character, say) arrive a moment after they're asked for. The
--- event fires for every item anything in the game loads, so only listen
--- while the window is open, and gather a burst into one redraw.
-local redrawQueued = false
-
-ns.OnEvent("GET_ITEM_INFO_RECEIVED", function(itemID)
-    if redrawQueued or not window or not window:IsShown() then
-        return
-    end
-
-    -- A deep scan makes the client load thousands of items. Only the ones
-    -- the list is actually waiting on are a reason to redraw.
-    if not ns.Assets.IsWaitingFor(itemID) then
-        return
-    end
-
-    redrawQueued = true
-    C_Timer.After(0.5, function()
-        redrawQueued = false
-        Refresh()
-    end)
 end)
 
 -- Ways in -----------------------------------------------------------------------------

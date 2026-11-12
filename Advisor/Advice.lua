@@ -32,19 +32,21 @@ local UNSOLD_SHARE = 1 / 3
 --
 -- These have to fit on one line of the list, which holds about fifty-five
 -- characters, fewer when they're in capitals. The first in-game test
--- clipped several, so check any new one against that.
+-- clipped several, so check any new one against that. A sum of money
+-- filled in can run to eleven characters ("12g 34s 56c"), so the words
+-- around one have to leave room for it.
 local PHRASES = {
     noPrice = {
         calm = "No auction price yet. Visit the auction house.",
         auditor = "No price on file. GO TO THE AUCTION HOUSE.",
     },
     underDeposit = {
-        calm = "Worth no more than the %s listing deposit. Vendor it.",
-        auditor = "Not worth MORE than the %s deposit. Vendor it.",
+        calm = "Worth less than its %s deposit. Vendor it.",
+        auditor = "Under its %s deposit. VENDOR it.",
     },
     underDepositNoVendor = {
-        calm = "Worth no more than the %s deposit. Not worth listing.",
-        auditor = "Under the %s deposit and no vendor wants it. Clutter.",
+        calm = "Worth less than its %s deposit. Not worth listing.",
+        auditor = "Under its %s deposit. Nobody wants it.",
     },
     vendorPaysSame = {
         calm = "A vendor pays as much as the auction house would.",
@@ -52,7 +54,7 @@ local PHRASES = {
     },
     thinMargin = {
         calm = "Only %s over vendor price. Not worth the deposit.",
-        auditor = "%s over vendor price? You'd risk the deposit for THAT?",
+        auditor = "%s over vendor? Risk a deposit for THAT?",
     },
     notWorthTheStake = {
         calm = "Too little to gain for the deposit you'd be risking.",

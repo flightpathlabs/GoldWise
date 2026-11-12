@@ -7,10 +7,25 @@ local addonName, ns = ...
 --   schema     version of this layout, for migrations
 --   settings   the player's options
 --   markets    price data, one entry per auction house market (see Ledger)
---   places     where auction houses are, learned by visiting them
 --   feedHouses which house in the price feed serves each market (see Feed)
+--   deposits   what listing costs on each market, as measured (see Deposit)
 --   characters what each character held when last played (see Characters)
+--   banks      what's in each character's bank, and the shared one (see Bank)
+--   crafts     the recipes each character knows (see Crafts)
+--   keep       what the player has said isn't for sale (see Keep)
+--   purse      money in and out by day (see Purse)
+--   trade      auction sales, purchases and deposits by day (see Trade)
+--   worth      coin and goods by day (see Worth)
+--   directory  trainers and services the account has visited (see Directory)
+--   training   what class trainers charge, and what each character has
+--              still to learn (with unlearned; see Training)
+--   vendorPrices  what vendors were seen to ask for recipes (see Recipes)
+--   places     where the visit-an-auction-house prompt has spoken up
 --   log        the last couple of hundred diagnostic lines
+--   errors     faults noted for a bug report
+--
+-- Most of these are made the first time they're needed, by the file that
+-- owns them.
 --
 -- Forever's beta builds had a bug where saved data was written but not read
 -- back. It's fixed in the build we developed on, but the lesson stands:

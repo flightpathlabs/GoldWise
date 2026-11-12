@@ -28,9 +28,6 @@ local ONE_KIND = 30
 -- picked on their own.
 local MOST_KINDS = 12
 
--- Fewer than this many listed and the price is one seller's opinion.
-local FEWEST_LISTED = 5
-
 -- A material counts as within reach when its level is no more than this
 -- far above the player's. The game gives every material a level that
 -- follows where it's found: copper is 10, mithril 40, runecloth 50.
@@ -58,7 +55,7 @@ local function Kinds(marketKey)
         -- its kind within it. This is known for every item without the
         -- client having to fetch anything.
         local _, _, kindName, _, _, class = C_Item.GetItemInfoInstant(itemID)
-        if class == Enum.ItemClass.Tradegoods and kindName and listed >= FEWEST_LISTED then
+        if class == Enum.ItemClass.Tradegoods and kindName and listed >= ns.THIN_MARKET then
             local kind = byName[kindName]
             if not kind then
                 kind = { name = kindName, worth = 0, items = {} }
@@ -229,11 +226,18 @@ function Materials.Plan(only, nearLevel)
                 detail = "Visit an auction house and let Goldwise read it. "
                     .. "Every material on sale will be listed here.",
             }
-        else
+        elseif nearLevel then
             heading = "Nothing within reach"
             note = {
                 title = "Everything on sale here is beyond your level",
                 detail = "Untick the level limit in the menu above to see it anyway.",
+            }
+        else
+            heading = "Nothing to show"
+            note = {
+                title = "The game wouldn't say what these are",
+                detail = "It was asked about each of them and didn't answer. "
+                    .. "Come back to this page in a moment.",
             }
         end
         table.insert(sections, { heading = heading, numbered = false, steps = { note } })

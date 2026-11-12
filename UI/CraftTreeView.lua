@@ -29,10 +29,16 @@ local GOES_INTO_CAPTIONS = { "auction, each", "materials", "profit" }
 
 -- Words --------------------------------------------------------------------------
 
--- A recipe that makes five at a time can leave a step wanting two and a
--- half of something. Nobody buys half an ore.
-local function Whole(quantity)
-    return math.ceil(quantity - 0.001)
+-- How many of something a step takes, as words. A recipe that makes
+-- two at a time leaves the step above wanting half a batch, and so half
+-- of each ingredient. The figures beside it are for that half, so the
+-- count has to say so too.
+local function HowMany(quantity)
+    local whole = math.floor(quantity + 0.5)
+    if math.abs(quantity - whole) < 0.01 then
+        return tostring(whole)
+    end
+    return ("%.1f"):format(quantity)
 end
 
 -- A profit in green; a loss in red, with a minus sign.
@@ -74,7 +80,7 @@ local function PartRow(part)
     return {
         itemID = part.itemID,
         depth = part.depth,
-        title = ("%d %s"):format(Whole(part.quantity), ns.ItemLabel(part.itemID)),
+        title = ("%s %s"):format(HowMany(part.quantity), ns.ItemLabel(part.itemID)),
         note = note,
         figures = { part.price and Theme.Coins(part.price) or "", buy, make },
     }
@@ -395,11 +401,14 @@ function CraftTreeView.Create(parent, onBack, onHistory)
     notes:SetPoint("TOPLEFT", verdict, "BOTTOMLEFT", 0, -6)
     notes:SetPoint("RIGHT", -16, 0)
     notes:SetJustifyH("LEFT")
-    notes:SetWordWrap(false)
+    notes:SetJustifyV("TOP")
+    -- Up to four short sentences, which is more than one line holds.
+    notes:SetWordWrap(true)
+    notes:SetMaxLines(2)
     notes:SetTextColor(unpack(Theme.MUTED))
 
     local scrollBox = CreateFrame("Frame", nil, view, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 6, -104)
+    scrollBox:SetPoint("TOPLEFT", 6, -118)
     scrollBox:SetPoint("BOTTOMRIGHT", -22, 6)
 
     local scrollBar = CreateFrame("EventFrame", nil, view, "MinimalScrollBar")
@@ -467,11 +476,14 @@ function CraftTreeView.Create(parent, onBack, onHistory)
     end)
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, list)
 
-    --- Shows the tree for an item, starting afresh.
+    --- Shows the tree for an item. Asked for the item it's already on,
+    --- it keeps the way the player came, so Back still retraces it.
     ---@param itemID number
     function view:ShowItem(itemID)
-        subject = itemID
-        table.wipe(trail)
+        if itemID ~= subject then
+            subject = itemID
+            table.wipe(trail)
+        end
         Draw(false)
         self:Show()
     end

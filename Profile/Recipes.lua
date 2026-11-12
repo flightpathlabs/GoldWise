@@ -183,16 +183,35 @@ function Recipes.VendorSpot(recipe, zone)
     end
 end
 
+-- Zones named for a recipe before the rest are counted.
+local ZONES_NAMED = 2
+
+--- Where a recipe is sold, as words: the first couple of zones, and how
+--- many more there are.
+---@param vendors table  list of vendors, each with a zone
+---@return string  e.g. "Westfall, Redridge Mountains and 3 more"
+function Recipes.ZonesText(vendors)
+    local zones, seen = {}, {}
+    for _, vendor in ipairs(vendors) do
+        if vendor.zone and not seen[vendor.zone] then
+            seen[vendor.zone] = true
+            table.insert(zones, vendor.zone)
+        end
+    end
+
+    local text = table.concat(zones, ", ", 1, math.min(ZONES_NAMED, #zones))
+    if #zones > ZONES_NAMED then
+        text = ("%s and %d more"):format(text, #zones - ZONES_NAMED)
+    end
+    return text
+end
+
 -- Buying to sell on -------------------------------------------------------------------
 
 -- A recipe that doesn't bind can be bought from its vendor and sold at the
 -- auction house, and plenty of players never find the vendor. Where the
 -- auction price is well above what the vendor asks, that's coin for
 -- anyone, whatever their professions.
-
--- A vendor usually asks four times what they'd pay for the same thing.
--- That's our guess at a price until the player has seen the real one.
-local BUY_TO_SELL_RATIO = 4
 
 -- The profit has to be worth the walk and the risk of it not selling:
 -- at least this share of what was paid, and never less than a silver.
@@ -207,9 +226,6 @@ local function VendorPrices()
     end
     return ns.db.vendorPrices
 end
-
--- Items we've asked the client to load so we can price them.
-local costRequested = {}
 
 -- Every recipe item we know a vendor sells, built on first use.
 local recipeItems
@@ -263,9 +279,9 @@ local function VendorCost(itemID)
         return seen.price, true, seen.stock
     end
 
-    local sellsFor = select(11, C_Item.GetItemInfo(itemID))
-    if sellsFor and sellsFor > 0 then
-        return sellsFor * BUY_TO_SELL_RATIO, false
+    local guess = ns.VendorGuess(itemID)
+    if guess then
+        return guess, false
     end
 end
 
@@ -306,12 +322,8 @@ function Recipes.Resale(marketKey)
                 local cost, costIsSeen, stock = VendorCost(item)
                 if not cost then
                     unpriced = unpriced + 1
-                    -- Asked for once. If the client can't load an item,
-                    -- asking again on every look would never end.
-                    if not costRequested[item] then
-                        costRequested[item] = true
-                        C_Item.RequestLoadItemDataByID(item)
-                    end
+                    -- The list redraws when the client has fetched it.
+                    ns.LoadItem(item)
                 else
                     local profit = price * (1 - cut) - cost
                     if profit >= math.max(ns.SMALL_CHANGE, cost * WORTHWHILE_SHARE) then

@@ -146,16 +146,17 @@ local function FillRow(row, data)
     -- A count of one is the normal case and doesn't need saying.
     local name = Theme.ItemName(data.name, data.quality)
     if data.count > 1 then
-        name = ("%s  |cffb9aa8cx%d|r"):format(name, data.count)
+        name = name .. "  " .. Theme.Aside("x" .. data.count)
     end
     -- Where they are, if they aren't all to hand.
     if (data.inBank or 0) > 0 and not data.owner then
-        name = data.inBank == data.count and ("%s  |cffb9aa8cin your bank|r"):format(name)
-            or ("%s  |cffb9aa8c%d in your bank|r"):format(name, data.inBank)
+        local where = data.inBank == data.count and "in your bank"
+            or (data.inBank .. " in your bank")
+        name = name .. "  " .. Theme.Aside(where)
     end
     -- Things another character holds say whose they are.
     if data.owner then
-        name = ("%s  |cffb9aa8con %s|r"):format(name, data.owner)
+        name = name .. "  " .. Theme.Aside("on " .. data.owner)
     end
     row.Name:SetText(name)
     row.Reason:SetText(advice.reason)
@@ -258,9 +259,9 @@ function ShelfList.Create(parent, onSelect)
 
         local text
         if everything > mine then
-            text = ("Worth at auction: %s on this character  |cffb9aa8c(%s in total)|r"):format(
+            text = ("Worth at auction: %s on this character  %s"):format(
                 Theme.Coins(mine),
-                Theme.Coins(everything)
+                Theme.Aside(("(%s in total)"):format(Theme.Coins(everything)))
             )
         elseif mine > 0 then
             text = ("Worth at auction: %s"):format(Theme.Coins(mine))

@@ -1,9 +1,9 @@
 local _, ns = ...
 
--- The Profit tab: whether the player is coming out ahead, a day at a
--- time. One line for everything that came in less everything that went
--- out, and one for the auction house on its own, with what was sold and
--- bought there underneath.
+-- The Profit tab: whether the player is coming out ahead. A chart that
+-- can show how each day went, how the days added up, or what the player
+-- is worth, with what was sold and bought at the auction house above it
+-- and the latest of those sales and purchases below.
 --
 -- The Purse tab is about what's coming and whether there's coin for it.
 -- This one looks back.
@@ -172,7 +172,7 @@ function ProfitTab.Create(parent)
                     showing = index
                     -- The window takes its footer from the tab, so it has
                     -- to be the one to redraw.
-                    ns.Publish("TRADE_CHANGED")
+                    ns.Publish("COURSE_CHANGED")
                 end)
             end
         end)

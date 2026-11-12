@@ -10,17 +10,6 @@ local _, ns = ...
 local Assets = {}
 ns.Assets = Assets
 
--- Items whose details we've asked the client to load this session.
-local requested = {}
-
---- Whether we asked the client to load this item's details, and so have
---- something to gain from redrawing now that they've arrived.
----@param itemID number
----@return boolean
-function Assets.IsWaitingFor(itemID)
-    return requested[itemID] == true
-end
-
 --- Assesses one holding.
 ---@param holding table       one entry from Bags.Holdings or Characters.Others
 ---@param marketKey string
@@ -44,11 +33,8 @@ function Assets.Describe(holding, marketKey, owner)
     -- player's own bags, but not for another character's, so ask for it;
     -- the window redraws when the answer arrives.
     local vendorPrice = select(11, C_Item.GetItemInfo(itemID))
-    if vendorPrice == nil and not requested[itemID] then
-        -- Once per session is enough. If the client can't load an item,
-        -- asking again on every redraw would never end.
-        requested[itemID] = true
-        C_Item.RequestLoadItemDataByID(itemID)
+    if vendorPrice == nil then
+        ns.LoadItem(itemID)
     end
 
     -- Something the player uses isn't for sale, whatever it would fetch.

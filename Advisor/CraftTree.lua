@@ -54,15 +54,14 @@ end)
 -- What one of something costs to buy, and whether that's a guess at a
 -- vendor's price. The auction price if it has one; failing that, it's
 -- taken to come from a vendor.
-local function BuyingPrice(itemID, marketKey)
-    local price = ns.Ledger.Price(marketKey, itemID)
-    if price then
-        return price, false
+local function BuyingPrice(itemID, auctionPrice)
+    if auctionPrice then
+        return auctionPrice, false
     end
 
-    local sellsFor = select(11, C_Item.GetItemInfo(itemID))
-    if sellsFor and sellsFor > 0 then
-        return sellsFor * ns.VENDOR_MARKUP, true
+    local fromVendor = ns.VendorGuess(itemID)
+    if fromVendor then
+        return fromVendor, true
     end
 end
 
@@ -91,7 +90,7 @@ end
 -- into each other don't go round for ever.
 function Step(itemID, quantity, marketKey, depth, path)
     local price, listed = ns.Ledger.Price(marketKey, itemID)
-    local each, fromVendor = BuyingPrice(itemID, marketKey)
+    local each, fromVendor = BuyingPrice(itemID, price)
 
     local step = {
         itemID = itemID,

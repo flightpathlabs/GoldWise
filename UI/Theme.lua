@@ -82,7 +82,20 @@ end
 ---@param color table  { red, green, blue }, each from 0 to 1
 ---@return string
 function Theme.Tint(text, color)
-    return ("|cff%02x%02x%02x%s|r"):format(color[1] * 255, color[2] * 255, color[3] * 255, text)
+    -- Colours are kept as fractions and written as whole numbers.
+    local function Channel(index)
+        return math.floor(color[index] * 255 + 0.5)
+    end
+    return ("|cff%02x%02x%02x%s|r"):format(Channel(1), Channel(2), Channel(3), text)
+end
+
+--- Sets a few words apart from the name they follow: a count, where the
+--- thing is, whose it is. Quieter than Theme.MUTED, which is for whole
+--- lines.
+---@param text string
+---@return string
+function Theme.Aside(text)
+    return "|cffb9aa8c" .. text .. "|r"
 end
 
 --- A sum that can be below nothing, with the colour of the side it's on:

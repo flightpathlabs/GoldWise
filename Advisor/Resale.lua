@@ -14,25 +14,6 @@ ns.Resale = Resale
 local MOST_HERE = 8
 local MOST_ELSEWHERE = 12
 
--- Zones named per deal before the rest are counted.
-local ZONES_NAMED = 2
-
-local function WhereText(deal)
-    local zones, seen = {}, {}
-    for _, vendor in ipairs(deal.vendors) do
-        if vendor.zone and not seen[vendor.zone] then
-            seen[vendor.zone] = true
-            table.insert(zones, vendor.zone)
-        end
-    end
-
-    local text = table.concat(zones, ", ", 1, math.min(ZONES_NAMED, #zones))
-    if #zones > ZONES_NAMED then
-        text = ("%s and %d more"):format(text, #zones - ZONES_NAMED)
-    end
-    return text
-end
-
 -- One deal as a step: what to buy and where, then the three figures that
 -- make the case for it, side by side: what the vendor asks, what it's
 -- listed for at auction, and what's left over once it's sold.
@@ -40,7 +21,7 @@ local function Step(deal, sayWhere)
     local parts = {}
 
     if sayWhere then
-        table.insert(parts, "In " .. WhereText(deal))
+        table.insert(parts, "In " .. ns.Recipes.ZonesText(deal.vendors))
     end
 
     -- The two things that turn a good price into a bad buy.

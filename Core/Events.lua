@@ -96,10 +96,12 @@ end
 --                                   house has been put on record
 --   PLACES_CHANGED                  the directory of places has learned more
 --   CRAFTS_CHANGED                  the player's known recipes have been read
---   COURSE_CHANGED                  the player picked something else to do
---                                   on the Prospects tab
---   ITEM_NAMES_LOADED               item names asked for through
---                                   ns.ItemName have arrived
+--   COURSE_CHANGED                  the player picked something else for a
+--                                   tab to show: what to do on Prospects,
+--                                   which chart on Profit
+--   ITEM_NAMES_LOADED               items asked for through ns.ItemName
+--                                   or ns.LoadItem have arrived, or been
+--                                   given up on
 --   SETTINGS_CHANGED                the player changed an option
 --
 -- PRICES_CHANGED also fires when another player shares prices with us.

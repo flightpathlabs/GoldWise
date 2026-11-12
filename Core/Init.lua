@@ -21,6 +21,9 @@ ns.SMALL_CHANGE = 100
 -- sells them.
 ns.VENDOR_MARKUP = 4
 
+-- Fewer listed than this and a price is one or two sellers' opinion.
+ns.THIN_MARKET = 5
+
 -- The auction house's share of a sale. The client doesn't expose it, so
 -- these are the Classic figures until a real sale tells us otherwise. The
 -- goblin-run neutral houses have always taken more.
@@ -36,9 +39,14 @@ ns.RecipeData = {}
 
 --- Formats copper as plain text, leaving out the parts that are zero.
 ---@param copper number
----@return string  e.g. "1g 4s", "81c", "2s 30c"
+---@return string  e.g. "1g 4s", "81c", "2s 30c", "-3s"
 function ns.Money(copper)
     copper = math.floor(copper + 0.5)
+
+    -- A loss is the same sum with a minus sign in front.
+    if copper < 0 then
+        return "-" .. ns.Money(-copper)
+    end
 
     local gold = math.floor(copper / ns.COPPER_PER_GOLD)
     local silver = math.floor(copper / ns.COPPER_PER_SILVER) % 100
@@ -64,15 +72,15 @@ function ns.Ago(seconds)
     if seconds < 90 then
         return "just now"
     elseif seconds < 3600 then
-        return ("%d minutes ago"):format(seconds / 60)
+        return ("%d minutes ago"):format(math.floor(seconds / 60))
     elseif seconds < 2 * 3600 then
         return "an hour ago"
     elseif seconds < ns.SECONDS_PER_DAY then
-        return ("%d hours ago"):format(seconds / 3600)
+        return ("%d hours ago"):format(math.floor(seconds / 3600))
     elseif seconds < 2 * ns.SECONDS_PER_DAY then
         return "yesterday"
     end
-    return ("%d days ago"):format(seconds / ns.SECONDS_PER_DAY)
+    return ("%d days ago"):format(math.floor(seconds / ns.SECONDS_PER_DAY))
 end
 
 --- Prints a line to chat with the addon's name in front.

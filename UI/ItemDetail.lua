@@ -11,9 +11,6 @@ local Theme = ns.Theme
 local CHART_WIDTH = 740
 local CHART_HEIGHT = 250
 
--- Fewer listed than this and the price is one or two sellers' opinion.
-local THIN_MARKET = 5
-
 -- A stack this size or bigger is worth a word when it's more than the
 -- whole market has on offer.
 local SIZEABLE_STACK = 5
@@ -118,7 +115,7 @@ function ItemDetail.Create(parent, onBack)
         -- How far the price can be trusted, and what selling a lot at
         -- once would do to it. Both come from how many are listed.
         local listed = row.listed or 0
-        if row.price and listed > 0 and listed < THIN_MARKET then
+        if row.price and listed > 0 and listed < ns.THIN_MARKET then
             table.insert(
                 lines,
                 ("Only %d listed, so that price is one or two sellers' opinion."):format(listed)

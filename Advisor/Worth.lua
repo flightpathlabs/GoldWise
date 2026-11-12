@@ -46,8 +46,18 @@ local function Count()
         ns.Ledger.ForgetOldDays(days, ns.settings.historyDays)
     end
 
-    local _, goods = ns.Assets.WorthOfEverything(ns.Market.Home())
-    days[today] = { ns.Characters.TotalMoney(), goods }
+    -- Coin and goods are counted over the same characters: this one and
+    -- the others on its market. A character on the other side trades in a
+    -- different auction house, and their goods can't be priced in this
+    -- one, so their coin is left out as well.
+    local home = ns.Market.Home()
+    local coin = GetMoney()
+    for _, character in ipairs(ns.Characters.Others(home)) do
+        coin = coin + (character.money or 0)
+    end
+
+    local _, goods = ns.Assets.WorthOfEverything(home)
+    days[today] = { coin, goods }
 end
 
 local function CountSoon()

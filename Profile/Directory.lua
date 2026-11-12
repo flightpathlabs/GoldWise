@@ -132,8 +132,9 @@ local function TitleOfNPC()
     local line = ok and tooltip and tooltip.lines and tooltip.lines[2]
     local text = line and line.leftText
 
-    -- Someone without a title has their level on that line instead.
-    if text and text ~= "" and not text:find("%d") then
+    -- Someone without a title has their level on that line instead: a
+    -- number, or "??" for somebody far above the player.
+    if text and text ~= "" and not text:find("%d") and not text:find("?", 1, true) then
         return text
     end
 end

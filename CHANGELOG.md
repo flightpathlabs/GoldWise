@@ -40,8 +40,7 @@ the `dev` branch.
   the deposit to be a flat 1 silver. It now asks the game each time you
   open the auction house, so it follows the minimum when Blizzard changes
   it (a drop to 1 copper has been announced), and it knows that things a
-  vendor pays well for take a bigger deposit. It says so in chat when the
-  minimum moves.
+  vendor pays well for take a bigger deposit.
 - **Places sends you to the trainer you need next.** A craft's trainers
   each teach one stretch of it, and the nearest tailor may be one you've
   outgrown. Places now picks the nearest who can take you further at

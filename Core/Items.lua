@@ -1,13 +1,16 @@
 local _, ns = ...
 
--- Item names, for things the player may never have seen.
+-- Items the player may never have seen: their names, and whatever else
+-- the client only knows once it has fetched them.
 --
--- The client only knows an item's name once it has fetched the item, and
--- for most of what's on the auction house it hasn't. Asking for a name
--- that isn't there yet returns nothing and starts the fetch; the answer
--- comes a moment later. So anything that lists items it didn't get from
--- the player's bags asks here, shows what it gets, and is told to redraw
--- when the missing names arrive.
+-- For most of what's on the auction house, it hasn't. Asking for a name
+-- or a vendor price that isn't there yet returns nothing; the item has to
+-- be asked for, and the answer comes a moment later. So anything that
+-- shows items it didn't get from the player's bags asks here, shows what
+-- it gets, and is told to redraw when what was missing arrives.
+--
+-- This is the one place that asks, so that an item is asked for once,
+-- waited on sensibly, and given up on when it isn't coming.
 
 -- Names come back in a rush when a list of unseen items is first shown.
 -- Gather them into one redraw.
@@ -31,6 +34,10 @@ local awaited = {}
 -- Items the client couldn't give us. Not asked for again: asking on
 -- every redraw would never end.
 local unavailable = {}
+
+-- Items the client has answered for this session, one way or the other.
+-- Whatever it's going to say about them, it has said.
+local answered = {}
 
 -- When the client last gave us any item we were waiting on.
 local lastArrival = 0
@@ -70,6 +77,7 @@ function Watch()
         if C_Item.GetItemNameByID(itemID) then
             -- It arrived without the event that should have said so.
             awaited[itemID] = nil
+            answered[itemID] = true
             lastArrival = now
             changed = true
         elseif now - math.max(wait.since, lastArrival) < PATIENCE then
@@ -96,9 +104,28 @@ function Watch()
     end
 end
 
---- An item's name, if the client has it yet. If it hasn't, the item is
---- asked for, and ITEM_NAMES_LOADED is published once it's here or once
+--- Asks the client to fetch an item, for a caller that has found
+--- something about it missing: its vendor price, its level. Asking twice
+--- does no harm. ITEM_NAMES_LOADED is published once it's here, or once
 --- it's clear that it isn't coming.
+---@param itemID number
+---@return boolean coming  true if an answer is on its way; false if the
+---        client has already said all it's going to about this item
+function ns.LoadItem(itemID)
+    if awaited[itemID] then
+        return true
+    elseif unavailable[itemID] or answered[itemID] then
+        return false
+    end
+
+    awaited[itemID] = { since = GetTime(), asks = 1 }
+    C_Item.RequestLoadItemDataByID(itemID)
+    KeepWatch()
+    return true
+end
+
+--- An item's name, if the client has it yet. If it hasn't, the item is
+--- asked for, as by ns.LoadItem.
 ---@param itemID number
 ---@return string|nil name
 ---@return boolean coming  true while there's no name but one is on its
@@ -108,16 +135,20 @@ function ns.ItemName(itemID)
     if name then
         return name, false
     end
-    if unavailable[itemID] then
-        return nil, false
-    end
+    return nil, ns.LoadItem(itemID)
+end
 
-    if not awaited[itemID] then
-        awaited[itemID] = { since = GetTime(), asks = 1 }
-        C_Item.RequestLoadItemDataByID(itemID)
-        KeepWatch()
+--- A guess at what a vendor asks for something, from what they'd pay for
+--- it. For ingredients nobody auctions because a vendor sells them, and
+--- for recipes whose real price hasn't been seen.
+---@param itemID number
+---@return number|nil copper  nil if no vendor buys it, or the client
+---        hasn't fetched the item yet
+function ns.VendorGuess(itemID)
+    local sellsFor = select(11, C_Item.GetItemInfo(itemID))
+    if sellsFor and sellsFor > 0 then
+        return sellsFor * ns.VENDOR_MARKUP
     end
-    return nil, true
 end
 
 --- An item's name for a sentence that can't wait for one: the name if
@@ -144,6 +175,7 @@ local function OnItemLoaded(itemID, success)
         return
     end
     awaited[itemID] = nil
+    answered[itemID] = true
     lastArrival = GetTime()
 
     -- Told it loaded, and still nameless: there's no name coming.

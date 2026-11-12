@@ -10,9 +10,6 @@ local Theme = ns.Theme
 
 local ROW_HEIGHT = 44
 
--- Zones named per recipe before the rest are counted.
-local ZONES_NAMED = 2
-
 -- Columns are placed from the right edge, in pixels.
 local MAP_RIGHT = 10
 local WHERE_RIGHT = 84
@@ -57,19 +54,7 @@ local function WhereText(recipe)
         return ("Here, in %s"):format(recipe.here.zone), true
     end
 
-    local zones, seen = {}, {}
-    for _, vendor in ipairs(recipe.vendors) do
-        if vendor.zone and not seen[vendor.zone] then
-            seen[vendor.zone] = true
-            table.insert(zones, vendor.zone)
-        end
-    end
-
-    local text = table.concat(zones, ", ", 1, math.min(ZONES_NAMED, #zones))
-    if #zones > ZONES_NAMED then
-        text = ("%s and %d more"):format(text, #zones - ZONES_NAMED)
-    end
-    return text, false
+    return ns.Recipes.ZonesText(recipe.vendors), false
 end
 
 local function ShowOnMap(recipe)

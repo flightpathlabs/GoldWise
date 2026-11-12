@@ -209,7 +209,7 @@ local function UpcomingCosts(level)
     local durability = ns.Purse.Durability()
     if durability then
         local repair, exact = ns.Purse.RepairCost()
-        local what = ("Your gear is at %d%%."):format(durability)
+        local what = ("Your gear is at %d%%."):format(math.floor(durability))
         if not repair then
             what = what .. " Visit any repairer once and Goldwise will learn the cost."
         elseif not exact then

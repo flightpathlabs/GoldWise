@@ -86,9 +86,7 @@ end
 local function FillRow(row, data)
     row.Stripe:SetShown(row:GetOrderIndex() % 2 == 0)
     row.Icon:SetTexture(data.icon)
-    row.Name:SetText(
-        ("%s  |cffb9aa8c%s|r"):format(Theme.ItemName(data.name, data.quality), data.kind)
-    )
+    row.Name:SetText(Theme.ItemName(data.name, data.quality) .. "  " .. Theme.Aside(data.kind))
     row.How:SetText(data.how)
     row.Price:SetText(Theme.Coins(data.price))
     row.Listed:SetText(Theme.Listed(data.listed))
