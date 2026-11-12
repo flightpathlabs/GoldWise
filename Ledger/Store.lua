@@ -383,6 +383,15 @@ function Ledger.History(marketKey, itemID, numDays)
     return history
 end
 
+--- The newest price of everything seen on a market, for the few callers
+--- that need to look across all of it.
+---@param marketKey string
+---@return table prices  [itemID] = { price, quantity }. Treat it as
+---        read-only: it's the ledger's own table.
+function Ledger.AllPrices(marketKey)
+    return LatestPrices(marketKey)
+end
+
 --- On how many separate days the given market has been read in full. It
 --- stops counting at the number of daily snapshots kept, which is more
 --- than anything that asks needs to know.

@@ -139,8 +139,12 @@ function ProspectList.Create(parent, onSelect)
     about:SetTextColor(unpack(Theme.MUTED))
 
     -- What the player has said they want to do. Nil is the plain ranked
-    -- list of what's worth gathering; otherwise it's the zone they've
-    -- decided to go to, and the tab shows a plan for the trip.
+    -- list of what's worth gathering. A zone is somewhere they've decided
+    -- to go, and the tab shows a plan for the trip. RESALE is buying from
+    -- vendors to sell at auction, which is laid out as a plan too.
+    -- MATERIALS is every trade good on the market, by kind.
+    local RESALE = {}
+    local MATERIALS = {}
     local destination
 
     -- The button that chooses between them, and the plan it can show.
@@ -174,6 +178,12 @@ function ProspectList.Create(parent, onSelect)
             root:CreateTitle("I want to...")
             root:CreateButton("Make gold gathering", function()
                 GoTo(nil)
+            end)
+            root:CreateButton("See what every material is worth", function()
+                GoTo(MATERIALS)
+            end)
+            root:CreateButton("Buy from vendors, sell at auction", function()
+                GoTo(RESALE)
             end)
 
             for _, zone in ipairs(zones) do
@@ -232,7 +242,23 @@ function ProspectList.Create(parent, onSelect)
         scrollBar:SetShown(destination == nil)
         plan:SetShown(destination ~= nil)
 
-        if destination then
+        if destination == MATERIALS then
+            course:SetText("What materials are worth")
+            about:SetText("Every trade good on the market, by kind, dearest first")
+            empty:Hide()
+
+            plan:SetPlan(ns.Materials.Plan())
+            return "From the last full read of the auction house. "
+                .. "Click anything for its price history."
+        elseif destination == RESALE then
+            course:SetText("Buying to sell")
+            about:SetText("Recipes a vendor sells for less than they fetch at auction")
+            empty:Hide()
+
+            plan:SetPlan(ns.Resale.Plan())
+            return "Profit is after the auction house's cut. Prices move, "
+                .. "and someone else may list first."
+        elseif destination then
             local zoneName = ns.MapMarks.ZoneName(destination.mapID)
             course:SetText("Going to " .. zoneName)
             about:SetText("What to do before you leave, and while you're there")

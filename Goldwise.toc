@@ -58,6 +58,8 @@ Advisor\Advice.lua
 Advisor\Assets.lua
 Advisor\Prospects.lua
 Advisor\Trip.lua
+Advisor\Resale.lua
+Advisor\Materials.lua
 
 UI\Theme.lua
 UI\Companions.lua

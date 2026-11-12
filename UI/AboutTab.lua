@@ -67,6 +67,10 @@ local function Sections()
                     .. "trainers are cheapest for you, and put them on your map.",
                 "Lost? Places lists the nearest trainer, repairer, bank and flight master, "
                     .. "each with a Map button.",
+                "Some vendors sell recipes that fetch far more at auction, and most players "
+                    .. 'never find them. On Prospects, press "I want to..." and choose '
+                    .. '"Buy from vendors, sell at auction" for the list, with the profit '
+                    .. "worked out.",
                 "Saving for a mount? /gw goal 50 tracks a 50 gold target on the Purse tab.",
                 "Right-click the minimap button for options, Auditor mode among them.",
             },
