@@ -5,7 +5,7 @@ name: Package
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
 
 permissions:
@@ -26,7 +26,13 @@ jobs:
 
       - name: Check what's in it
         run: |
-          zip="$(ls .release/*.zip)"
+          # On a commit that carries a release tag the packager builds
+          # nothing here, and leaves it to the release run for that tag.
+          zip="$(ls .release/*.zip 2>/dev/null | head -n 1)"
+          if [ -z "$zip" ]; then
+            echo "Nothing was built: this commit is tagged, so the release run packages it."
+            exit 0
+          fi
           echo "Built $zip"
           unzip -Z1 "$zip" > "$RUNNER_TEMP/files.txt"
 

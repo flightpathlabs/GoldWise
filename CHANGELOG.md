@@ -1,6 +1,15 @@
 # Changelog
 
-What changed in each release of Goldwise, newest first.
+What changed in each release of Goldwise, newest first. Work that hasn't
+been released yet is listed under "Unreleased" in the copy of this file on
+the `dev` branch.
+
+## 0.3.2 (11 November 2026)
+
+- Carries its CurseForge project ID, so addon managers can match an
+  installed copy to the listing, and new releases reach CurseForge on
+  their own.
+- Nothing else in the addon has changed.
 
 ## 0.3.1 (11 November 2026)
 
