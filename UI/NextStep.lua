@@ -258,11 +258,14 @@ local RECIPE_DELAY = 6
 -- Once: after that the moment has passed.
 local RECIPE_RETRY = 30
 
+-- How many seconds to wait for the names of the recipes a card will show.
+local NAME_WAITS = 4
+
 -- Zones we've already spoken up in this session. A recipe that wasn't
 -- wanted the first time through town isn't wanted the second.
 local recipesMentioned = {}
 
-local function CheckRecipes(isRetry)
+local function CheckRecipes(isRetry, nameWaits)
     if not ns.settings.recipePrompt or InCombatLockdown() then
         return
     end
@@ -274,6 +277,21 @@ local function CheckRecipes(isRetry)
 
     local forSale = ns.Recipes.ForSaleHere()
     if #forSale == 0 then
+        return
+    end
+
+    -- A card can't be redrawn once it's up, and a recipe the player has
+    -- never seen has no name until the game fetches it. Ask, and give the
+    -- answers a few seconds to arrive before settling for "Recipe".
+    local unnamed = false
+    for index = 1, math.min(ns.Toast.MAX_ITEMS, #forSale) do
+        unnamed = unnamed or ns.ItemName(forSale[index].item) == nil
+    end
+    nameWaits = nameWaits or 0
+    if unnamed and nameWaits < NAME_WAITS then
+        C_Timer.After(1, function()
+            CheckRecipes(isRetry, nameWaits + 1)
+        end)
         return
     end
 
@@ -303,7 +321,7 @@ local function CheckRecipes(isRetry)
         items[index] = {
             itemID = recipe.item,
             icon = C_Item.GetItemIconByID(recipe.item),
-            name = C_Item.GetItemNameByID(recipe.item) or "Recipe",
+            name = ns.ItemName(recipe.item) or "Recipe",
             quality = C_Item.GetItemQualityByID(recipe.item),
             detail = detail,
         }
@@ -338,7 +356,9 @@ local function CheckRecipes(isRetry)
 end
 
 local function CheckRecipesSoon()
-    C_Timer.After(RECIPE_DELAY, CheckRecipes)
+    C_Timer.After(RECIPE_DELAY, function()
+        CheckRecipes()
+    end)
 end
 
 ns.OnEvent("ZONE_CHANGED_NEW_AREA", CheckRecipesSoon)

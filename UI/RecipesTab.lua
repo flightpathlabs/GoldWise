@@ -140,9 +140,11 @@ local function CreateRowWidgets(row)
     row:SetScript("OnLeave", GameTooltip_Hide)
 end
 
--- Returns false if the game hasn't yet told us the recipe's name.
 local function FillRow(row, recipe)
-    local name = C_Item.GetItemNameByID(recipe.item)
+    -- Recipe items the player has never seen aren't known to the client
+    -- until it has fetched them. ns.ItemName asks, and the window redraws
+    -- this tab when the answer arrives.
+    local name = ns.ItemName(recipe.item)
 
     row.Stripe:SetShown(row:GetOrderIndex() % 2 == 0)
     row.Icon:SetTexture(C_Item.GetItemIconByID(recipe.item) or "Interface\\Icons\\INV_Scroll_03")
@@ -158,8 +160,6 @@ local function FillRow(row, recipe)
     else
         row.Where:SetTextColor(unpack(Theme.MUTED))
     end
-
-    return name ~= nil
 end
 
 -- The tab ------------------------------------------------------------------------------
@@ -194,24 +194,13 @@ function RecipesTab.Create(parent)
     scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 6, 0)
     scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 6, 0)
 
-    -- Recipe items the player has never seen aren't known to the client
-    -- until it has fetched them, so a row may have to go without its name
-    -- at first. Each is asked for once: if the client can't load an item,
-    -- asking again on every redraw would never end.
-    local requested = {}
-    local awaitingNames = false
-
     local view = CreateScrollBoxListLinearView()
     view:SetElementExtent(ROW_HEIGHT)
     view:SetElementInitializer("Button", function(row, recipe)
         if not row.created then
             CreateRowWidgets(row)
         end
-        if not FillRow(row, recipe) and not requested[recipe.item] then
-            requested[recipe.item] = true
-            awaitingNames = true
-            C_Item.RequestLoadItemDataByID(recipe.item)
-        end
+        FillRow(row, recipe)
     end)
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
 
@@ -250,22 +239,6 @@ function RecipesTab.Create(parent)
     end
     ns.OnEvent("ZONE_CHANGED_NEW_AREA", RefreshIfShown)
     ns.OnEvent("NEW_RECIPE_LEARNED", RefreshIfShown)
-
-    -- Names arriving. The event fires for every item anything in the game
-    -- loads, so only act when we're waiting, and gather a burst into one
-    -- redraw.
-    local redrawQueued = false
-    ns.OnEvent("GET_ITEM_INFO_RECEIVED", function()
-        if not awaitingNames or redrawQueued or not tab:IsVisible() then
-            return
-        end
-        redrawQueued = true
-        C_Timer.After(0.5, function()
-            redrawQueued = false
-            awaitingNames = false
-            RefreshIfShown()
-        end)
-    end)
 
     return tab
 end
