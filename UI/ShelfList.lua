@@ -1,10 +1,8 @@
 local _, ns = ...
 
--- The list of what the player holds: one row per item, with its price, a
--- two-week trend line, and what Goldwise would do with it.
---
--- For now there is one shelf, "Assets". The list is built so that further
--- shelves can be added as more rows without changing how rows are drawn.
+-- The Assets tab: what the player holds, one row per item, with its
+-- price, a two-week trend line, and what Goldwise would do with it. Under
+-- the list is what it all comes to at auction.
 
 local ShelfList = {}
 ns.ShelfList = ShelfList

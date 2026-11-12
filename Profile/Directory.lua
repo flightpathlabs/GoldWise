@@ -285,6 +285,20 @@ function Directory.Nearest(kind, suits)
     return fallback, nil
 end
 
+--- How many profession trainers the account has visited, for "/gw check".
+---@return number
+function Directory.VisitedTrainers()
+    local count = 0
+    for kind, spots in pairs(type(ns.db.directory) == "table" and ns.db.directory or {}) do
+        if kind:find("profession:", 1, true) == 1 then
+            for _ in pairs(spots) do
+                count = count + 1
+            end
+        end
+    end
+    return count
+end
+
 --- Whether Questie's database has been read this session.
 ---@return boolean
 function Directory.HasQuestie()

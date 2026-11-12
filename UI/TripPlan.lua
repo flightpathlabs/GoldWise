@@ -1,9 +1,12 @@
 local _, ns = ...
 
--- The plan for a trip to a zone, as a list of steps under headings. It
--- shares the Prospects tab with the ranked list and is shown in its place
--- when the player has picked somewhere to go. Advisor\Trip works out what
+-- A plan, as a list of steps under headings. It shares the Prospects tab
+-- with the ranked list and is shown in its place when the player has
+-- picked something to do: a trip to a zone, things to make, things to buy
+-- and sell on, or the market's materials. The Advisor files work out what
 -- the steps are; this only draws them.
+--
+-- It began as the plan for a trip, and the name has stuck.
 
 local TripPlan = {}
 ns.TripPlan = TripPlan

@@ -93,7 +93,7 @@ end
 
 local function IsClassTrainer()
     -- Pet trainers charge training points rather than money, and
-    -- profession trainers are a different question for another day.
+    -- profession trainers are Directory.lua's business, not ours.
     return C_Trainer.GetTrainerType() == Enum.TrainerType.General and not IsTradeskillTrainer()
 end
 

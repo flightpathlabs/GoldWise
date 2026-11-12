@@ -1,9 +1,7 @@
 local _, ns = ...
 
--- What the player is carrying that could be sold.
---
--- This is the first of the four shelves ("Assets"). The others need recipe
--- and gathering data and come later.
+-- What the player is carrying that could be sold. The Assets tab starts
+-- from this, and adds the bank and the other characters to it.
 
 local Bags = {}
 ns.Bags = Bags

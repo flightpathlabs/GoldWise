@@ -344,12 +344,10 @@ local function CreatePage()
             local key = GetBindingKey(row.command)
             local waiting = listening == row
 
-            -- Only the button that's waiting takes keys. The rest of the
-            -- time they go on to the game as usual.
+            -- Only the button that's waiting takes keys, and while it is,
+            -- it keeps them to itself. The rest of the time they go on to
+            -- the game as usual.
             row.Button:EnableKeyboard(waiting)
-            if waiting then
-                row.Button:SetPropagateKeyboardInput(false)
-            end
 
             if waiting and contested then
                 row.Button:SetText(KeyText(contested))

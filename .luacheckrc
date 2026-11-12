@@ -154,6 +154,7 @@ read_globals = {
     "IsTradeskillTrainer",
     "GetInboxHeaderInfo",
     "GetInboxInvoiceInfo",
+    "TakeInboxMoney",
     "HandleModifiedItemClick",
     "IsAltKeyDown",
     "IsControlKeyDown",
