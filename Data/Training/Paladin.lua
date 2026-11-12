@@ -171,4 +171,19 @@ ns.TrainingData.PALADIN = {
         { 19888, 19897, 19898 },
         { 19891, 19899, 19900 },
     },
+
+    -- The reputations this class's trainers answer to, by the player's
+    -- side, as faction IDs. Standing with one earns a discount there.
+    trainers = {
+        Alliance = { 47, 72 },
+        Horde = { 68 },
+    },
+
+    -- Which of those are capital cities, as opposed to out-of-the-way
+    -- places a player wouldn't go to just to train.
+    capitals = {
+        [47] = true,
+        [68] = true,
+        [72] = true,
+    },
 }

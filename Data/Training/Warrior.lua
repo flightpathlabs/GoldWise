@@ -138,4 +138,23 @@ ns.TrainingData.WARRIOR = {
         { 12294, 21551, 21552, 21553 },
         { 23922, 23923, 23924, 23925 },
     },
+
+    -- The reputations this class's trainers answer to, by the player's
+    -- side, as faction IDs. Standing with one earns a discount there.
+    trainers = {
+        Alliance = { 47, 54, 69, 72 },
+        Horde = { 68, 76, 81 },
+    },
+
+    -- Which of those are capital cities, as opposed to out-of-the-way
+    -- places a player wouldn't go to just to train.
+    capitals = {
+        [47] = true,
+        [54] = true,
+        [68] = true,
+        [69] = true,
+        [72] = true,
+        [76] = true,
+        [81] = true,
+    },
 }

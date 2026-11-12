@@ -73,12 +73,91 @@ local function CreateRow(parent, index)
     rule:SetPoint("BOTTOMRIGHT")
     rule:SetColorTexture(1, 1, 1, 0.08)
 
+    -- Some lines have more to say when pointed at. Those light up, so the
+    -- player can tell which.
+    row.Glow = row:CreateTexture(nil, "BACKGROUND")
+    row.Glow:SetAllPoints()
+    row.Glow:SetColorTexture(1, 1, 1, 0.05)
+    row.Glow:Hide()
+
+    row:SetScript("OnEnter", function(self)
+        if self.showMore then
+            self.Glow:Show()
+            self.showMore(self)
+        end
+    end)
+    row:SetScript("OnLeave", function(self)
+        self.Glow:Hide()
+        GameTooltip:Hide()
+    end)
+
     return row
+end
+
+-- Where to train -----------------------------------------------------------------------
+
+local function Percent(fraction)
+    return math.floor(fraction * 100 + 0.5)
+end
+
+-- The hover card for a line of training: what the same skills cost from
+-- each city's trainers, given what the player's reputation there earns.
+local function ShowTrainingPlaces(row)
+    local places = ns.Training.Places()
+    if #places == 0 then
+        return
+    end
+
+    GameTooltip:SetOwner(row, "ANCHOR_CURSOR")
+    GameTooltip:AddLine("Where to train", unpack(Theme.COIN))
+
+    for _, place in ipairs(places) do
+        local standing = place.standing
+        if place.shortBy then
+            standing = ("%s, %s short of %s"):format(
+                standing,
+                FormatLargeNumber(place.shortBy),
+                place.discountStanding
+            )
+        end
+
+        local price = math.floor(row.amount * (1 - place.discount) + 0.5)
+        local red, green, blue = 1, 1, 1
+        if place.discount > 0 then
+            red, green, blue = GREEN_FONT_COLOR:GetRGB()
+        end
+
+        GameTooltip:AddDoubleLine(
+            ("%s (%s)"):format(place.name, standing),
+            ns.Money(price),
+            1,
+            1,
+            1,
+            red,
+            green,
+            blue
+        )
+    end
+
+    local muted = Theme.MUTED
+    GameTooltip:AddLine(
+        ("%s or better with a trainer's people takes %d%% off."):format(
+            places[1].discountStanding,
+            Percent(ns.Training.REPUTATION_DISCOUNT)
+        ),
+        muted[1],
+        muted[2],
+        muted[3],
+        true
+    )
+    GameTooltip:Show()
 end
 
 -- What's coming up -------------------------------------------------------------------
 
--- Each entry is { when, what, amount }, amount in copper or nil if unknown.
+-- Each entry is { when, what, amount, showMore }: amount in copper, or nil
+-- if unknown, and showMore a function that puts up a tooltip for the row,
+-- where there's one worth having.
 local function UpcomingCosts(level)
     local costs = {}
 
@@ -102,6 +181,19 @@ local function UpcomingCosts(level)
         })
     end
 
+    -- Amounts are the full price. If the player's reputation somewhere
+    -- earns a discount, say where; pointing at the line lists every city.
+    local places = ns.Training.Places()
+    local cheapest = places[1]
+    local discountNote = ""
+    if cheapest and cheapest.discount > 0 then
+        discountNote = (" %d%% off from %s trainers."):format(
+            Percent(cheapest.discount),
+            cheapest.name
+        )
+    end
+    local showMore = #places > 0 and ShowTrainingPlaces or nil
+
     for index, entry in ipairs(training) do
         if index > LEVELS_SHOWN then
             break
@@ -111,8 +203,9 @@ local function UpcomingCosts(level)
         if entry.level <= level then
             table.insert(costs, {
                 when = "Training now",
-                what = skills .. " waiting at your trainer.",
+                what = skills .. " waiting at your trainer." .. discountNote,
                 amount = entry.cost,
+                showMore = showMore,
             })
         else
             local away = entry.level - level
@@ -124,6 +217,7 @@ local function UpcomingCosts(level)
                     away == 1 and "level" or "levels"
                 ),
                 amount = entry.cost,
+                showMore = showMore,
             })
         end
     end
@@ -296,6 +390,10 @@ function PurseTab.Create(parent)
                 row.When:SetText(cost.when)
                 row.What:SetText(cost.what)
                 row.Amount:SetText(cost.amount and Theme.Coins(cost.amount) or "")
+
+                row.amount = cost.amount
+                row.showMore = cost.showMore
+                row:EnableMouse(cost.showMore ~= nil)
             end
         end
 

@@ -6,8 +6,7 @@ local _, ns = ...
 -- front of one. So we have three places to look, best first.
 --
 -- If the player has What's Training? installed, we ask it. It keeps track
--- of which skills the player knows, which they've chosen to skip and what
--- discount their reputation earns.
+-- of which skills the player knows and which they've chosen to skip.
 --
 -- Failing that, there's the price table in Data\Training. It's that same
 -- addon's table, brought in with its author's licence, checked against the
@@ -207,8 +206,11 @@ local function SkillsFromWhatsTraining()
         -- Quest rewards are free, and tomes are bought from a vendor
         -- rather than trained.
         local trained = not spell.quest and not spell.isItem
-        if owed[spell.status] and trained and (spell.cost or 0) > 0 then
-            table.insert(skills, { level = spell.level or 0, cost = spell.cost })
+        -- Its "cost" already has a reputation discount taken off. We want
+        -- the price before that, and work the discounts out ourselves.
+        local cost = spell.baseCost or spell.cost or 0
+        if owed[spell.status] and trained and cost > 0 then
+            table.insert(skills, { level = spell.level or 0, cost = cost })
         end
     end
     return skills
@@ -352,8 +354,78 @@ function Training.Outstanding(playerLevel)
     return levels
 end
 
+-- Where to train ----------------------------------------------------------------------
+
+-- A trainer charges less to those their people think well of. On Forever
+-- that's nothing off at Friendly and a tenth off at Honored, as measured
+-- by the author of What's Training?. Revered and Exalted haven't been
+-- checked, and are taken to earn the same.
+local DISCOUNT_STANDING = 6 -- Honored
+local REPUTATION_DISCOUNT = 0.10
+
+Training.REPUTATION_DISCOUNT = REPUTATION_DISCOUNT
+
+local function StandingLabel(standing)
+    return _G["FACTION_STANDING_LABEL" .. standing] or ""
+end
+
+--- Whose trainers teach this character's class, and what the player's
+--- standing with each is worth. Prices everywhere else in this file are
+--- before any of these discounts.
+---
+--- Capital cities are always listed. Out-of-the-way trainers only when
+--- they'd actually be cheaper.
+---@return table places  list of { name, standing, discount, shortBy,
+---        discountStanding }, cheapest first. discount is a fraction (0.1
+---        is 10% off). shortBy is the reputation still needed, for someone
+---        one standing short of a discount, and discountStanding names the
+---        standing that earns it. Empty when we don't know the trainers.
+function Training.Places()
+    local data = ClassTable()
+    local factions = data and data.trainers[UnitFactionGroup("player")]
+    local places = {}
+
+    for _, factionID in ipairs(factions or {}) do
+        -- The game has nothing to say about a faction the character has
+        -- yet to meet.
+        local faction = C_Reputation.GetFactionDataByID(factionID)
+        if faction then
+            local discount = faction.reaction >= DISCOUNT_STANDING and REPUTATION_DISCOUNT or 0
+            local nearly = faction.reaction == DISCOUNT_STANDING - 1
+
+            if data.capitals[factionID] or discount > 0 then
+                table.insert(places, {
+                    name = faction.name,
+                    standing = StandingLabel(faction.reaction),
+                    discount = discount,
+                    capital = data.capitals[factionID] == true,
+                    shortBy = nearly and (faction.nextReactionThreshold - faction.currentStanding)
+                        or nil,
+                    discountStanding = StandingLabel(DISCOUNT_STANDING),
+                })
+            end
+        end
+    end
+
+    table.sort(places, function(a, b)
+        if a.discount ~= b.discount then
+            return a.discount > b.discount
+        elseif a.capital ~= b.capital then
+            return a.capital
+        end
+        return a.name < b.name
+    end)
+    return places
+end
+
 ns.OnEvent("TRAINER_SHOW", ScanSoon)
 ns.OnEvent("TRAINER_UPDATE", ScanSoon)
+
+-- Reputation earned may have just bought a discount.
+ns.OnEvent("UPDATE_FACTION", function()
+    ns.Publish("PURSE_CHANGED")
+end)
+
 -- Learning a skill, or taking a talent that opens some up, changes what's
 -- owed. The client doesn't have all of these events on every version; the
 -- ones it lacks are quietly skipped.

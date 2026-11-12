@@ -163,4 +163,21 @@ ns.TrainingData.WARLOCK = {
     -- a later one is known, the earlier ones no longer show as known,
     -- though they were learned.
     replaces = {},
+
+    -- The reputations this class's trainers answer to, by the player's
+    -- side, as faction IDs. Standing with one earns a discount there.
+    trainers = {
+        Alliance = { 47, 54, 72 },
+        Horde = { 68, 76 },
+    },
+
+    -- Which of those are capital cities, as opposed to out-of-the-way
+    -- places a player wouldn't go to just to train.
+    capitals = {
+        [47] = true,
+        [54] = true,
+        [68] = true,
+        [72] = true,
+        [76] = true,
+    },
 }

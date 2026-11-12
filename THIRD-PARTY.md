@@ -6,7 +6,8 @@ project, which stays under that project's own licence.
 ## What's Training?
 
 - **What we use:** the class training prices for WoW: Forever: which skills each
-  class trainer sells, the level each needs and what it costs. They are the
+  class trainer sells, the level each needs, what it costs, and which
+  reputations each class's trainers answer to. They are the
   files in `Data/Training/`, converted to Goldwise's own format. None of that
   addon's code is included.
 - **Author:** Sveng

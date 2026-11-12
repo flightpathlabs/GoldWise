@@ -218,4 +218,19 @@ ns.TrainingData.DRUID = {
         { 5215, 6783, 9913 },
         { 407995, 1238069, 1238070 },
     },
+
+    -- The reputations this class's trainers answer to, by the player's
+    -- side, as faction IDs. Standing with one earns a discount there.
+    trainers = {
+        Alliance = { 69, 72, 609, 2740 },
+        Horde = { 81, 609, 2787 },
+    },
+
+    -- Which of those are capital cities, as opposed to out-of-the-way
+    -- places a player wouldn't go to just to train.
+    capitals = {
+        [69] = true,
+        [72] = true,
+        [81] = true,
+    },
 }

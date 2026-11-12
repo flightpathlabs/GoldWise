@@ -152,4 +152,24 @@ ns.TrainingData.ROGUE = {
         { 1316709, 1325756, 1325757, 1325758 },
         { 1310706, 1241582, 1241584 },
     },
+
+    -- The reputations this class's trainers answer to, by the player's
+    -- side, as faction IDs. Standing with one earns a discount there.
+    trainers = {
+        Alliance = { 21, 47, 54, 69, 72, 349 },
+        Horde = { 21, 68, 76, 81, 349, 530 },
+    },
+
+    -- Which of those are capital cities, as opposed to out-of-the-way
+    -- places a player wouldn't go to just to train.
+    capitals = {
+        [47] = true,
+        [54] = true,
+        [68] = true,
+        [69] = true,
+        [72] = true,
+        [76] = true,
+        [81] = true,
+        [530] = true,
+    },
 }
