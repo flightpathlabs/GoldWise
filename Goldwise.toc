@@ -47,6 +47,7 @@ Advisor\Assets.lua
 Advisor\Prospects.lua
 
 UI\Theme.lua
+UI\Companions.lua
 UI\Chart.lua
 UI\MapMarks.lua
 UI\ItemDetail.lua

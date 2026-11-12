@@ -175,7 +175,8 @@ ns.OnEvent("PLAYER_LOGIN", function()
         category,
         "tooltipHeld",
         "Show how many your other characters hold",
-        "Counts their bags as of their last login. Left to Bagnon if you have that installed."
+        "Counts their bags as of their last login. Left to Bagnon or Profession Atlas "
+            .. "when one of them is already listing it."
     )
 
     AddCheckbox(

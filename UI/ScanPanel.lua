@@ -112,25 +112,37 @@ end
 
 -- What to say and when ---------------------------------------------------------------
 
+-- Progress is progress whoever reports it. If another addon has its own
+-- panel up counting through the same auctions, ours keeps quiet until
+-- there's something only Goldwise can say: what was found, and what the
+-- player's bags are worth.
+local function Report(text, fraction, linger)
+    if ns.Companions.ShowsScanProgress() then
+        Hide()
+    else
+        Say(text, fraction, linger)
+    end
+end
+
 -- On arrival, before any reading starts: how fresh the prices already are.
 -- If Goldwise decides they're fresh enough to skip reading, this is all
 -- the player sees, and it tells them why nothing else happened.
 ns.Subscribe("AUCTION_HOUSE_OPENED", function(marketKey)
     local lastScan = ns.Ledger.LastScan(marketKey)
     if lastScan then
-        Say("Prices read " .. ns.Ago(GetServerTime() - lastScan) .. ".", nil, LINGER_ON_ARRIVAL)
+        Report("Prices read " .. ns.Ago(GetServerTime() - lastScan) .. ".", nil, LINGER_ON_ARRIVAL)
     else
-        Say("No prices read here yet.", nil, LINGER_ON_ARRIVAL)
+        Report("No prices read here yet.", nil, LINGER_ON_ARRIVAL)
     end
 end)
 
 ns.Subscribe("SCAN_STARTED", function()
-    Say("Reading prices...")
+    Report("Reading prices...")
 end)
 
 ns.Subscribe("SCAN_PROGRESS", function(done, total)
     if total and total > 0 then
-        Say(
+        Report(
             ("Reading every auction: %s of %s"):format(
                 FormatLargeNumber(done),
                 FormatLargeNumber(total)
@@ -138,7 +150,7 @@ ns.Subscribe("SCAN_PROGRESS", function(done, total)
             done / total
         )
     else
-        Say(("Reading prices: %s items so far"):format(FormatLargeNumber(done)))
+        Report(("Reading prices: %s items so far"):format(FormatLargeNumber(done)))
     end
 end)
 
@@ -160,7 +172,7 @@ ns.Subscribe("SCAN_FINISHED", function(items, _, borrowed)
 end)
 
 ns.Subscribe("SCAN_STOPPED", function(reason)
-    Say(reason or "Stopped reading prices.", nil, LINGER_ON_RESULT)
+    Report(reason or "Stopped reading prices.", nil, LINGER_ON_RESULT)
 end)
 
 ns.Subscribe("AUCTION_HOUSE_CLOSED", Hide)
