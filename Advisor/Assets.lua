@@ -64,6 +64,7 @@ function Assets.Describe(holding, marketKey, owner)
             vendorPrice = vendorPrice,
             againstUsual = againstUsual,
             cut = ns.Market.Cut(marketKey),
+            deposit = ns.Deposit.Estimate((vendorPrice or 0) * holding.count, marketKey),
             auditor = ns.settings.auditorMode,
         })
     end

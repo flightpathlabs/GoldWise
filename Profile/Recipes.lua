@@ -195,7 +195,7 @@ end
 local BUY_TO_SELL_RATIO = 4
 
 -- The profit has to be worth the walk and the risk of it not selling:
--- at least this share of what was paid, and never less than a deposit.
+-- at least this share of what was paid, and never less than a silver.
 local WORTHWHILE_SHARE = 0.25
 
 -- What vendors actually charge, learned by looking at their wares:
@@ -314,7 +314,7 @@ function Recipes.Resale(marketKey)
                     end
                 else
                     local profit = price * (1 - cut) - cost
-                    if profit >= math.max(ns.MIN_DEPOSIT, cost * WORTHWHILE_SHARE) then
+                    if profit >= math.max(ns.SMALL_CHANGE, cost * WORTHWHILE_SHARE) then
                         local vendors, here = VendorsFor(recipe, side, zoneHere)
 
                         if #vendors > 0 then

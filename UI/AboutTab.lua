@@ -101,12 +101,17 @@ local function Sections()
         {
             heading = "How it decides",
             list = {
-                "Sell, if it clears more than a vendor pays by at least the listing deposit.",
+                "Sell, if what it clears over a vendor is worth staking the listing deposit on.",
                 "Vendor, if it's worth no more than the deposit, or a vendor pays as much.",
                 "Hold, if it's well below its usual price. Usual needs four days of history; "
                     .. "until then Goldwise says so instead of guessing.",
             },
-            text = { "Proceeds are what's left after the auction house takes its cut." },
+            text = {
+                "Proceeds are what's left after the auction house takes its cut. The "
+                    .. "deposit comes back when an auction sells and is lost when it doesn't, "
+                    .. "so Goldwise weighs it as a risk, not a fee. It checks what listing "
+                    .. "costs each time you open the auction house.",
+            },
         },
         {
             heading = "Where prices come from",

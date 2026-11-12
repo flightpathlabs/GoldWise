@@ -21,6 +21,12 @@ Advice.UNKNOWN = "unknown"
 -- How far from its usual price something has to be before we remark on it.
 local NOTABLE_DIFFERENCE = 0.10
 
+-- A listing gets its deposit back when it sells and loses it when it
+-- doesn't, so what the deposit really costs depends on how often things
+-- come back unsold. We can't know that for any one item. One time in
+-- three is a careful guess for something priced with the market.
+local UNSOLD_SHARE = 1 / 3
+
 -- Every verdict comes in two voices. The facts are identical; only the
 -- delivery changes. The auditor sticks to ordinary accounting words.
 --
@@ -48,9 +54,9 @@ local PHRASES = {
         calm = "Only %s over vendor price. Not worth the deposit.",
         auditor = "%s over vendor price? You'd risk the deposit for THAT?",
     },
-    barelyCoversDeposit = {
-        calm = "Would barely cover the listing deposit. Not worth it.",
-        auditor = "It barely covers the deposit. That is not a plan.",
+    notWorthTheStake = {
+        calm = "Too little to gain for the deposit you'd be risking.",
+        auditor = "Risk a deposit for THAT? That is not a plan.",
     },
     aboveUsual = {
         calm = "Above its usual price. Sell today.",
@@ -105,11 +111,14 @@ end
 ---   vendorPrice   what a vendor pays per unit in copper; nil or 0 if nothing
 ---   againstUsual  from Stats.AgainstUsual (0.18 is 18% above usual), or nil
 ---   cut           the auction house's share of a sale, e.g. 0.05
+---   deposit       what listing the lot would take, in copper. It comes
+---                 back if the lot sells
 ---   auditor       true for the loud voice
----@return table advice  { verb, reason, proceeds, fromVendor }
+---@return table advice  { verb, reason, proceeds, fromVendor, deposit }
 ---        proceeds is what selling the lot at auction should bring in after
----        the cut, and fromVendor what a vendor would pay for it. Both are
----        nil when there's no price to work from.
+---        the cut, fromVendor what a vendor would pay for it, and deposit
+---        what's staked on it selling. All are nil when there's no price to
+---        work from.
 function Advice.ForHolding(holding)
     local auditor = holding.auditor
 
@@ -121,6 +130,7 @@ function Advice.ForHolding(holding)
     local proceeds = gross - gross * holding.cut
     local fromVendor = (holding.vendorPrice or 0) * holding.count
     local vendorWantsIt = fromVendor > 0
+    local deposit = holding.deposit or 0
 
     local function Verdict(verb, key, ...)
         return {
@@ -128,29 +138,31 @@ function Advice.ForHolding(holding)
             reason = Phrase(key, auditor, ...),
             proceeds = proceeds,
             fromVendor = fromVendor,
+            deposit = deposit,
         }
     end
 
-    if gross <= ns.MIN_DEPOSIT then
-        local deposit = ns.Money(ns.MIN_DEPOSIT)
+    -- Nobody should stake more than the lot is worth, whatever the odds.
+    if gross <= deposit then
         if vendorWantsIt then
-            return Verdict(Advice.VENDOR, "underDeposit", deposit)
+            return Verdict(Advice.VENDOR, "underDeposit", ns.Money(deposit))
         end
-        return Verdict(Advice.HOLD, "underDepositNoVendor", deposit)
+        return Verdict(Advice.HOLD, "underDepositNoVendor", ns.Money(deposit))
     end
 
     if vendorWantsIt and proceeds <= fromVendor then
         return Verdict(Advice.VENDOR, "vendorPaysSame")
     end
 
-    -- If it doesn't sell, the deposit is gone. A gain smaller than the
-    -- deposit isn't worth that bet.
+    -- Listing is a bet: the gain over a vendor when it sells, against the
+    -- deposit when it doesn't. It's worth making when the first outweighs
+    -- the second across the times it goes each way.
     local gain = proceeds - fromVendor
-    if gain < ns.MIN_DEPOSIT then
+    if gain * (1 - UNSOLD_SHARE) < deposit * UNSOLD_SHARE then
         if vendorWantsIt then
             return Verdict(Advice.VENDOR, "thinMargin", ns.Money(gain))
         end
-        return Verdict(Advice.HOLD, "barelyCoversDeposit")
+        return Verdict(Advice.HOLD, "notWorthTheStake")
     end
 
     local againstUsual = holding.againstUsual

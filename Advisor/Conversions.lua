@@ -24,7 +24,7 @@ local BUY_TO_SELL_RATIO = 4
 
 -- Making something has to beat selling the ingredients by this share of
 -- their value before it's worth the bother, and never by less than a
--- listing deposit.
+-- silver.
 local WORTHWHILE_SHARE = 0.10
 
 -- For buying the ingredients in, the bar is higher: that's coin put at
@@ -197,14 +197,14 @@ function Conversions.Plan()
     for _, recipe in ipairs(known) do
         local assessed = Assess(recipe, marketKey, cut)
         if assessed then
-            local bar = math.max(ns.MIN_DEPOSIT, assessed.cost * WORTHWHILE_SHARE)
+            local bar = math.max(ns.SMALL_CHANGE, assessed.cost * WORTHWHILE_SHARE)
 
             if assessed.batches > 0 and assessed.gain >= bar then
                 table.insert(fromHoldings, assessed)
             elseif assessed.batches > 0 and assessed.gain < 0 then
                 table.insert(notWorth, assessed)
             elseif assessed.batches == 0 then
-                local worthIt = math.max(ns.MIN_DEPOSIT, assessed.outlay * WORTH_BUYING_SHARE)
+                local worthIt = math.max(ns.SMALL_CHANGE, assessed.outlay * WORTH_BUYING_SHARE)
                 if assessed.profit >= worthIt then
                     table.insert(toBuyFor, assessed)
                 end

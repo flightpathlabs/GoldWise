@@ -13,9 +13,8 @@ ns.COPPER_PER_SILVER = 100
 ns.COPPER_PER_GOLD = 10000
 ns.SECONDS_PER_DAY = 86400
 
--- Measured on Forever with the probe: listing anything costs at least this
--- much, whatever the stack size or duration.
-ns.MIN_DEPOSIT = 100
+-- A gain smaller than this isn't worth walking anywhere for.
+ns.SMALL_CHANGE = 100
 
 -- The auction house's share of a sale. The client doesn't expose it, so
 -- these are the Classic figures until a real sale tells us otherwise. The

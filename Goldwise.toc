@@ -37,6 +37,7 @@ Data\Recipes\Leatherworking.lua
 Data\Recipes\Tailoring.lua
 
 Market\Identity.lua
+Market\Deposit.lua
 Market\Throttle.lua
 Ledger\Store.lua
 Ledger\Stats.lua
