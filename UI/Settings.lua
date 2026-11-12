@@ -23,6 +23,32 @@ local function AddCheckbox(category, key, label, tooltip)
     end)
 end
 
+-- Adds a dropdown bound to one numeric key of the saved settings.
+-- `choices` is a list of { value, label }.
+local function AddDropdown(category, key, label, tooltip, choices)
+    local setting = Settings.RegisterAddOnSetting(
+        category,
+        "Goldwise_" .. key,
+        key,
+        ns.settings,
+        Settings.VarType.Number,
+        label,
+        ns.DEFAULT_SETTINGS[key]
+    )
+
+    Settings.CreateDropdown(category, setting, function()
+        local container = Settings.CreateControlTextContainer()
+        for _, choice in ipairs(choices) do
+            container:Add(choice[1], choice[2])
+        end
+        return container:GetData()
+    end, tooltip)
+
+    Settings.SetOnValueChangedCallback("Goldwise_" .. key, function()
+        ns.Publish("SETTINGS_CHANGED")
+    end)
+end
+
 -- Our page, once it exists. Kept so it can be opened directly.
 local category
 
@@ -89,6 +115,21 @@ ns.OnEvent("PLAYER_LOGIN", function()
         "Read every auction when possible",
         "A fuller read that shows how many are listed at each price. "
             .. "The game allows it once every 15 minutes; otherwise the quick read is used."
+    )
+
+    AddDropdown(
+        category,
+        "historyDays",
+        "Keep price history for",
+        "How far back Goldwise remembers what your own game has read at the auction "
+            .. "house, for the items you carry or follow. Longer makes for longer charts "
+            .. "and a larger saved file. Shortening it takes effect the next time you log in.",
+        {
+            { 30, "30 days" },
+            { 90, "90 days" },
+            { 180, "6 months" },
+            { 365, "1 year" },
+        }
     )
 
     AddCheckbox(

@@ -8,8 +8,9 @@ local _, ns = ...
 -- are two tiers:
 --
 --   Tracked items are the ones the player holds or has chosen to follow.
---   Each keeps a daily low, high, last price and quantity for months, plus
---   its most recent individual readings.
+--   Each keeps a daily low, high, last price and quantity for as long as
+--   the player has chosen (three months, unless they change it), plus its
+--   most recent individual readings.
 --
 --   Everything else is kept as one compact snapshot per day for a short
 --   while. That's enough to price a random drop, and to give an item some
@@ -392,15 +393,24 @@ end
 -- Housekeeping -----------------------------------------------------------------
 
 -- Once per login, drop tracked history older than the player wants kept.
+-- Only at login, and not the moment the setting changes, so a slip of the
+-- mouse in the options can't throw away months of prices.
 ns.OnEvent("PLAYER_LOGIN", function()
-    local oldest = Ledger.Today() - ns.settings.historyDays
+    local oldestDay = Ledger.Today() - ns.settings.historyDays
+    local oldestTime = GetServerTime() - ns.settings.historyDays * ns.SECONDS_PER_DAY
 
     for _, market in pairs(ns.db.markets) do
         for _, record in pairs(market.tracked or {}) do
             for day in pairs(record.days) do
-                if day <= oldest then
+                if day <= oldestDay then
                     record.days[day] = nil
                 end
+            end
+
+            -- Individual readings are newest last, so the stale ones are
+            -- at the front.
+            while record.recent[1] and record.recent[1][1] < oldestTime do
+                table.remove(record.recent, 1)
             end
         end
     end

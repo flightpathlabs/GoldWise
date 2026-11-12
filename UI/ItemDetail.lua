@@ -1,14 +1,13 @@
 local _, ns = ...
 
--- The page for one item: its price over the last month, and what that
--- means in a sentence or two.
+-- The page for one item: its price for as far back as history is kept,
+-- and what that means in a sentence or two.
 
 local ItemDetail = {}
 ns.ItemDetail = ItemDetail
 
 local Theme = ns.Theme
 
-local HISTORY_DAYS = 30
 local CHART_WIDTH = 740
 local CHART_HEIGHT = 250
 
@@ -56,11 +55,11 @@ function ItemDetail.Create(parent, onBack)
     ---@param row table  as built by ShelfList
     function detail:ShowItem(row)
         local marketKey = ns.Market.Current()
-        local history = ns.Ledger.History(marketKey, row.itemID, HISTORY_DAYS)
+        local history = ns.Ledger.History(marketKey, row.itemID, ns.settings.historyDays)
 
-        -- The chart shows a month, but "usual" is worked out over the same
-        -- shorter window the list used, so the line drawn here agrees
-        -- with the sentence beneath it.
+        -- The chart shows everything that's kept, but "usual" is worked
+        -- out over the same shorter window the list used, so the line
+        -- drawn here agrees with the sentence beneath it.
         local usual =
             ns.Stats.UsualPrice(ns.Ledger.History(marketKey, row.itemID, ns.Stats.USUAL_DAYS))
 

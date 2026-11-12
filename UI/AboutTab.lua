@@ -46,7 +46,8 @@ local function PageText()
         "",
         Heading("Where prices come from"),
         "Your own visits. Goldwise reads the auction house when you open it and "
-            .. "steps aside if you start a search. These are kept for months.",
+            .. "steps aside if you start a search. These are kept for three months, "
+            .. "or as long as you choose in the options.",
         "Other Goldwise players. Whoever was at the auction house last keeps "
             .. "everyone's prices fresh, over a hidden chat channel. Only prices are "
             .. "exchanged. You can turn this off in the options.",

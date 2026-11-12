@@ -48,7 +48,8 @@ so rather than guessing.
 One saved-variables file, `GoldwiseDB`:
 
 - **Tracked items** (what you carry): daily low, high, last price and
-  quantity, kept for 180 days.
+  quantity, kept for 90 days unless you choose otherwise in the options
+  (30 days to a year).
 - **Everything else**: one compact snapshot of the whole market per day,
   kept for 10 days.
 

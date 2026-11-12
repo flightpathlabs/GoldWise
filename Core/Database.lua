@@ -17,7 +17,7 @@ local addonName, ns = ...
 -- never assume the table is there, and never replace what did load with
 -- defaults. We only ever fill in what's missing.
 
-local SCHEMA = 1
+local SCHEMA = 2
 
 local DEFAULT_SETTINGS = {
     -- Scan when the auction house opens, unless we scanned recently.
@@ -30,8 +30,11 @@ local DEFAULT_SETTINGS = {
     -- cooldown allows, falling back to the ordinary one.
     deepScan = true,
 
-    -- Days of history to keep for items the player holds or follows.
-    historyDays = 180,
+    -- Days of history to keep for items the player holds or follows. This
+    -- is what the player's own game has read, so how long it's kept is up
+    -- to them. (The feed is another matter: Blizzard's terms hold that to
+    -- thirty days, and the collector sees to it.)
+    historyDays = 90,
 
     -- Days of whole-market snapshots to keep. These are large, so not many.
     marketDays = 10,
@@ -97,9 +100,17 @@ ns.OnEvent("ADDON_LOADED", function(name)
     end
 
     local db = GoldwiseDB
-    db.schema = db.schema or SCHEMA
+    local settings = EnsureTable(db, "settings")
 
-    FillDefaults(EnsureTable(db, "settings"), DEFAULT_SETTINGS)
+    -- Schema 2 brought the default history length down from 180 days to
+    -- 90. Before then there was no way to choose it, so anyone holding the
+    -- old figure simply moves to the new one.
+    if (db.schema or SCHEMA) < 2 and settings.historyDays == 180 then
+        settings.historyDays = nil
+    end
+    db.schema = SCHEMA
+
+    FillDefaults(settings, DEFAULT_SETTINGS)
     EnsureTable(db, "markets")
     EnsureTable(db, "places")
 
