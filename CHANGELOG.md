@@ -4,6 +4,11 @@ What changed in each release of Goldwise, newest first. Work that hasn't
 been released yet is listed under "Unreleased" in the copy of this file on
 the `dev` branch.
 
+## Unreleased
+
+- Carries its Wago Addons project ID, so new releases reach Wago as well
+  as CurseForge.
+
 ## 0.3.3 (12 November 2026)
 
 **New**

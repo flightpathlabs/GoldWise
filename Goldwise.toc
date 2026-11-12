@@ -9,6 +9,7 @@
 ## AddonCompartmentFunc: Goldwise_OnAddonCompartmentClick
 ## X-License: MIT
 ## X-Curse-Project-ID: 1799775
+## X-Wago-ID: BNBwYz6x
 
 # Load order matters: each group only uses what the groups above it define.
 

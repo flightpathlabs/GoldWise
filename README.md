@@ -21,7 +21,14 @@ on an English client. Expect rough edges, and please
 
 ## Installing
 
-Until Goldwise is on the addon sites, install it from here.
+The easy way is an addon manager. Goldwise is on
+[CurseForge](https://www.curseforge.com/wow/addons/gold-wise) and
+[Wago Addons](https://addons.wago.io/addons/gold-wise), listed as
+**Gold Wise**, with a space. The CurseForge app, WowUp and the Wago app
+will all install it and keep it up to date: search for "Gold Wise" and
+pick the one by FlightPathLabs.
+
+To install it by hand:
 
 1. Open [Releases](https://github.com/flightpathlabs/GoldWise/releases)
    and, from the newest one, download the file whose name starts with
@@ -139,7 +146,8 @@ reputation makes it cheaper, and **Where** puts the trainer on your map.
 
 A line for each of the last 30 days: everything that came in less
 everything that went out, and the auction house on a line of its own.
-Press **Running total** to see the same days added up as they went. Above
+Press **Running total** to see the same days added up as they went, or
+**What you're worth** for your coin and goods together, day by day. Above
 the chart is what you sold at auction, what you spent there on purchases
 and deposits, and the difference. Below it are your latest sales and
 purchases.
