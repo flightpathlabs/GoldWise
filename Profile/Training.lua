@@ -394,23 +394,8 @@ local function StandingLabel(standing)
     return _G["FACTION_STANDING_LABEL" .. standing] or ""
 end
 
--- Where this class's trainers have been found, by map: [mapID] = { x, y }.
--- Learned the same way as auction houses: wherever the player was standing
--- when they opened one, there's a trainer. Shared by characters of a class.
-local function TrainerSpots()
-    if type(ns.db.trainerSpots) ~= "table" then
-        ns.db.trainerSpots = {}
-    end
-
-    local _, class = UnitClass("player")
-    class = class or "UNKNOWN"
-    if type(ns.db.trainerSpots[class]) ~= "table" then
-        ns.db.trainerSpots[class] = {}
-    end
-    return ns.db.trainerSpots[class]
-end
-
--- Called with the names of the skills a trainer has on offer.
+-- Called with the names of the skills a trainer has on offer. If they're
+-- this class's, the trainer's whereabouts are worth remembering.
 NoteTrainerSpot = function(offered)
     -- Weapon masters and their like open the same window. Only someone
     -- selling this class's own skills marks the spot.
@@ -429,12 +414,7 @@ NoteTrainerSpot = function(offered)
         end
     end
 
-    local mapID = C_Map.GetBestMapForUnit("player")
-    local position = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
-    if position then
-        local x, y = position:GetXY()
-        TrainerSpots()[mapID] = { x = x, y = y }
-    end
+    ns.TrainerSpots.NoteHere()
 end
 
 --- Whose trainers teach this character's class, where they are, and what
@@ -453,13 +433,12 @@ end
 ---                     short of a discount
 ---   discountStanding  the name of the standing that earns the discount
 ---   mapID             the map they're on, if we know it
----   spot              { x, y } on that map, once the player has visited a
----                     trainer there
+---   spot              { x, y } of a trainer on that map, if we know of
+---                     one (see TrainerSpots)
 --- Empty when we don't know this class's trainers.
 function Training.Places()
     local data = ClassTable()
     local factions = data and data.trainers[UnitFactionGroup("player")]
-    local spots = TrainerSpots()
     local places = {}
 
     for _, factionID in ipairs(factions or {}) do
@@ -485,7 +464,7 @@ function Training.Places()
                         or nil,
                     discountStanding = StandingLabel(DISCOUNT_STANDING),
                     mapID = map and mapID or nil,
-                    spot = map and spots[mapID] or nil,
+                    spot = map and ns.TrainerSpots.On(mapID) or nil,
                 })
             end
         end

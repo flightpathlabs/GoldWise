@@ -39,6 +39,7 @@ Profile\Bags.lua
 Profile\Characters.lua
 Profile\Professions.lua
 Profile\Purse.lua
+Profile\TrainerSpots.lua
 Profile\Training.lua
 
 Advisor\Advice.lua

@@ -131,7 +131,7 @@ local function ShowOnMap(place)
         ns.MapMarks.ShowZone(place.mapID)
         ns.Print(
             "That's %s, not the trainer's door. Goldwise marks the trainer "
-                .. "once you've visited one there.",
+                .. "once you've visited one there, or straight away with Questie installed.",
             place.city
         )
     end

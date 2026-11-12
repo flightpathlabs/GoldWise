@@ -82,6 +82,7 @@ read_globals = {
     "BuyTrainerService",
     "C_TooltipInfo",
     "C_SpellBook",
+    "bit",
     "C_Spell",
     "MenuUtil",
     "C_Reputation",
@@ -90,6 +91,7 @@ read_globals = {
 
     -- Other addons we talk to when they're installed
     "WT_API", -- What's Training?
+    "QuestieLoader", -- Questie
 
     -- Frames and widgets
     "CreateFrame",
