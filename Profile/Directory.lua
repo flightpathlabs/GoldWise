@@ -408,9 +408,40 @@ local function ReadQuestie(npcs, zones)
     Step()
 end
 
+-- Questie's modules, kept once found, for looking up the odd NPC later.
+local questieNPCs, questieZones
+
+-- NPCs already looked up: [npcID] = spot, or false if Questie can't say.
+local foundNPCs = {}
+
+--- Where one particular NPC stands, if Questie is there to say.
+---@param npcID number
+---@return table|nil spot  { mapID, x, y, name }
+function Directory.FindNPC(npcID)
+    if not questieNPCs then
+        return nil
+    end
+
+    if foundNPCs[npcID] == nil then
+        local ok, spot = pcall(function()
+            local name = questieNPCs.QueryNPCSingle(npcID, "name")
+            for areaID, points in pairs(questieNPCs.QueryNPCSingle(npcID, "spawns") or {}) do
+                local mapID = questieZones:GetUiMapIdByAreaId(areaID)
+                local point = points[1]
+                if mapID and point and point[1] and point[1] >= 0 then
+                    return { mapID = mapID, x = point[1] / 100, y = point[2] / 100, name = name }
+                end
+            end
+        end)
+        foundNPCs[npcID] = ok and spot or false
+    end
+    return foundNPCs[npcID] or nil
+end
+
 local function LookForQuestie(triesLeft)
     local npcs, zones = QuestieModules()
     if npcs then
+        questieNPCs, questieZones = npcs, zones
         ReadQuestie(npcs, zones)
     elseif QuestieLoader and triesLeft > 0 then
         -- Installed, but still unpacking its database.

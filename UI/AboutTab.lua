@@ -79,6 +79,9 @@ local function Sections()
                     .. "cost you: repairs, training, and whatever you're saving for.",
                 "Places: the nearest trainer for your class and each profession, and the "
                     .. "nearest auction house, repairer, bank, flight master and inn.",
+                "Recipes: what vendors sell that you haven't learned, for the professions "
+                    .. "you have, where to buy each, and what the tradeable ones fetch at "
+                    .. "auction. Goldwise also tells you when one is on sale where you are.",
             },
         },
         {
@@ -113,8 +116,9 @@ local function Sections()
         {
             heading = "Thanks",
             text = {
-                "Class training prices come from What's Training? by Sveng, used under its "
-                    .. "MIT licence. If you have that addon installed, Goldwise asks it directly.",
+                "Class training prices, and the list of which vendors sell which recipes, "
+                    .. "come from What's Training? by Sveng, used under its MIT licence. If "
+                    .. "you have that addon installed, Goldwise asks it for training directly.",
             },
         },
         {

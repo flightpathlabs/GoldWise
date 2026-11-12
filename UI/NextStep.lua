@@ -1,16 +1,18 @@
 local _, ns = ...
 
--- The two moments Goldwise speaks up without being asked.
+-- The three moments Goldwise speaks up without being asked.
 --
 --   * Arriving somewhere with an auction house, when a visit would
 --     actually pay: prices have gone stale, or the bags hold something
 --     worth listing.
 --   * Opening a merchant while carrying things that would fetch a good
 --     deal more at auction.
+--   * Entering a zone where a vendor sells a recipe the player could use
+--     and hasn't learned.
 --
--- Each happens at most once per visit, each can be switched off, and
--- neither fires in combat. The rest of the time the only sign is a soft
--- pulse on the minimap button.
+-- Each happens at most once per visit, each can be switched off, and none
+-- fires in combat. The rest of the time the only sign is a soft pulse on
+-- the minimap button.
 
 local Theme = ns.Theme
 
@@ -245,3 +247,99 @@ end
 
 ns.OnEvent("MERCHANT_SHOW", CheckBeforeVendoring)
 ns.OnEvent("MERCHANT_CLOSED", ns.Toast.Hide)
+
+-- Recipes for sale where the player is ---------------------------------------------------
+
+-- Wait this long after arriving before mentioning recipes. Longer than
+-- the auction house check takes, so that card gets to go first.
+local RECIPE_DELAY = 6
+
+-- If another card is up when we'd speak, wait this long and try again.
+-- Once: after that the moment has passed.
+local RECIPE_RETRY = 30
+
+-- Zones we've already spoken up in this session. A recipe that wasn't
+-- wanted the first time through town isn't wanted the second.
+local recipesMentioned = {}
+
+local function CheckRecipes(isRetry)
+    if not ns.settings.recipePrompt or InCombatLockdown() then
+        return
+    end
+
+    local zone = GetRealZoneText()
+    if not zone or zone == "" or recipesMentioned[zone] then
+        return
+    end
+
+    local forSale = ns.Recipes.ForSaleHere()
+    if #forSale == 0 then
+        return
+    end
+
+    if ns.Toast.IsShowing() then
+        if not isRetry then
+            C_Timer.After(RECIPE_RETRY, function()
+                CheckRecipes(true)
+            end)
+        end
+        return
+    end
+    recipesMentioned[zone] = true
+
+    local items = {}
+    for index = 1, math.min(ns.Toast.MAX_ITEMS, #forSale) do
+        local recipe = forSale[index]
+        local spot = ns.Recipes.VendorSpot(recipe)
+
+        local detail = ("%s %d"):format(recipe.profession, recipe.needed)
+        if not recipe.ready then
+            detail = ("%s (you're at %d)"):format(detail, recipe.skill)
+        end
+        if spot and spot.name then
+            detail = ("%s, from %s"):format(detail, spot.name)
+        end
+
+        items[index] = {
+            itemID = recipe.item,
+            icon = C_Item.GetItemIconByID(recipe.item),
+            name = C_Item.GetItemNameByID(recipe.item) or "Recipe",
+            quality = C_Item.GetItemQualityByID(recipe.item),
+            detail = detail,
+        }
+    end
+
+    local body = #forSale == 1 and "A vendor in %s sells one you haven't learned."
+        or "Vendors in %s sell some you haven't learned."
+    body = body:format(zone)
+    if #forSale > #items then
+        body = body .. (" %d more are on the Recipes tab."):format(#forSale - #items)
+    end
+
+    ns.Toast.Show({
+        title = ns.settings.auditorMode and "You are MISSING recipes" or "Recipes for sale here",
+        body = body,
+        items = items,
+        primary = {
+            label = "Show me",
+            onClick = function()
+                -- The vendor on the map if we can place them, and the
+                -- full list either way.
+                local spot = ns.Recipes.VendorSpot(forSale[1])
+                if spot then
+                    ns.MapMarks.ShowPoint(spot.mapID, spot.x, spot.y)
+                else
+                    ns.ShowWindowTab("Recipes")
+                end
+            end,
+        },
+        secondary = { label = "Not now" },
+    })
+end
+
+local function CheckRecipesSoon()
+    C_Timer.After(RECIPE_DELAY, CheckRecipes)
+end
+
+ns.OnEvent("ZONE_CHANGED_NEW_AREA", CheckRecipesSoon)
+ns.OnEvent("PLAYER_ENTERING_WORLD", CheckRecipesSoon)

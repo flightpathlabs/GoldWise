@@ -5,14 +5,17 @@ project, which stays under that project's own licence.
 
 ## What's Training?
 
-- **What we use:** the class training prices for WoW: Forever: which skills each
-  class trainer sells, the level each needs, what it costs, and which
-  reputations each class's trainers answer to. They are the
-  files in `Data/Training/`, converted to Goldwise's own format. None of that
-  addon's code is included.
+- **What we use:** two tables for WoW: Forever, converted to Goldwise's own
+  format. None of that addon's code is included.
+  - Class training prices, in `Data/Training/`: which skills each class
+    trainer sells, the level each needs, what it costs, and which reputations
+    each class's trainers answer to.
+  - Vendor recipes, in `Data/Recipes/`: which profession recipes are sold by
+    vendors, the skill each needs, what it takes to be sold one, and which
+    vendors carry it.
 - **Author:** Sveng
 - **Project:** "What's Training?" on CurseForge (project ID 324944)
-- **Version imported:** named at the top of each file in `Data/Training/`
+- **Version imported:** named at the top of each file in those two folders
 - **Licence:** MIT, reproduced below as it ships with that addon
 
 ```

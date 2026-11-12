@@ -114,7 +114,6 @@ read_globals = {
     -- Namespaced API
     "C_AddOns",
     "C_AuctionHouse",
-    "C_Container",
     "C_Item",
     "C_Timer",
     "C_TradeSkillUI",
@@ -174,3 +173,8 @@ read_globals = {
     -- The client adds a few functions to the standard table library
     table = { fields = { "wipe" } },
 }
+
+-- Generated tables. StyLua lays them out, and where it leaves a line a
+-- character over, that isn't ours to fix by hand.
+files["Data/Recipes"] = { max_line_length = false }
+files["Data/Training"] = { max_line_length = false }

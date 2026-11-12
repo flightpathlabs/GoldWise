@@ -207,6 +207,12 @@ function Toast.Show(options)
     end)
 end
 
+--- Whether a card is up at the moment.
+---@return boolean
+function Toast.IsShowing()
+    return card ~= nil and card:IsShown()
+end
+
 --- Puts the card away, if one is showing.
 function Toast.Hide()
     if card then

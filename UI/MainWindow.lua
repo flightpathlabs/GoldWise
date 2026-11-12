@@ -69,6 +69,15 @@ local TABS = {
         end,
     },
     {
+        label = "Recipes",
+        page = "Recipes",
+        refresh = function(page)
+            page:Refresh()
+            return "Click a recipe for its price history. "
+                .. "The list of who sells what comes from What's Training?."
+        end,
+    },
+    {
         label = "About",
         page = "About",
         refresh = function() end,
@@ -255,6 +264,7 @@ local function CreateWindow()
     frame.Prospects = ns.ProspectList.Create(frame.Inset, ShowDetail)
     frame.Purse = ns.PurseTab.Create(frame.Inset)
     frame.Places = ns.PlacesTab.Create(frame.Inset)
+    frame.Recipes = ns.RecipesTab.Create(frame.Inset)
     frame.About = ns.AboutTab.Create(frame.Inset)
     frame.Detail = ns.ItemDetail.Create(frame.Inset, ShowCurrentTab)
     CreateTabs(frame)
@@ -277,6 +287,18 @@ function ns.ShowWindow()
         window = CreateWindow()
     end
     window:Show()
+end
+
+--- Opens the window on a particular tab.
+---@param page string  the tab's page, as named in TABS: "Recipes", say
+function ns.ShowWindowTab(page)
+    ns.ShowWindow()
+    for index, tab in ipairs(TABS) do
+        if tab.page == page then
+            ShowTab(index)
+            return
+        end
+    end
 end
 
 --- Opens the window on one item's price history, whether or not the

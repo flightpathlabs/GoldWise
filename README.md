@@ -60,7 +60,7 @@ ruleset and faction, plus a neutral one, and Goldwise keeps them apart.
 
 ```
 Core/      startup, events, saved data
-Data/      tables: what can be gathered and where, and what trainers charge
+Data/      tables: what can be gathered and where, what trainers charge, what vendors sell
 Market/    which auction house we're at, the request queue, the scanners, the price feed
 Ledger/    price storage and the sums done over it
 Profile/   what the player and their other characters carry and can do
@@ -94,7 +94,8 @@ Entertainment.
 
 MIT. See [LICENSE](LICENSE).
 
-The class training prices in `Data/Training/` come from What's Training? by
-Sveng, also MIT licensed. Its licence and the details are in
-[THIRD-PARTY.md](THIRD-PARTY.md). Those files are written by the workshop's
-`import-training.mjs` and shouldn't be edited by hand.
+The class training prices in `Data/Training/` and the vendor recipes in
+`Data/Recipes/` come from What's Training? by Sveng, also MIT licensed. Its
+licence and the details are in [THIRD-PARTY.md](THIRD-PARTY.md). Those files
+are written by the workshop's `import-whats-training.mjs` and shouldn't be
+edited by hand.

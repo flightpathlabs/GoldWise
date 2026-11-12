@@ -57,6 +57,7 @@ local DEFAULT_SETTINGS = {
 
     -- The two unprompted cards, and whether they make a sound.
     cityPrompt = true,
+    recipePrompt = true,
     vendorCheck = true,
     promptSound = false,
 

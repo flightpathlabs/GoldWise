@@ -2,9 +2,9 @@ local _, ns = ...
 
 -- What Druid trainers charge in WoW: Forever.
 --
--- Written by tools/import-training.mjs from What's Training? 11.4.3 by
--- Sveng, used under the MIT licence (see THIRD-PARTY.md). Don't edit this
--- by hand: run the importer again when that addon updates.
+-- Written by tools/import-whats-training.mjs from What's Training? 11.4.3
+-- by Sveng, used under the MIT licence (see THIRD-PARTY.md). Don't edit
+-- this by hand: run the importer again when that addon updates.
 
 ns.TrainingData.DRUID = {
     -- Each skill is { spell ID, level needed, cost in copper }, with the

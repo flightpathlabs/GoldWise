@@ -89,6 +89,14 @@ ns.OnEvent("PLAYER_LOGIN", function()
 
     AddCheckbox(
         category,
+        "recipePrompt",
+        "Tell me when a vendor nearby sells a recipe I can use",
+        "Once per zone each session, for recipes you haven't learned in the professions "
+            .. "you have, when your skill is high enough or nearly so."
+    )
+
+    AddCheckbox(
+        category,
         "vendorCheck",
         "Check my bags when I open a merchant",
         "A short note if you're carrying things that would fetch a good deal more at auction."

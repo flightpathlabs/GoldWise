@@ -26,6 +26,10 @@ ns.NEUTRAL_AUCTION_CUT = 0.15
 -- What trainers charge, by class. Filled in by the files in Data\Training.
 ns.TrainingData = {}
 
+-- Which vendors sell which recipes, by the profession's name in English.
+-- Filled in by the files in Data\Recipes.
+ns.RecipeData = {}
+
 --- Formats copper as plain text, leaving out the parts that are zero.
 ---@param copper number
 ---@return string  e.g. "1g 4s", "81c", "2s 30c"

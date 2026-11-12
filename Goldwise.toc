@@ -25,6 +25,15 @@ Data\Training\Rogue.lua
 Data\Training\Shaman.lua
 Data\Training\Warlock.lua
 Data\Training\Warrior.lua
+Data\Recipes\Alchemy.lua
+Data\Recipes\Blacksmithing.lua
+Data\Recipes\Cooking.lua
+Data\Recipes\Enchanting.lua
+Data\Recipes\Engineering.lua
+Data\Recipes\FirstAid.lua
+Data\Recipes\Fishing.lua
+Data\Recipes\Leatherworking.lua
+Data\Recipes\Tailoring.lua
 
 Market\Identity.lua
 Market\Throttle.lua
@@ -41,6 +50,7 @@ Profile\Professions.lua
 Profile\Purse.lua
 Profile\Directory.lua
 Profile\Training.lua
+Profile\Recipes.lua
 
 Advisor\Advice.lua
 Advisor\Assets.lua
@@ -55,6 +65,7 @@ UI\ShelfList.lua
 UI\ProspectList.lua
 UI\PurseTab.lua
 UI\PlacesTab.lua
+UI\RecipesTab.lua
 UI\AboutTab.lua
 UI\MainWindow.lua
 UI\ScanPanel.lua
