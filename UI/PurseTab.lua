@@ -17,6 +17,9 @@ local LEVELS_SHOWN = 3
 local ROW_COUNT = 7
 local ROW_HEIGHT = 30
 
+-- How far down the tab the "Coming up" list starts.
+local ROWS_TOP = 150
+
 -- Building blocks ---------------------------------------------------------------
 
 -- One of the three boxes across the top: a label, a figure, a footnote.
@@ -49,7 +52,7 @@ end
 local function CreateRow(parent, index)
     local row = CreateFrame("Frame", nil, parent)
     row:SetHeight(ROW_HEIGHT)
-    row:SetPoint("TOPLEFT", 12, -150 - (index - 1) * ROW_HEIGHT)
+    row:SetPoint("TOPLEFT", 12, -(ROWS_TOP + (index - 1) * ROW_HEIGHT))
     row:SetPoint("RIGHT", -12, 0)
 
     row.When = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
@@ -407,11 +410,13 @@ function PurseTab.Create(parent)
         rows[index] = CreateRow(tab, index)
     end
 
+    -- The verdict sits under the last line of the list, and is placed
+    -- there on each refresh. It used to be pinned to the bottom of the tab
+    -- and justified upward, which the game's coin icons don't follow: the
+    -- words moved and the coins stayed behind, a line too high.
     local verdict = tab:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    verdict:SetPoint("BOTTOMLEFT", 14, 12)
     verdict:SetPoint("RIGHT", -14, 0)
     verdict:SetJustifyH("LEFT")
-    verdict:SetJustifyV("BOTTOM")
     verdict:SetSpacing(4)
 
     --- Brings every figure on the tab up to date.
@@ -445,10 +450,12 @@ function PurseTab.Create(parent)
         end
 
         local costs = UpcomingCosts(level)
+        local shown = 0
         for index, row in ipairs(rows) do
             local cost = costs[index]
             row:SetShown(cost ~= nil)
             if cost then
+                shown = shown + 1
                 row.When:SetText(cost.when)
                 row.What:SetText(cost.what)
                 row.Amount:SetText(cost.amount and Theme.Coins(cost.amount) or "")
@@ -462,6 +469,7 @@ function PurseTab.Create(parent)
             end
         end
 
+        verdict:SetPoint("TOPLEFT", 14, -(ROWS_TOP + shown * ROW_HEIGHT + 16))
         verdict:SetText(Verdict(money, income, spending, costs))
     end
 

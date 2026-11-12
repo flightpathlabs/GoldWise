@@ -38,7 +38,8 @@ local TABS = {
         page = "Purse",
         refresh = function(page)
             page:Refresh()
-            return "Costs are learned as you play. Visit your trainer to fill in training."
+            return "Amounts are full price. Point at a training line to see where "
+                .. "your reputation makes it cheaper."
         end,
     },
     {
