@@ -107,7 +107,7 @@ reputation makes it cheaper, and **Where** puts the trainer on your map.
 The nearest trainer for your class and each profession, and the nearest
 auction house, repairer, bank, flight master and inn, each with a **Map**
 button. Goldwise remembers the places you use. With
-[Questie](https://www.curseforge.com/wow/addons/questie) installed it
+Questie installed it
 knows the rest from the start.
 
 ![The Places tab](docs/images/places.png)

@@ -161,7 +161,7 @@ GameTooltip:HookScript("OnTooltipCleared", HideChart)
 -- Names listed before the rest are summed up as "and N more".
 local MAX_HOLDERS_NAMED = 3
 
--- "55: 12 here, Buffy 40, Bjorn 3", or nil when no other character has any.
+-- "55: 12 here, Alia 40, Brom 3", or nil when no other character has any.
 -- With nobody else holding it there's nothing the bag itself doesn't show.
 local function HeldText(itemID)
     local holders = ns.Characters.HoldersOf(itemID)
