@@ -12,7 +12,8 @@ local _, ns = ...
 -- both ways:
 --
 --   * Results from searches we didn't send are still real prices, so we
---     record those too.
+--     record those too. When another addon reads the whole market before
+--     we can, that counts as our scan.
 --   * Our scan must never trample a search the player is looking at. We
 --     scan once, just after the window opens, and give up the moment
 --     anyone else searches.
@@ -107,7 +108,7 @@ hooksecurefunc(C_AuctionHouse, "SendBrowseQuery", function(query)
     NoteSearch({ ours = ours, wholeMarket = IsWholeMarket(query) })
 
     if scan and not ours then
-        Stop("Someone else started a search, so the scan stepped aside.")
+        Stop("Another search started, so Goldwise is reading along with that one.")
     end
 end)
 
@@ -126,7 +127,7 @@ for _, name in ipairs({ "SearchForFavorites", "SearchForItemKeys" }) do
             })
 
             if scan then
-                Stop("Someone else started a search, so the scan stepped aside.")
+                Stop("Another search started, so Goldwise is reading along with that one.")
             end
         end)
     end
@@ -257,6 +258,13 @@ local function OnOverheardResults(rows, complete)
     local wholeMarket = complete and lastSearch ~= nil and lastSearch.wholeMarket
     ns.Log("overheard %d rows%s", #rows, wholeMarket and " (whole market)" or "")
     ns.Ledger.RecordScan(ns.Market.Current(), rows, wholeMarket)
+
+    -- Another addon has read the whole market for us. That's as good as
+    -- having done it ourselves, and everything that waits on a finished
+    -- scan should hear about it.
+    if wholeMarket then
+        ns.Publish("SCAN_FINISHED", #rows, 0, true)
+    end
 end
 
 local function OnBrowseResults()
@@ -275,6 +283,64 @@ end
 
 ns.OnEvent("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", OnBrowseResults)
 ns.OnEvent("AUCTION_HOUSE_BROWSE_RESULTS_ADDED", OnBrowseResults)
+
+-- Looking at one item ------------------------------------------------------------------
+
+-- When anyone opens a single item's listings (the player clicking a row,
+-- or another addon checking what a material costs) the game hands back
+-- that item's auctions. It's the most exact price there is for it, so
+-- it's worth keeping whoever asked.
+
+-- Listings looked through for the cheapest buyout. They usually arrive
+-- cheapest first, but whoever asked chooses the order.
+local LISTINGS_CHECKED = 50
+
+-- An addon pricing a recipe can ask about dozens of items in a second, so
+-- what we learn is gathered up and filed in one go.
+local FILE_AFTER = 0.5
+local learned, filing = {}, false
+
+local function Learn(itemID, price, quantity)
+    if not price or price <= 0 or not ns.Market.IsOpen() then
+        return
+    end
+    learned[itemID] = { price, quantity or 0 }
+
+    if not filing then
+        filing = true
+        C_Timer.After(FILE_AFTER, function()
+            filing = false
+            local prices = learned
+            learned = {}
+            if ns.Market.IsOpen() then
+                ns.Ledger.RecordPrices(ns.Market.Current(), prices, false)
+            end
+        end)
+    end
+end
+
+-- Stackable goods: one pooled list, always cheapest first.
+ns.OnEvent("COMMODITY_SEARCH_RESULTS_UPDATED", function(itemID)
+    local cheapest = C_AuctionHouse.GetCommoditySearchResultInfo(itemID, 1)
+    if cheapest then
+        Learn(itemID, cheapest.unitPrice, C_AuctionHouse.GetCommoditySearchResultsQuantity(itemID))
+    end
+end)
+
+-- Everything else: one listing per auction.
+ns.OnEvent("ITEM_SEARCH_RESULTS_UPDATED", function(itemKey)
+    local lowest
+    local count = math.min(C_AuctionHouse.GetNumItemSearchResults(itemKey), LISTINGS_CHECKED)
+    for index = 1, count do
+        local listing = C_AuctionHouse.GetItemSearchResultInfo(itemKey, index)
+        local buyout = listing and listing.buyoutAmount
+        if buyout and buyout > 0 and (not lowest or buyout < lowest) then
+            lowest = buyout
+        end
+    end
+
+    Learn(itemKey.itemID, lowest, C_AuctionHouse.GetItemSearchResultsQuantity(itemKey))
+end)
 
 ns.OnEvent("AUCTION_HOUSE_BROWSE_FAILURE", function()
     if scan and scan.sent then

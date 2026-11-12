@@ -56,6 +56,7 @@ UI\PurseTab.lua
 UI\PlacesTab.lua
 UI\AboutTab.lua
 UI\MainWindow.lua
+UI\ScanPanel.lua
 UI\MinimapButton.lua
 UI\Toast.lua
 UI\NextStep.lua

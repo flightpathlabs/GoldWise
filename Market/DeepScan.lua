@@ -12,6 +12,11 @@ local _, ns = ...
 -- follows we can say how many are listed at each of the lowest prices,
 -- which is the difference between "the lowest is 81c" and "the cheapest
 -- 1,200 are all 81c".
+--
+-- Other addons use the same cooldown. If one of them asks first, ours is
+-- spent, but the answer is the game's and any addon may read it. So when
+-- a list arrives that we didn't ask for, we read it all the same. Whoever
+-- gets there first, the player's prices end up fresh.
 
 local DeepScan = {}
 ns.DeepScan = DeepScan
@@ -41,7 +46,14 @@ local DEPTH_LEVELS = 5
 --   prices     [itemID] = { lowest unit price, total quantity }
 --   lots       [itemID] = { price, quantity, price, quantity, ... } for
 --              tracked items only
+--   borrowed   true if another addon asked for the list and we're reading
+--              over its shoulder
 local run
+
+-- The list we last read: how many auctions it held and when. The game
+-- announces the same list again whenever more of its item details load,
+-- and we only want to read each list once.
+local lastRead
 
 --- Whether a deep scan is running right now.
 ---@return boolean
@@ -115,7 +127,14 @@ local function Finish()
     end
 
     local seconds = GetTime() - finished.startedAt
-    ns.Log("deep scan finished: %d auctions, %d items, %.1fs", finished.total, items, seconds)
+    lastRead = { total = finished.total, at = GetTime() }
+    ns.Log(
+        "deep scan finished%s: %d auctions, %d items, %.1fs",
+        finished.borrowed and " (another addon's list)" or "",
+        finished.total,
+        items,
+        seconds
+    )
 
     local depths = {}
     for itemID, lots in pairs(finished.lots) do
@@ -124,7 +143,7 @@ local function Finish()
     end
     ns.Ledger.SetDepths(finished.marketKey, depths)
     ns.Ledger.RecordPrices(finished.marketKey, finished.prices, true)
-    ns.Publish("SCAN_FINISHED", items, seconds)
+    ns.Publish("SCAN_FINISHED", items, seconds, finished.borrowed)
 end
 
 local function ExamineBatch()
@@ -178,15 +197,53 @@ local function ExamineBatch()
     end
 end
 
+-- Whether a list that arrived unasked is one we've already been through.
+local function AlreadyRead(total)
+    return lastRead ~= nil and lastRead.total == total and GetTime() - lastRead.at < COOLDOWN
+end
+
+-- Starts reading a list another addon asked for.
+local function ReadOverShoulder(total)
+    run = {
+        marketKey = ns.Market.Current(),
+        startedAt = GetTime(),
+        prices = {},
+        lots = {},
+        borrowed = true,
+        sent = true,
+        total = total,
+        nextIndex = 0,
+    }
+
+    -- The cooldown is the account's, not the addon's. Somebody has just
+    -- used it, so there's no point in our asking for a while either.
+    ns.db.lastDeepScan = GetServerTime()
+
+    ns.Log("deep scan: reading %d auctions another addon asked for", total)
+    ns.Publish("SCAN_STARTED")
+    ExamineBatch()
+end
+
 ns.OnEvent("REPLICATE_ITEM_LIST_UPDATE", function()
-    -- This fires again whenever more item details load, for our list or
-    -- for one another addon asked for earlier. Only the first after our
-    -- own request matters: by then the prices are all there.
-    if not run or not run.sent or run.total then
+    -- This fires for our own request, for another addon's, and again
+    -- whenever more item details load for either. The prices are all there
+    -- from the first.
+    local total = C_AuctionHouse.GetNumReplicateItems()
+
+    if not run then
+        local worthReading = total > 0 and not AlreadyRead(total)
+        if worthReading and ns.settings.autoScan and ns.Market.IsOpen() then
+            ReadOverShoulder(total)
+        end
         return
     end
 
-    run.total = C_AuctionHouse.GetNumReplicateItems()
+    -- Our own run: only the first answer after the request matters.
+    if not run.sent or run.total then
+        return
+    end
+
+    run.total = total
     run.nextIndex = 0
     ns.Log("deep scan answered with %d auctions", run.total)
 

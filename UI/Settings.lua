@@ -111,6 +111,14 @@ ns.OnEvent("PLAYER_LOGIN", function()
 
     AddCheckbox(
         category,
+        "scanPanel",
+        "Show what's being read at the auction house",
+        "A small panel on top of the auction house window: how far the reading has got, "
+            .. "what it found, and what your bags would sell for. Click it to open Goldwise."
+    )
+
+    AddCheckbox(
+        category,
         "deepScan",
         "Read every auction when possible",
         "A fuller read that shows how many are listed at each price. "

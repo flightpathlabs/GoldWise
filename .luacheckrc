@@ -94,6 +94,9 @@ read_globals = {
     "WT_API", -- What's Training?
     "QuestieLoader", -- Questie
 
+    -- Blizzard's auction house window, once its addon has loaded
+    "AuctionHouseFrame",
+
     -- Frames and widgets
     "CreateFrame",
     "UIParent",

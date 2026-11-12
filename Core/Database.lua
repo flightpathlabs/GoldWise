@@ -47,6 +47,10 @@ local DEFAULT_SETTINGS = {
     minimapButton = true,
     minimapAngle = 215,
 
+    -- The small panel on top of the auction house window that says what
+    -- Goldwise is reading and what it found.
+    scanPanel = true,
+
     -- The two unprompted cards, and whether they make a sound.
     cityPrompt = true,
     vendorCheck = true,

@@ -257,6 +257,14 @@ function ns.ToggleWindow()
     window:SetShown(not window:IsShown())
 end
 
+--- Opens the window, and leaves it be if it's open already.
+function ns.ShowWindow()
+    if not window then
+        window = CreateWindow()
+    end
+    window:Show()
+end
+
 -- Keeping it current -----------------------------------------------------------------
 
 ns.Subscribe("SCAN_STARTED", function()

@@ -69,7 +69,10 @@ end
 --   SCAN_STARTED
 --   SCAN_PROGRESS    done, total    how far a scan has got; total is nil
 --                                   when the scan can't know it in advance
---   SCAN_FINISHED    items, seconds
+--   SCAN_FINISHED    items, seconds, borrowed
+--                                   borrowed is true when another addon
+--                                   asked the auction house and we read
+--                                   its answer
 --   SCAN_STOPPED     reason         gave up; reason is fit to show the player
 --   PRICES_CHANGED   marketKey      the ledger has new prices
 --   BAGS_CHANGED                    what the player carries has changed
