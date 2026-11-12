@@ -118,7 +118,16 @@ local function FillRow(row, data)
     row.Detail:SetText(data.detail or "")
 
     if data.amount then
-        row.Amount:SetText(("%s %s"):format(data.amountLabel or "", Theme.Coins(data.amount)))
+        -- A word before the figure ("profit 2g") or after it ("2g each"),
+        -- whichever reads naturally.
+        local text = Theme.Coins(data.amount)
+        if data.amountLabel then
+            text = data.amountLabel .. " " .. text
+        end
+        if data.amountAfter then
+            text = text .. " " .. data.amountAfter
+        end
+        row.Amount:SetText(text)
     else
         row.Amount:SetText("")
     end

@@ -13,6 +13,7 @@
 
 Core\Init.lua
 Core\Events.lua
+Core\Items.lua
 Core\Database.lua
 
 Data\Gathering.lua

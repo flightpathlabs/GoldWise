@@ -46,11 +46,7 @@ local function Held(itemID)
 end
 
 local function NameOf(itemID)
-    local name = C_Item.GetItemNameByID(itemID)
-    if not name then
-        C_Item.RequestLoadItemDataByID(itemID)
-    end
-    return name or ("item " .. itemID)
+    return ns.ItemName(itemID) or ("item " .. itemID)
 end
 
 -- What one of an ingredient is worth to the player, and whether that's an

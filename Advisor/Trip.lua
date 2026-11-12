@@ -185,7 +185,7 @@ local function ForSaleThere(zoneName, marketKey)
 
             table.insert(steps, {
                 itemID = recipe.item,
-                title = C_Item.GetItemNameByID(recipe.item) or "Recipe",
+                title = ns.ItemName(recipe.item) or "Recipe",
                 detail = detail,
                 amount = price,
                 amountLabel = "sells for",

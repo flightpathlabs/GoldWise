@@ -59,7 +59,7 @@ local function Step(deal, sayWhere)
     local spot = ns.Recipes.VendorSpot(deal)
     return {
         itemID = deal.item,
-        title = C_Item.GetItemNameByID(deal.item) or "Recipe",
+        title = ns.ItemName(deal.item) or "Recipe",
         detail = detail .. ".",
         amount = deal.profit,
         amountLabel = "profit",

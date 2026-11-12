@@ -381,6 +381,8 @@ for _, message in ipairs({
     "PRICES_CHANGED",
     "BAGS_CHANGED",
     "CRAFTS_CHANGED",
+    "COURSE_CHANGED",
+    "ITEM_NAMES_LOADED",
     "PROFILE_CHANGED",
     "SETTINGS_CHANGED",
     "AUCTION_HOUSE_CLOSED",

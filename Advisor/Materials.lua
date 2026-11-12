@@ -93,10 +93,7 @@ function Materials.Plan()
 
         for position = 1, math.min(PER_KIND, #kind.items) do
             local item = kind.items[position]
-            local name = C_Item.GetItemNameByID(item.itemID)
-            if not name then
-                C_Item.RequestLoadItemDataByID(item.itemID)
-            end
+            local name = ns.ItemName(item.itemID)
 
             -- What the player already has says whether it's theirs to sell.
             local held = (ns.Bags.Counts()[item.itemID] or 0) + ns.Bank.Count(item.itemID)
@@ -107,10 +104,12 @@ function Materials.Plan()
 
             table.insert(steps, {
                 itemID = item.itemID,
-                title = name or ("Item " .. item.itemID),
+                -- A moment's placeholder: the list redraws when the game
+                -- has told us what it's called.
+                title = name or "Looking it up...",
                 detail = detail .. ".",
                 amount = item.price,
-                amountLabel = "each",
+                amountAfter = "each",
             })
         end
 

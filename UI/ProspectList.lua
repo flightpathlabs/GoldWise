@@ -160,7 +160,9 @@ function ProspectList.Create(parent, onSelect)
 
     local function GoTo(zone)
         destination = zone
-        list:Refresh()
+        -- The window redraws the tab and takes its footer from what the
+        -- tab says about itself, so tell it, don't just redraw here.
+        ns.Publish("COURSE_CHANGED")
     end
 
     course:SetScript("OnClick", function(self)
