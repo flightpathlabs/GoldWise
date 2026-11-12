@@ -51,6 +51,7 @@ Profile\Purse.lua
 Profile\Directory.lua
 Profile\Training.lua
 Profile\Recipes.lua
+Profile\Keep.lua
 
 Advisor\Advice.lua
 Advisor\Assets.lua

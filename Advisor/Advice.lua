@@ -15,6 +15,7 @@ ns.Advice = Advice
 Advice.SELL = "sell"
 Advice.HOLD = "hold"
 Advice.VENDOR = "vendor"
+Advice.KEEP = "keep"
 Advice.UNKNOWN = "unknown"
 
 -- How far from its usual price something has to be before we remark on it.
@@ -67,6 +68,14 @@ local PHRASES = {
         calm = "Worth listing. Too little history to judge the timing.",
         auditor = "Worth listing. New file, so no trends yet.",
     },
+    keptByChoice = {
+        calm = "You're keeping this. Right-click to change your mind.",
+        auditor = "A KEEPER, you say. Right-click if you see sense.",
+    },
+    keptAsTool = {
+        calm = "A tool of your trade. Right-click to sell it anyway.",
+        auditor = "You NEED this to work. Right-click to argue.",
+    },
 }
 
 local function Phrase(key, auditor, ...)
@@ -75,6 +84,18 @@ local function Phrase(key, auditor, ...)
         text = text:format(...)
     end
     return text
+end
+
+--- The verdict on something the player isn't selling.
+---@param isTool boolean  true if it's kept as a tool of a trade, false if
+---        the player chose to keep it
+---@param auditor boolean  true for the loud voice
+---@return table advice  { verb, reason }, with no proceeds: nothing is for sale
+function Advice.ForKept(isTool, auditor)
+    return {
+        verb = Advice.KEEP,
+        reason = Phrase(isTool and "keptAsTool" or "keptByChoice", auditor),
+    }
 end
 
 --- Works out what to do with a stack of one item.

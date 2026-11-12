@@ -25,6 +25,7 @@ Theme.VERB_COLORS = {
     sell = { 0.49, 0.84, 0.42 },
     hold = { 0.90, 0.78, 0.42 },
     vendor = { 0.82, 0.76, 0.64 },
+    keep = { 0.62, 0.74, 0.88 },
     unknown = { 0.60, 0.60, 0.60 },
 }
 
@@ -32,6 +33,7 @@ Theme.VERB_LABELS = {
     sell = "Sell",
     hold = "Hold",
     vendor = "Vendor",
+    keep = "Keep",
     unknown = "No price",
 }
 

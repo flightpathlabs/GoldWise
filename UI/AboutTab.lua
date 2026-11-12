@@ -53,6 +53,9 @@ local function Sections()
                     .. "says when it's done and what your bags would sell for.",
                 "Check Assets before you sell to a merchant. Anything marked Sell is "
                     .. "worth the walk to the auction house.",
+                "Using something, not selling it? Right-click it on Assets and choose Keep. "
+                    .. "Goldwise stops suggesting you sell it. Fishing poles and profession "
+                    .. "tools are kept from the start.",
                 "Rest your mouse on any item, anywhere, for its price and a small chart "
                     .. "of how it's moved.",
                 "For the full history of anything you can point at, type /gw history, or "

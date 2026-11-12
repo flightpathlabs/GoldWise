@@ -51,6 +51,23 @@ function Assets.Describe(holding, marketKey, owner)
         C_Item.RequestLoadItemDataByID(itemID)
     end
 
+    -- Something the player uses isn't for sale, whatever it would fetch.
+    -- The price and the chart are still worth showing; the advice isn't.
+    local advice
+    local kept, why = ns.Keep.IsKept(itemID)
+    if kept then
+        advice = ns.Advice.ForKept(why == ns.Keep.TOOL, ns.settings.auditorMode)
+    else
+        advice = ns.Advice.ForHolding({
+            count = holding.count,
+            price = price,
+            vendorPrice = vendorPrice,
+            againstUsual = againstUsual,
+            cut = ns.Market.Cut(marketKey),
+            auditor = ns.settings.auditorMode,
+        })
+    end
+
     return {
         itemID = itemID,
         owner = owner,
@@ -65,14 +82,7 @@ function Assets.Describe(holding, marketKey, owner)
         source = source,
         trend = trend,
         againstUsual = againstUsual,
-        advice = ns.Advice.ForHolding({
-            count = holding.count,
-            price = price,
-            vendorPrice = vendorPrice,
-            againstUsual = againstUsual,
-            cut = ns.Market.Cut(marketKey),
-            auditor = ns.settings.auditorMode,
-        }),
+        advice = advice,
     }
 end
 

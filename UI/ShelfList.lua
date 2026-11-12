@@ -22,6 +22,25 @@ local NAME_RIGHT = 346
 
 -- Rows --------------------------------------------------------------------------
 
+-- The menu behind a right-click: keep the item or sell it, and a way to
+-- its page for anyone who went looking for that here.
+local function ShowKeepMenu(row, data, onSelect)
+    local kept = ns.Keep.IsKept(data.itemID)
+
+    MenuUtil.CreateContextMenu(row, function(_, root)
+        root:CreateTitle(data.name)
+        root:CreateButton(
+            kept and "Suggest selling this again" or "Keep this, don't suggest selling",
+            function()
+                ns.Keep.Toggle(data.itemID)
+            end
+        )
+        root:CreateButton("Price history", function()
+            onSelect(data)
+        end)
+    end)
+end
+
 local function CreateRowWidgets(row, onSelect)
     row.created = true
 
@@ -69,8 +88,16 @@ local function CreateRowWidgets(row, onSelect)
     row.Proceeds:SetJustifyH("RIGHT")
     row.Proceeds:SetTextColor(unpack(Theme.MUTED))
 
-    row:SetScript("OnClick", function(self)
-        onSelect(self:GetElementData())
+    -- Left-click for the item's page; right-click to say whether it's for
+    -- sale at all.
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:SetScript("OnClick", function(self, mouseButton)
+        local data = self:GetElementData()
+        if mouseButton == "RightButton" then
+            ShowKeepMenu(self, data, onSelect)
+        else
+            onSelect(data)
+        end
     end)
 
     row:SetScript("OnEnter", function(self)
@@ -82,6 +109,15 @@ local function CreateRowWidgets(row, onSelect)
         else
             GameTooltip:SetItemByID(data.itemID)
         end
+
+        local muted = Theme.MUTED
+        GameTooltip:AddLine(
+            ns.Keep.IsKept(data.itemID) and "Right-click to put this up for sale again."
+                or "Right-click to keep this: Goldwise won't suggest selling it.",
+            muted[1],
+            muted[2],
+            muted[3]
+        )
         GameTooltip:Show()
     end)
     row:SetScript("OnLeave", GameTooltip_Hide)
