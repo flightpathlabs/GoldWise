@@ -11,9 +11,24 @@ local Theme = ns.Theme
 local CHART_WIDTH = 740
 local CHART_HEIGHT = 250
 
+-- The crafting tree button, and the room an item's name has beside it
+-- before it would run under the buttons at the top right.
+local TREE_BUTTON_WIDTH = 110
+local NAME_WIDTH = 300
+
 -- A stack this size or bigger is worth a word when it's more than the
 -- whole market has on offer.
 local SIZEABLE_STACK = 5
+
+-- What the chart can draw, in the order the menu lists them. By day is
+-- the long view: one point a day for as long as history is kept. The
+-- others plot every separate reading, which is where a price that swings
+-- between morning and evening shows itself.
+local VIEWS = {
+    { label = "A point a day" },
+    { label = "Every reading, last week", readingDays = 7 },
+    { label = "Every reading, last 2 days", readingDays = 2 },
+}
 
 --- Creates the detail page. It starts hidden and fills its parent.
 ---@param parent table        frame to fill
@@ -34,8 +49,7 @@ function ItemDetail.Create(parent, onBack)
     -- make. For anything else the tree would have nothing in it.
     local shown
     local tree = CreateFrame("Button", nil, detail, "UIPanelButtonTemplate")
-    tree:SetSize(110, 22)
-    tree:SetPoint("TOPRIGHT", -14, -12)
+    tree:SetSize(TREE_BUTTON_WIDTH, 22)
     tree:SetText("Crafting tree")
     tree:SetScript("OnClick", function()
         ns.ShowCraftTree(shown)
@@ -55,6 +69,52 @@ function ItemDetail.Create(parent, onBack)
     local chart = ns.Chart.Create(detail, CHART_WIDTH, CHART_HEIGHT)
     chart:SetPoint("TOPLEFT", 14, -62)
 
+    -- Draws the chart for the item on show, the way the player last chose.
+    local pick
+    local function DrawChart()
+        local marketKey = ns.Market.Current()
+        local view = VIEWS[ns.settings.historyView] or VIEWS[1]
+        pick:SetText(view.label)
+
+        -- "Usual" is worked out over the same shorter window the list
+        -- used, so the line drawn here agrees with the sentence beneath
+        -- it, whichever view is on show.
+        local usual = ns.Stats.UsualPrice(ns.Ledger.History(marketKey, shown, ns.Stats.USUAL_DAYS))
+
+        if view.readingDays then
+            chart:SetHistory(ns.Ledger.Readings(marketKey, shown, view.readingDays), usual, true)
+        else
+            chart:SetHistory(ns.Ledger.History(marketKey, shown, ns.settings.historyDays), usual)
+        end
+    end
+
+    -- In the corner, where it stays put. The crafting tree button comes
+    -- and goes, so it's the one that sits beside.
+    pick = CreateFrame("Button", nil, detail, "UIPanelButtonTemplate")
+    pick:SetSize(180, 22)
+    pick:SetPoint("TOPRIGHT", -14, -12)
+    tree:ClearAllPoints()
+    tree:SetPoint("RIGHT", pick, "LEFT", -8, 0)
+
+    -- A long name stops short of the buttons. Its width is set outright
+    -- each time an item is shown: pinning its right-hand edge to a button
+    -- would drag it down to the button's height as well.
+    name:SetJustifyH("LEFT")
+    name:SetWordWrap(false)
+    pick:SetScript("OnClick", function(self)
+        MenuUtil.CreateContextMenu(self, function(_, root)
+            root:CreateTitle("Chart...")
+            for index, view in ipairs(VIEWS) do
+                root:CreateRadio(view.label, function()
+                    return ns.settings.historyView == index
+                end, function()
+                    ns.settings.historyView = index
+                    DrawChart()
+                end)
+            end
+        end)
+    end)
+
     local verdict = detail:CreateFontString(nil, "ARTWORK", "GameFontNormalMed3")
     verdict:SetPoint("TOPLEFT", chart, "BOTTOMLEFT", 2, -14)
     verdict:SetPoint("RIGHT", detail, "RIGHT", -16, 0)
@@ -72,16 +132,11 @@ function ItemDetail.Create(parent, onBack)
         local marketKey = ns.Market.Current()
         local history = ns.Ledger.History(marketKey, row.itemID, ns.settings.historyDays)
 
-        -- The chart shows everything that's kept, but "usual" is worked
-        -- out over the same shorter window the list used, so the line
-        -- drawn here agrees with the sentence beneath it.
-        local usual =
-            ns.Stats.UsualPrice(ns.Ledger.History(marketKey, row.itemID, ns.Stats.USUAL_DAYS))
-
         shown = row.itemID
         tree:SetShown(ns.CraftTree.Has(row.itemID))
 
         icon:SetTexture(row.icon)
+        name:SetWidth(tree:IsShown() and NAME_WIDTH or NAME_WIDTH + TREE_BUTTON_WIDTH + 8)
         name:SetText(Theme.ItemName(row.name, row.quality))
 
         local holder = row.owner and (row.owner .. " has") or "You have"
@@ -98,7 +153,7 @@ function ItemDetail.Create(parent, onBack)
             facts:SetText(("%s %d."):format(holder, row.count))
         end
 
-        chart:SetHistory(history, usual)
+        DrawChart()
         verdict:SetText(row.advice.reason)
 
         local lines = {}

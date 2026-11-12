@@ -63,24 +63,86 @@ local function InventedHistory(marketKey, itemID, numDays)
     return history
 end
 
+-- Separate readings for the same stretch: four a day, wandering a little
+-- about that day's price, and ending on the real one.
+local READINGS_A_DAY = 4
+
+local function InventedReadings(marketKey, itemID, numDays)
+    local random = Wobble(itemID * 104729 + numDays)
+    local now = (GetServerTime() + ns.ClockOffset()) / ns.SECONDS_PER_DAY
+
+    local readings = {}
+    for _, day in ipairs(InventedHistory(marketKey, itemID, numDays)) do
+        for part = 1, READINGS_A_DAY do
+            local at = day.day + (part - 0.5) / READINGS_A_DAY
+            if at < now then
+                local price = math.max(1, math.floor(day.last * (0.94 + random() * 0.12) + 0.5))
+                table.insert(readings, {
+                    day = at,
+                    low = price,
+                    high = price,
+                    last = price,
+                    quantity = day.quantity,
+                })
+            end
+        end
+    end
+
+    -- The last word goes to the price the page is quoting.
+    if #readings > 0 then
+        local newest = readings[#readings]
+        local price = ns.Ledger.Price(marketKey, itemID) or newest.last
+        newest.low, newest.high, newest.last = price, price, price
+    end
+    return readings
+end
+
 -- The purse ---------------------------------------------------------------------------
 
--- A month of income and spending for someone of the player's level, with
--- the odd day off.
-local function InventedDays(numDays)
-    local today = ns.Ledger.Today()
-    local firstDay = today - numDays + 1
-    local scale = math.max(UnitLevel("player"), 5) * 900
-    local random = Wobble(numDays * 104729 + 7)
+-- Income and spending for someone of the player's level, over a run of
+-- stretches of time, with the odd one off.
+local function InventedFlow(hoursEach, count)
+    -- Only the real answer knows which stretches the window covers.
+    local _, first, last = real.Flow(hoursEach, count)
+    local scale = math.max(UnitLevel("player"), 5) * 900 * hoursEach / 24
+    local random = Wobble(count * 104729 + hoursEach)
 
-    local days = {}
-    for day = firstDay, today do
+    local flow = {}
+    for at = first, last do
         local played = random() > 0.15
         local income = math.floor(scale * (0.4 + random() * 1.4))
         local spending = math.floor(scale * (0.15 + random() * 0.9))
         if played then
-            table.insert(days, { day = day, income = income, spending = spending })
+            table.insert(flow, { at = at, income = income, spending = spending })
         end
+    end
+    return flow, first, last
+end
+
+-- What that income and spending would have left in the purse, ending at
+-- what's really there now.
+local function InventedCoin(hoursEach, count)
+    local flow, first, last = InventedFlow(hoursEach, count)
+
+    local change = {}
+    for _, stretch in ipairs(flow) do
+        change[stretch.at] = stretch.income - stretch.spending
+    end
+
+    local coin, held = {}, ns.Characters.TotalMoney()
+    for at = last, first, -1 do
+        coin[at - first + 1] = math.max(held, 0)
+        held = held - (change[at] or 0)
+    end
+    return coin, first, last
+end
+
+local function InventedDays(numDays)
+    local flow, firstDay, today = InventedFlow(24, numDays)
+
+    local days = {}
+    for index, day in ipairs(flow) do
+        days[index] = { day = day.at, income = day.income, spending = day.spending }
     end
     return days, firstDay, today
 end
@@ -112,17 +174,23 @@ function ns.ToggleDemo()
 
     if on then
         real.History = ns.Ledger.History
+        real.Readings = ns.Ledger.Readings
         real.DaysRecorded = ns.Ledger.DaysRecorded
         real.Daily = ns.Purse.Daily
         real.Averages = ns.Purse.Averages
+        real.Flow = ns.Purse.Flow
+        real.Coin = ns.Purse.Coin
 
         ns.Ledger.History = InventedHistory
+        ns.Ledger.Readings = InventedReadings
         -- A full month on the books, so nothing says "day 2 of your history".
         ns.Ledger.DaysRecorded = function()
             return 30
         end
         ns.Purse.Daily = InventedDays
         ns.Purse.Averages = InventedAverages
+        ns.Purse.Flow = InventedFlow
+        ns.Purse.Coin = InventedCoin
 
         ns.Print(
             "Demo data is on: charts are drawn from invented history, for screenshots. "
@@ -130,9 +198,12 @@ function ns.ToggleDemo()
         )
     else
         ns.Ledger.History = real.History
+        ns.Ledger.Readings = real.Readings
         ns.Ledger.DaysRecorded = real.DaysRecorded
         ns.Purse.Daily = real.Daily
         ns.Purse.Averages = real.Averages
+        ns.Purse.Flow = real.Flow
+        ns.Purse.Coin = real.Coin
 
         ns.Print("Demo data is off. Charts are back to your real history.")
     end
