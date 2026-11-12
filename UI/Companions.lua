@@ -83,6 +83,17 @@ function Companions.MakesFullReads()
     return false
 end
 
+--- Whether another addon reads the whole market by itself each time the
+--- auction house opens. Its read is ours to share, so ours can wait.
+---@return boolean
+function Companions.ReadsOnOpening()
+    -- Auctionator does unless the player has switched that off, and
+    -- Profession Atlas does whenever Auctionator isn't there to do it.
+    -- If neither turns out to read this time, all we've lost is a couple
+    -- of seconds before our own.
+    return IsLoaded("Auctionator") or IsLoaded("ForeverProfessions")
+end
+
 --- Whether another addon has its own progress display on the auction house
 --- window while prices are being read.
 ---@return boolean

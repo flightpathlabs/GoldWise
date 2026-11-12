@@ -25,6 +25,13 @@ ns.Scanner = Scanner
 -- opening searches go first.
 local OPEN_DELAY = 1.5
 
+-- Wait this long instead when another addon here reads the market on
+-- opening. One read serves us both, so let it go first and read along.
+local COMPANION_HEAD_START = 4
+
+-- How often to look again while another addon's full read is awaited.
+local AWAIT_STEP = 1
+
 -- Give up on a scan that produces nothing for this long.
 local STALL_TIMEOUT = 20
 
@@ -97,6 +104,15 @@ end
 ---@return boolean
 function Scanner.IsScanning()
     return scan ~= nil or ns.DeepScan.IsRunning()
+end
+
+--- Gives up the ordinary scan, if one is running, because the same prices
+--- are arriving another way.
+---@param reason string  fit to show the player
+function Scanner.StandAside(reason)
+    if scan then
+        Stop(reason)
+    end
 end
 
 -- Telling searches apart -------------------------------------------------------
@@ -393,12 +409,30 @@ ns.Subscribe("AUCTION_HOUSE_OPENED", function(marketKey)
     -- alone; we'll catch the market on the next visit.
     local function BrowseUnlessBusy()
         local stillHere = ns.Market.IsOpen() and visit == thisVisit
-        if stillHere and not someoneSearched then
-            Scanner.Start()
+        if not stillHere or someoneSearched then
+            return
         end
+
+        -- Another addon has asked for every auction. Its answer is ours to
+        -- read too, so wait for it. If it never comes, the wait runs out
+        -- and we read the market ourselves after all.
+        if ns.DeepScan.IsExpected() then
+            C_Timer.After(AWAIT_STEP, BrowseUnlessBusy)
+            return
+        end
+
+        -- It came, or another addon's search covered the whole market
+        -- while we held back.
+        if ns.DeepScan.IsRunning() or ScannedRecently(marketKey) then
+            return
+        end
+
+        Scanner.Start()
     end
 
-    C_Timer.After(OPEN_DELAY, function()
+    local delay = ns.Companions.ReadsOnOpening() and COMPANION_HEAD_START or OPEN_DELAY
+
+    C_Timer.After(delay, function()
         if not ns.Market.IsOpen() or visit ~= thisVisit then
             return
         end

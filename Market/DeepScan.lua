@@ -55,6 +55,14 @@ local run
 -- and we only want to read each list once.
 local lastRead
 
+-- True only while our own request for the list is being sent, so the hook
+-- below can tell it from another addon's.
+local asking = false
+
+-- When another addon asked for the list, as GetTime counts, while its
+-- answer is still on the way. Nil once it has come or been given up on.
+local askedByAnother
+
 --- Whether a deep scan is running right now.
 ---@return boolean
 function DeepScan.IsRunning()
@@ -70,8 +78,23 @@ function DeepScan.IsAvailable()
         return false
     end
 
+    -- Somebody has just asked. Whatever the auction house says to them,
+    -- it would say the same to us.
+    if DeepScan.IsExpected() then
+        return false
+    end
+
     local lastAsked = ns.db.lastDeepScan
     return not lastAsked or GetServerTime() - lastAsked >= COOLDOWN
+end
+
+--- Whether another addon has asked for every auction and the answer hasn't
+--- come yet. It will be ours to read when it does, so reading the market
+--- ourselves in the meantime would be asking the auction house for the
+--- same thing twice.
+---@return boolean
+function DeepScan.IsExpected()
+    return askedByAnother ~= nil and GetTime() - askedByAnother < ANSWER_TIMEOUT
 end
 
 local function Stop(reason)
@@ -204,6 +227,10 @@ end
 
 -- Starts reading a list another addon asked for.
 local function ReadOverShoulder(total)
+    -- If our ordinary scan is part-way through the same market, this list
+    -- makes the rest of it a waste of the auction house's time.
+    ns.Scanner.StandAside("Another addon read every auction, so Goldwise is using that.")
+
     run = {
         marketKey = ns.Market.Current(),
         startedAt = GetTime(),
@@ -229,6 +256,7 @@ ns.OnEvent("REPLICATE_ITEM_LIST_UPDATE", function()
     -- whenever more item details load for either. The prices are all there
     -- from the first.
     local total = C_AuctionHouse.GetNumReplicateItems()
+    askedByAnother = nil
 
     if not run then
         local worthReading = total > 0 and not AlreadyRead(total)
@@ -287,7 +315,9 @@ function DeepScan.Start(onNoAnswer)
         end
 
         run.sent = true
+        asking = true
         C_AuctionHouse.ReplicateItems()
+        asking = false
 
         -- The clock starts when the request leaves, not when it joined
         -- the queue behind someone else's.
@@ -300,7 +330,28 @@ function DeepScan.Start(onNoAnswer)
     end)
 end
 
+-- Another addon asking -----------------------------------------------------------------
+
+-- A post-hook sees the request the moment it's made, whoever made it. The
+-- answer can take a quarter of a minute, and knowing it's coming is what
+-- lets the ordinary scan hold off instead of reading the same market a
+-- second time beside it.
+--
+-- An addon that took its own copy of the function before we loaded goes
+-- round this. Its list is still read when it arrives; we just don't know
+-- to wait for it.
+hooksecurefunc(C_AuctionHouse, "ReplicateItems", function()
+    if asking then
+        return
+    end
+
+    askedByAnother = GetTime()
+    ns.Log("deep scan: another addon asked for every auction")
+end)
+
 ns.Subscribe("AUCTION_HOUSE_CLOSED", function()
+    askedByAnother = nil
+
     if run then
         Stop("The auction house closed before the full read finished.")
     end
