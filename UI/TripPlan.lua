@@ -238,8 +238,10 @@ function TripPlan.Create(parent)
 
     local loadingBar = CreateFrame("StatusBar", nil, frame)
     loadingBar:SetHeight(6)
-    loadingBar:SetPoint("LEFT", loadingLabel, "RIGHT", 10, 0)
-    loadingBar:SetPoint("RIGHT", scrollBox, "RIGHT", -6, 0)
+    -- Pinned by its bottom corners. Hung between the label and the list
+    -- by their sides, it would have two ideas of how high up to sit.
+    loadingBar:SetPoint("BOTTOMLEFT", 8 + LOADING_LABEL_WIDTH + 10, 9)
+    loadingBar:SetPoint("BOTTOMRIGHT", -22, 9)
     loadingBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
     loadingBar:SetStatusBarColor(unpack(Theme.COIN))
     loadingBar:SetMinMaxValues(0, 1)

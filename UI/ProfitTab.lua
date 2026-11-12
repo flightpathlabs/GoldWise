@@ -180,12 +180,12 @@ function ProfitTab.Create(parent)
     sold:SetPoint("TOPLEFT", 12, -34)
 
     local bought = Theme.CreateTile(tab, "Spent at auction")
-    bought:SetPoint("LEFT", sold, "RIGHT", 10, 0)
+    bought:SetPoint("LEFT", sold, "RIGHT", 13, 0)
 
     local net = Theme.CreateTile(tab, "Auction house profit")
-    net:SetPoint("LEFT", bought, "RIGHT", 10, 0)
+    net:SetPoint("LEFT", bought, "RIGHT", 13, 0)
 
-    local chart = ns.Chart.CreateLines(tab, 740, CHART_HEIGHT)
+    local chart = ns.Chart.CreateLines(tab, 746, CHART_HEIGHT)
     chart:SetPoint("TOPLEFT", 12, -CHART_TOP)
 
     local listHeading = tab:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
