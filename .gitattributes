@@ -23,4 +23,5 @@ docs            export-ignore
 .gitattributes  export-ignore
 .gitignore      export-ignore
 .luacheckrc     export-ignore
+.pkgmeta        export-ignore
 stylua.toml     export-ignore

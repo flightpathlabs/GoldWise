@@ -1,10 +1,14 @@
 name: Release
 
-# Pushing a tag such as v0.3.0-beta builds the zip people install and
-# publishes it as a release, with that version's notes from CHANGELOG.md.
+# Pushing a tag such as v0.3.0-beta packages the addon and publishes it:
+# as a release here, and on CurseForge and Wago once the project IDs are in
+# the TOC and the upload tokens are saved as repository secrets. A site
+# with no ID or no token is skipped.
 #
 #   1. Set "## Version" in Goldwise.toc and add a section to CHANGELOG.md.
 #   2. Commit, then: git tag v<version> && git push origin main v<version>
+#
+# A tag with "beta" or "alpha" in it is published as that everywhere.
 
 on:
   push:
@@ -17,7 +21,10 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      # The packager reads the history, so fetch all of it.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # The version the game shows comes from the TOC, so a tag that
       # disagrees with it would put a mislabelled addon in people's hands.
@@ -31,34 +38,32 @@ jobs:
           fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
 
-      # The game wants a folder named after the TOC file, so everything
-      # goes under Goldwise/. What's marked export-ignore in .gitattributes
-      # is left out.
-      - name: Build the zip
-        run: |
-          git archive --format=zip --prefix=Goldwise/ \
-            --output="Goldwise-$GITHUB_REF_NAME.zip" HEAD
-          unzip -l "Goldwise-$GITHUB_REF_NAME.zip" | tail -n 1
-
+      # Done before anything is uploaded, so a forgotten changelog entry
+      # stops the release instead of following it out. Kept outside the
+      # checkout so it can't end up in the package.
       - name: Pick this version's notes out of the changelog
         run: |
           awk -v version="$VERSION" '
             /^## / { wanted = ($2 == version); next }
             wanted
-          ' CHANGELOG.md > notes.md
-          if [ ! -s notes.md ]; then
+          ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          if [ ! -s "$RUNNER_TEMP/notes.md" ]; then
             echo "::error::CHANGELOG.md has no section for $VERSION."
             exit 1
           fi
 
-      # A tag with a hyphen in it (-beta, -rc1) is marked as a pre-release.
-      - name: Publish
+      # What goes in the package is set in .pkgmeta.
+      - name: Package and upload
+        uses: BigWigsMods/packager@v2
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+          GITHUB_OAUTH: ${{ github.token }}
+
+      # The sites get the whole changelog. Here, just this version's part.
+      - name: Put this version's notes on the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          flags=""
-          case "$GITHUB_REF_NAME" in
-            *-*) flags="--prerelease" ;;
-          esac
-          gh release create "$GITHUB_REF_NAME" "Goldwise-$GITHUB_REF_NAME.zip" \
-            --title "Goldwise $VERSION" --notes-file notes.md $flags
+          gh release edit "$GITHUB_REF_NAME" \
+            --title "Goldwise $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
