@@ -3,19 +3,23 @@ local _, ns = ...
 -- What class training is going to cost.
 --
 -- The game won't quote a trainer's prices unless the player is standing in
--- front of one. There are two ways round that.
+-- front of one. So we have three places to look, best first.
 --
--- If the player has What's Training? installed, we ask it. That addon
--- carries a full table of Forever's class skills and prices and keeps
--- track of which ones the player knows, so the answer is complete from
--- the first login.
+-- If the player has What's Training? installed, we ask it. It keeps track
+-- of which skills the player knows, which they've chosen to skip and what
+-- discount their reputation earns.
 --
--- Otherwise we learn the honest way: whenever the player opens their
--- class trainer, we note every skill on offer, what it costs and the
--- level it needs. That is enough to say "level 30 will cost you 3g 40s"
--- well before level 30. What we know then is only what the trainer window
--- showed. If the player has the "unavailable" filter switched off there,
--- skills above their level aren't listed and we can't see them.
+-- Failing that, there's the price table in Data\Training. It's that same
+-- addon's table, brought in with its author's licence, checked against the
+-- player's own spellbook. Everyone has this, so the Purse tab is complete
+-- from the first login.
+--
+-- And for a class the table doesn't cover, we learn the honest way:
+-- whenever the player opens their class trainer, we note every skill on
+-- offer, what it costs and the level it needs. What we know then is only
+-- what the trainer window showed. If the player has the "unavailable"
+-- filter switched off there, skills above their level aren't listed and
+-- we can't see them.
 --
 -- Two things are remembered from trainer visits. Prices are kept per
 -- class, so an alt of the same class starts out knowing them. Which
@@ -210,6 +214,92 @@ local function SkillsFromWhatsTraining()
     return skills
 end
 
+-- The price table ---------------------------------------------------------------------
+
+-- The answer from the table, kept until the player's spells change. Working
+-- it out means asking the spellbook about every skill their class has.
+local fromTable
+local fromTableStale = true
+
+-- [spell ID] = the run of ranks it belongs to, for the ranks that replace
+-- one another. Built the first time it's needed.
+local rankGroups
+
+local function ClassTable()
+    local _, class = UnitClass("player")
+    return class and ns.TrainingData[class]
+end
+
+local function InSpellbook(spellID)
+    local bank = Enum.SpellBookSpellBank.Player
+    return C_SpellBook.IsSpellInSpellBook(spellID, bank, false)
+        or C_SpellBook.IsSpellKnown(spellID, bank)
+end
+
+local function HasLearned(spellID)
+    if InSpellbook(spellID) then
+        return true
+    end
+
+    -- Some ranks take the place of the one before. If a later rank is in
+    -- the spellbook, this one was learned on the way to it.
+    local reached = false
+    for _, rank in ipairs(rankGroups[spellID] or {}) do
+        if reached and InSpellbook(rank) then
+            return true
+        end
+        reached = reached or rank == spellID
+    end
+    return false
+end
+
+-- The skills still to be bought, as { level, cost }, or nil if the table
+-- has nothing for this class.
+local function SkillsFromTable()
+    local data = ClassTable()
+    if not data then
+        return nil
+    end
+    if not fromTableStale then
+        return fromTable
+    end
+
+    if not rankGroups then
+        rankGroups = {}
+        for _, group in ipairs(data.replaces) do
+            for _, spellID in ipairs(group) do
+                rankGroups[spellID] = group
+            end
+        end
+    end
+
+    local faction = UnitFactionGroup("player")
+    local _, _, race = UnitRace("player")
+    local skills = {}
+
+    for _, skill in ipairs(data.skills) do
+        local spellID, level, cost = skill[1], skill[2], skill[3]
+
+        local forUs = (not skill.faction or skill.faction == faction)
+            and (not skill.race or skill.race == race)
+        -- A skill that builds on a talent only matters to those who took it.
+        local open = not skill.talent or HasLearned(skill.talent)
+
+        if forUs and open and not HasLearned(spellID) then
+            table.insert(skills, { level = level, cost = cost })
+        end
+    end
+
+    fromTable = skills
+    fromTableStale = false
+    return skills
+end
+
+local function OnSpellsChanged()
+    fromTableStale = true
+    ns.Publish("PURSE_CHANGED")
+end
+
 -- The same list, from what trainer visits have taught us.
 local function SkillsFromTrainerVisits()
     local unlearned = Unlearned()
@@ -228,7 +318,7 @@ end
 --- Whether any training prices are known for this character's class.
 ---@return boolean
 function Training.HasPrices()
-    return WhatsTraining() ~= nil or next(ClassBook()) ~= nil
+    return WhatsTraining() ~= nil or ClassTable() ~= nil or next(ClassBook()) ~= nil
 end
 
 --- Class training the player hasn't bought yet, added up by level.
@@ -238,7 +328,9 @@ end
 function Training.Outstanding(playerLevel)
     local byLevel = {}
 
-    for _, skill in ipairs(SkillsFromWhatsTraining() or SkillsFromTrainerVisits()) do
+    local skills = SkillsFromWhatsTraining() or SkillsFromTable() or SkillsFromTrainerVisits()
+
+    for _, skill in ipairs(skills) do
         -- Everything affordable now is one lump: "waiting at your trainer".
         local level = math.max(skill.level, playerLevel)
         local entry = byLevel[level]
@@ -262,8 +354,21 @@ end
 
 ns.OnEvent("TRAINER_SHOW", ScanSoon)
 ns.OnEvent("TRAINER_UPDATE", ScanSoon)
+-- Learning a skill, or taking a talent that opens some up, changes what's
+-- owed. The client doesn't have all of these events on every version; the
+-- ones it lacks are quietly skipped.
+ns.OnEvent("SPELLS_CHANGED", OnSpellsChanged)
+ns.OnEvent("LEARNED_SPELL_IN_SKILL_LINE", OnSpellsChanged)
+ns.OnEvent("CHARACTER_POINTS_CHANGED", OnSpellsChanged)
+
 ns.OnEvent("PLAYER_LOGIN", function()
     NoteWhatLiesAhead()
+
+    -- Every class's prices were loaded, and the player is only one of them.
+    local _, class = UnitClass("player")
+    if class then
+        ns.TrainingData = { [class] = ns.TrainingData[class] }
+    end
 
     -- What's Training? says when its picture of the player changes: once
     -- it has finished loading, and again whenever they train or level.

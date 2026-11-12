@@ -81,6 +81,8 @@ read_globals = {
     "CreateVector2D",
     "BuyTrainerService",
     "C_TooltipInfo",
+    "C_SpellBook",
+    "UnitRace",
 
     -- Other addons we talk to when they're installed
     "WT_API", -- What's Training?

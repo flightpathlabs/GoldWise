@@ -23,6 +23,9 @@ ns.MIN_DEPOSIT = 100
 ns.AUCTION_CUT = 0.05
 ns.NEUTRAL_AUCTION_CUT = 0.15
 
+-- What trainers charge, by class. Filled in by the files in Data\Training.
+ns.TrainingData = {}
+
 --- Formats copper as plain text, leaving out the parts that are zero.
 ---@param copper number
 ---@return string  e.g. "1g 4s", "81c", "2s 30c"

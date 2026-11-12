@@ -58,6 +58,10 @@ local function PageText()
         "An option. The goblin delivers the same advice at full volume. The facts "
             .. "don't change, only the tone.",
         "",
+        Heading("Thanks"),
+        "Class training prices come from What's Training? by Sveng, used under its "
+            .. "MIT licence. If you have that addon installed, Goldwise asks it directly.",
+        "",
         Heading("The small print"),
         "Goldwise is a free, fan-made addon from Flight Path Labs. Its goblin mascot "
             .. "is an original cartoon character and the branding is a joke. Any "

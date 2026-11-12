@@ -16,6 +16,15 @@ Core\Events.lua
 Core\Database.lua
 
 Data\Gathering.lua
+Data\Training\Druid.lua
+Data\Training\Hunter.lua
+Data\Training\Mage.lua
+Data\Training\Paladin.lua
+Data\Training\Priest.lua
+Data\Training\Rogue.lua
+Data\Training\Shaman.lua
+Data\Training\Warlock.lua
+Data\Training\Warrior.lua
 
 Market\Identity.lua
 Market\Throttle.lua
