@@ -88,6 +88,7 @@ read_globals = {
     "C_Container",
     "C_Bank",
     "debugstack",
+    "seterrorhandler",
     "GetLocale",
     "C_MerchantFrame",
     "GetMerchantNumItems",

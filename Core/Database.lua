@@ -162,6 +162,9 @@ local ERROR_LIMIT = 20
 -- Whether the player has been told this session that something went wrong.
 local errorMentioned = false
 
+-- The last error noted and when, to tell a repeat from an echo.
+local lastNoted, lastNotedAt = nil, 0
+
 --- Notes an error raised by one of Goldwise's own handlers.
 ---@param message string  the error text
 ---@param stack string    where it happened
@@ -172,6 +175,13 @@ function ns.NoteError(message, stack)
 
     local errors = EnsureTable(ns.db, "errors")
     message = tostring(message)
+
+    -- One failure can reach us twice, by the two routes below. Count it once.
+    local now = GetTime()
+    if message == lastNoted and now - lastNotedAt < 1 then
+        return
+    end
+    lastNoted, lastNotedAt = message, now
 
     for _, known in ipairs(errors) do
         if known.message == message then
@@ -199,6 +209,23 @@ function ns.NoteError(message, stack)
         ns.Print("Something went wrong inside Goldwise. Type /gw report to send in the details.")
     end
 end
+
+-- Errors in our event handlers are noted where they're caught (see
+-- Events.lua). That leaves the ones raised from a button click or a timer,
+-- which go straight to the game's error handler. So we stand in front of
+-- it: anything that names Goldwise is noted, and everything, ours or not,
+-- is passed on exactly as it came. Done at login, once the other addons
+-- that take an interest in errors have put their own handlers in place.
+ns.OnEvent("PLAYER_LOGIN", function()
+    local passOn = geterrorhandler()
+
+    seterrorhandler(function(message, ...)
+        if type(message) == "string" and message:find(addonName, 1, true) then
+            pcall(ns.NoteError, message, debugstack(2, 12, 0))
+        end
+        return passOn(message, ...)
+    end)
+end)
 
 --- Returns the saved data for one market, creating it on first use.
 ---@param marketKey string  from ns.Market

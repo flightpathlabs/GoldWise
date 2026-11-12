@@ -150,72 +150,94 @@ end
 
 -- The window ------------------------------------------------------------------------------
 
+-- How far down the header runs: two lines of instruction and the address.
+local HEADER_HEIGHT = 92
+
 local window
 
 local function Create()
     local frame = CreateFrame("Frame", "GoldwiseReport", UIParent, "ButtonFrameTemplate")
     frame:SetSize(WIDTH, HEIGHT)
     frame:SetPoint("CENTER")
-    frame:SetTitle("Report a problem")
-    frame:SetPortraitTextureRaw(ns.Theme.PORTRAIT)
+    frame:SetTitle("Goldwise: report a problem")
+    -- No portrait: the header is all words, and they need the room.
+    ButtonFrameTemplate_HidePortrait(frame)
     frame:SetFrameStrata("DIALOG")
     frame:SetToplevel(true)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    frame:SetScript("OnDragStart", function(self)
+        self:StartMoving()
+    end)
+    frame:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+    end)
     frame:Hide()
 
     table.insert(UISpecialFrames, frame:GetName())
 
-    local steps = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    steps:SetPoint("TOPLEFT", 66, -32)
-    steps:SetPoint("RIGHT", -16, 0)
-    steps:SetJustifyH("LEFT")
-    steps:SetText("Press Ctrl+C to copy the report below, then paste it into a new report at:")
+    -- The panel the report sits in, below the header and above the buttons.
+    frame.Inset:ClearAllPoints()
+    frame.Inset:SetPoint("TOPLEFT", 8, -HEADER_HEIGHT)
+    frame.Inset:SetPoint("BOTTOMRIGHT", -8, 32)
+
+    local first = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    first:SetPoint("TOPLEFT", 16, -30)
+    first:SetText("1. Press Select all below, then Ctrl+C to copy the report.")
+
+    local second = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    second:SetPoint("TOPLEFT", first, "BOTTOMLEFT", 0, -8)
+    second:SetText("2. Paste it into a new report at this address:")
 
     -- The address, in a box of its own so it can be copied too.
     local address = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-    address:SetSize(WIDTH - 110, 20)
-    address:SetPoint("TOPLEFT", 72, -52)
+    address:SetSize(WIDTH - 48, 20)
+    address:SetPoint("TOPLEFT", second, "BOTTOMLEFT", 6, -6)
     address:SetAutoFocus(false)
     address:SetText(ISSUES_URL)
     address:SetCursorPosition(0)
     -- It's there to be copied, not edited. Put back whatever is typed.
-    address:SetScript("OnTextChanged", function(self, byPlayer)
+    address:HookScript("OnTextChanged", function(self, byPlayer)
         if byPlayer then
             self:SetText(ISSUES_URL)
             self:HighlightText()
         end
     end)
-    address:SetScript("OnEditFocusGained", address.HighlightText)
-    address:SetScript("OnEscapePressed", address.ClearFocus)
 
-    local scroll = CreateFrame("ScrollFrame", nil, frame.Inset, "ScrollFrameTemplate")
-    scroll:SetPoint("TOPLEFT", 8, -8)
-    scroll:SetPoint("BOTTOMRIGHT", -28, 8)
+    -- Blizzard's own scrolling text box. It keeps the cursor in view and
+    -- takes the keyboard when clicked, which a bare edit box doesn't.
+    local scroll = CreateFrame("ScrollFrame", nil, frame.Inset, "InputScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", 10, -10)
+    scroll:SetPoint("BOTTOMRIGHT", -28, 10)
+    -- It's built for typing a short note, and counts the letters left.
+    scroll.CharCount:Hide()
 
-    local report = CreateFrame("EditBox", nil, scroll)
-    report:SetMultiLine(true)
-    report:SetAutoFocus(false)
+    local report = scroll.EditBox
+    report:SetMaxLetters(0)
     report:SetFontObject("GameFontHighlightSmall")
-    report:SetWidth(WIDTH - 60)
-    report:SetScript("OnEscapePressed", function()
+    report:SetWidth(WIDTH - 16 - 10 - 28 - 18)
+    report:SetAutoFocus(false)
+    -- The report isn't for editing either.
+    report:HookScript("OnTextChanged", function(self, byPlayer)
+        if byPlayer and frame.text then
+            self:SetText(frame.text)
+        end
+    end)
+    report:HookScript("OnEscapePressed", function()
         frame:Hide()
     end)
-    scroll:SetScrollChild(report)
     frame.Report = report
 
     local note = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    note:SetPoint("BOTTOMLEFT", 14, 10)
+    note:SetPoint("BOTTOMLEFT", 14, 11)
     note:SetTextColor(unpack(ns.Theme.MUTED))
     note:SetText("No character names, realm or gold are included. Read it before you send it.")
 
     local selectAll = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
     selectAll:SetSize(110, 22)
-    selectAll:SetPoint("BOTTOMRIGHT", -8, 4)
+    selectAll:SetPoint("BOTTOMRIGHT", -8, 5)
     selectAll:SetText("Select all")
     selectAll:SetScript("OnClick", function()
         report:SetFocus()
@@ -225,21 +247,13 @@ local function Create()
     return frame
 end
 
---- Opens the report window with a fresh report, selected and ready to copy.
+--- Opens the report window with a fresh report.
 function ns.ShowReport()
     window = window or Create()
 
-    local text = ReportText()
-    window.Report:SetText(text)
-    -- Typing in the box would spoil the report. Put it back if they do.
-    window.Report:SetScript("OnTextChanged", function(self, byPlayer)
-        if byPlayer then
-            self:SetText(text)
-            self:HighlightText()
-        end
-    end)
-
+    window.text = ReportText()
+    window.Report:SetText(window.text)
+    window.Report:SetCursorPosition(0)
+    window.Report:ClearFocus()
     window:Show()
-    window.Report:SetFocus()
-    window.Report:HighlightText()
 end
