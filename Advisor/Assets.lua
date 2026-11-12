@@ -87,6 +87,29 @@ function Assets.Describe(holding, marketKey, owner)
     }
 end
 
+--- What holdings would be listed for at today's auction prices, before
+--- the auction house takes its cut. This is a measure of what someone
+--- has, not advice: it counts things better vendored or held along with
+--- the rest. Things with no price yet count for nothing, and so does
+--- anything the player has said they're keeping.
+---@param marketKey string
+---@param ... table  lists of holdings, as from Bags.Holdings
+---@return number copper
+function Assets.Worth(marketKey, ...)
+    local worth = 0
+
+    for index = 1, select("#", ...) do
+        local holdings = select(index, ...)
+        for _, holding in ipairs(holdings) do
+            if not ns.Keep.IsKept(holding.itemID) then
+                local price = ns.Ledger.Price(marketKey, holding.itemID)
+                worth = worth + (price or 0) * holding.count
+            end
+        end
+    end
+    return worth
+end
+
 --- Assesses everything sellable in the player's own bags.
 ---@param marketKey string
 ---@return table assets   list of assets, as from Describe, unordered

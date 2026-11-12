@@ -27,6 +27,14 @@ the `dev` branch.
   reach of your level unless you untick that.
 - **Buying to sell shows its working.** Each line now has the vendor's
   price and the auction price beside the profit.
+- **Places sends you to the trainer you need next.** A craft's trainers
+  each teach one stretch of it, and the nearest tailor may be one you've
+  outgrown. Places now picks the nearest who can take you further at
+  your skill, and says so when it doesn't know of one. Trainers you
+  visit are remembered one by one, with their titles.
+- **Assets adds it all up.** A line under the list says what your things
+  are worth at today's auction prices, on this character and across the
+  account.
 
 ## 0.3.2 (11 November 2026)
 

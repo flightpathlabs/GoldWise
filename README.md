@@ -125,6 +125,10 @@ button. Goldwise remembers the places you use. With
 Questie installed it
 knows the rest from the start.
 
+For a craft, the trainer shown is the nearest one who can teach you more
+at your skill, which isn't always the nearest one: a city can have three
+tailors, each for a different stretch of the profession.
+
 ![The Places tab](docs/images/places.png)
 
 ### Recipes: the ones you're walking past

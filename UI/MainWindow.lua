@@ -64,7 +64,8 @@ local TABS = {
         refresh = function(page)
             page:Refresh()
             if ns.Directory.HasQuestie() then
-                return "Nearest in a straight line. The road there may be longer."
+                return "Nearest in a straight line. For a craft, the nearest trainer "
+                    .. "who can teach you more at your skill."
             end
             return "Goldwise learns places as you visit them. "
                 .. "With Questie installed it knows them from the start."

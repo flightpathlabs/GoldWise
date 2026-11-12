@@ -202,8 +202,7 @@ local function OnTheSpot(mapID)
     local Directory = ns.Directory
     local steps = {}
 
-    local function Add(label, kind)
-        local spot = Directory.On(kind, mapID)
+    local function Add(label, spot)
         if spot then
             table.insert(steps, {
                 title = label,
@@ -213,13 +212,16 @@ local function OnTheSpot(mapID)
         end
     end
 
-    Add("Flight master", Directory.FLIGHT)
-    Add("Innkeeper", Directory.INN)
-    Add("Repairs", Directory.REPAIR)
-    Add("Your class trainer", Directory.ClassTrainerKind())
+    Add("Flight master", Directory.On(Directory.FLIGHT, mapID))
+    Add("Innkeeper", Directory.On(Directory.INN, mapID))
+    Add("Repairs", Directory.On(Directory.REPAIR, mapID))
+    Add("Your class trainer", Directory.On(Directory.ClassTrainerKind(), mapID))
     for _, profession in ipairs(Directory.PROFESSIONS) do
-        if ns.Professions.SkillByName(profession.name) then
-            Add(profession.name .. " trainer", Directory.ProfessionKind(profession))
+        -- Only a trainer who can still teach them something is worth a
+        -- line in the plan.
+        local skill = ns.Professions.SkillByName(profession.name)
+        if skill then
+            Add(profession.name .. " trainer", Directory.TrainerOn(profession, skill, mapID))
         end
     end
     return steps

@@ -31,16 +31,19 @@ Directory.STABLE = "stable"
 -- The professions, in the order they're listed. `name` is what the game
 -- calls each in English. `titles` are the fragments that pick its trainers
 -- out by their title: "Expert Blacksmith", "Herbalism Trainer" and so on.
+-- `graded` marks the crafts, whose trainers each teach only one stretch of
+-- the profession (see the grades below). Anyone who teaches gathering,
+-- cooking, first aid or fishing teaches all of it.
 Directory.PROFESSIONS = {
-    { key = "alchemy", name = "Alchemy", titles = { "alchem" } },
-    { key = "blacksmithing", name = "Blacksmithing", titles = { "blacksmith" } },
-    { key = "enchanting", name = "Enchanting", titles = { "enchant" } },
-    { key = "engineering", name = "Engineering", titles = { "engineer" } },
+    { key = "alchemy", name = "Alchemy", titles = { "alchem" }, graded = true },
+    { key = "blacksmithing", name = "Blacksmithing", titles = { "blacksmith" }, graded = true },
+    { key = "enchanting", name = "Enchanting", titles = { "enchant" }, graded = true },
+    { key = "engineering", name = "Engineering", titles = { "engineer" }, graded = true },
     { key = "herbalism", name = "Herbalism", titles = { "herbalis" } },
-    { key = "leatherworking", name = "Leatherworking", titles = { "leatherwork" } },
+    { key = "leatherworking", name = "Leatherworking", titles = { "leatherwork" }, graded = true },
     { key = "mining", name = "Mining", titles = { "mining", "miner" } },
     { key = "skinning", name = "Skinning", titles = { "skinn" } },
-    { key = "tailoring", name = "Tailoring", titles = { "tailor" } },
+    { key = "tailoring", name = "Tailoring", titles = { "tailor" }, graded = true },
     { key = "cooking", name = "Cooking", titles = { "cook" } },
     { key = "firstaid", name = "First Aid", titles = { "first aid", "physician", "surgeon" } },
     { key = "fishing", name = "Fishing", titles = { "fishing", "fisherman" } },
@@ -49,6 +52,19 @@ Directory.PROFESSIONS = {
 -- Titles that mark a trainer of one branch of a profession, who won't
 -- teach the profession itself.
 local SPECIALIST_TITLES = { "gnomish", "goblin", "dragonscale", "tribal", "elemental" }
+
+-- A craft's trainers come in grades, and the grade is in the title, one
+-- step ahead of what's taught: a Journeyman Tailor takes a beginner to 75,
+-- and it's an Expert Tailor who makes a journeyman of them. Each has
+-- something to teach from the skill given here until the next grade takes
+-- over. These are the figures a Forever guide gives for tailoring; the
+-- other crafts are taken to work the same way.
+local GRADES = {
+    { word = "journeyman", needs = "a Journeyman", from = 0 },
+    { word = "expert", needs = "an Expert", from = 50 },
+    { word = "artisan", needs = "an Artisan", from = 125 },
+    { word = "master", needs = "a Master", from = 200 },
+}
 
 -- The classes' English names. Questie words a trainer's title in English
 -- ("Warrior Trainer") whatever language the game is in.
@@ -105,22 +121,56 @@ local function Visited(kind)
     return ns.db.directory[kind]
 end
 
+-- What the game writes under the name of whoever the player is talking
+-- to: "Expert Tailor". Nil if they have no title.
+local function TitleOfNPC()
+    if not C_TooltipInfo or not C_TooltipInfo.GetUnit then
+        return nil
+    end
+
+    local ok, tooltip = pcall(C_TooltipInfo.GetUnit, "npc")
+    local line = ok and tooltip and tooltip.lines and tooltip.lines[2]
+    local text = line and line.leftText
+
+    -- Someone without a title has their level on that line instead.
+    if text and text ~= "" and not text:find("%d") then
+        return text
+    end
+end
+
 --- Remembers that there's a place of this kind where the player is
 --- standing, run by whoever they're talking to.
 ---@param kind string
-function Directory.NoteHere(kind)
+---@param eachPerson boolean|nil  true to remember everyone of this kind on
+---        a map separately, with their title. A city can have three
+---        tailors, and they aren't interchangeable.
+function Directory.NoteHere(kind, eachPerson)
     local mapID = C_Map.GetBestMapForUnit("player")
     local position = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
     if not position then
         return
     end
 
+    local visited = Visited(kind)
+    local name = UnitName("npc")
+    local key = mapID
+
+    if eachPerson and name then
+        key = mapID .. ":" .. name
+        -- Before they were told apart, whoever was visited last had the
+        -- map to themselves.
+        if visited[mapID] and visited[mapID].name == name then
+            visited[mapID] = nil
+        end
+    end
+
     local x, y = position:GetXY()
-    Visited(kind)[mapID] = {
+    visited[key] = {
         mapID = mapID,
         x = x,
         y = y,
-        name = UnitName("npc"),
+        name = name,
+        title = eachPerson and TitleOfNPC() or nil,
         -- Visits are shared by the whole account, and a Horde alt's
         -- auctioneer is no use to an Alliance character.
         side = UnitFactionGroup("player"),
@@ -138,15 +188,20 @@ end
 --- A place of some kind on a given map.
 ---@param kind string
 ---@param mapID number
+---@param suits (fun(spot: table): boolean)|nil  only places this accepts
 ---@return table|nil spot  { mapID, x, y, name, title }
-function Directory.On(kind, mapID)
-    local visited = Visited(kind)[mapID]
-    if visited and IsForUs(visited) then
-        return visited
+function Directory.On(kind, mapID, suits)
+    local function Fits(spot)
+        return spot.mapID == mapID and (not suits or suits(spot))
     end
 
+    for _, spot in pairs(Visited(kind)) do
+        if IsForUs(spot) and Fits(spot) then
+            return spot
+        end
+    end
     for _, spot in ipairs(fromQuestie[kind] or {}) do
-        if spot.mapID == mapID then
+        if Fits(spot) then
             return spot
         end
     end
@@ -186,9 +241,10 @@ end
 --- that can't be measured from (inside a dungeon, say), a known place is
 --- still returned, just without a distance.
 ---@param kind string
+---@param suits (fun(spot: table): boolean)|nil  only places this accepts
 ---@return table|nil spot   { mapID, x, y, name, title }
 ---@return number|nil yards
-function Directory.Nearest(kind)
+function Directory.Nearest(kind, suits)
     local hereContinent, hereX, hereY
     local mapID = C_Map.GetBestMapForUnit("player")
     local position = mapID and C_Map.GetPlayerMapPosition(mapID, "player")
@@ -199,6 +255,10 @@ function Directory.Nearest(kind)
     local nearest, nearestSquared, fallback
 
     local function Consider(spot)
+        if suits and not suits(spot) then
+            return
+        end
+
         fallback = fallback or spot
         local world = hereContinent and Locate(spot)
         if world and world[1] == hereContinent then
@@ -229,6 +289,97 @@ end
 ---@return boolean
 function Directory.HasQuestie()
     return next(fromQuestie) ~= nil
+end
+
+-- The right trainer -----------------------------------------------------------------
+
+-- A trainer's title. A visit made before titles were noted has none of
+-- its own, but Questie may know the same person.
+local function TitleOf(kind, spot)
+    if spot.title then
+        return spot.title
+    end
+    for _, known in ipairs(fromQuestie[kind] or {}) do
+        if known.name == spot.name then
+            return known.title
+        end
+    end
+end
+
+-- Which grade a title belongs to, as a place in GRADES. Nil for a title
+-- with no grade in it, and for no title at all.
+local function GradeOf(title)
+    title = title and title:lower()
+    for index, grade in ipairs(GRADES) do
+        if title and title:find(grade.word, 1, true) then
+            return index
+        end
+    end
+end
+
+-- The grade of trainer someone with this much skill has to see next.
+local function GradeFor(skill)
+    local wanted = 1
+    for index, grade in ipairs(GRADES) do
+        if skill >= grade.from then
+            wanted = index
+        end
+    end
+    return wanted
+end
+
+-- A test for trainers worth sending this player to, and the grade it
+-- looks for. Nil for a profession anyone can teach all of.
+local function RightTrainer(profession, skill)
+    if not profession.graded then
+        return nil
+    end
+
+    local kind = Directory.ProfessionKind(profession)
+    local wanted = GradeFor(skill or 0)
+
+    local function Suits(spot)
+        -- Someone whose grade we can't tell is better shown than hidden.
+        local grade = GradeOf(TitleOf(kind, spot))
+        return grade == nil or grade == wanted
+    end
+    return Suits, wanted
+end
+
+--- The nearest trainer of a profession who has something to teach a
+--- player of this skill. The trainer round the corner is no use to a
+--- tailor who has outgrown them.
+---@param profession table   an entry of Directory.PROFESSIONS
+---@param skill number|nil   the player's skill; nil if they've yet to
+---        take the profession up
+---@return table|nil spot    { mapID, x, y, name, title }
+---@return number|nil yards
+---@return string|nil needs  when trainers are known but none is of the
+---        grade wanted: that grade, worded to follow "you need", as in
+---        "an Artisan"
+function Directory.NearestTrainer(profession, skill)
+    local kind = Directory.ProfessionKind(profession)
+    local suits, wanted = RightTrainer(profession, skill)
+
+    local spot, yards = Directory.Nearest(kind, suits)
+    if spot or not suits then
+        return spot, yards
+    end
+
+    if Directory.Nearest(kind) then
+        return nil, nil, GRADES[wanted].needs
+    end
+end
+
+--- A trainer on a given map who has something to teach a player of this
+--- skill.
+---@param profession table  an entry of Directory.PROFESSIONS
+---@param skill number|nil
+---@param mapID number
+---@return table|nil spot   { mapID, x, y, name, title }
+function Directory.TrainerOn(profession, skill, mapID)
+    local suits = RightTrainer(profession, skill)
+    return Directory.On(Directory.ProfessionKind(profession), mapID, suits)
 end
 
 -- Learning from visits -------------------------------------------------------------
@@ -262,7 +413,7 @@ ns.OnEvent("TRAINER_SHOW", function()
     local teaches = GetTrainerServiceSkillLine(1)
     for _, profession in ipairs(Directory.PROFESSIONS) do
         if profession.name == teaches then
-            Directory.NoteHere(Directory.ProfessionKind(profession))
+            Directory.NoteHere(Directory.ProfessionKind(profession), true)
             return
         end
     end

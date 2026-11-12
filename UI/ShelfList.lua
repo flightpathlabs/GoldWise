@@ -13,6 +13,9 @@ local Theme = ns.Theme
 
 local ROW_HEIGHT = 44
 
+-- Room under the list for the line that adds it all up.
+local WORTH_HEIGHT = 30
+
 -- Columns are placed from the right edge, in pixels. The verdict column is
 -- wide enough for "about 1,234g 56s 78c".
 local VERDICT_RIGHT = 12
@@ -239,6 +242,43 @@ function ShelfList.Create(parent, onSelect)
     end)
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
 
+    -- Under the list: what it all comes to at auction, for this character
+    -- and for the account. Always both, whichever the list is showing.
+    local worth = list:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    worth:SetPoint("BOTTOMLEFT", 12, 8)
+    worth:SetPoint("RIGHT", scrollBox, "RIGHT", -6, 0)
+    worth:SetJustifyH("LEFT")
+    worth:SetWordWrap(false)
+
+    local function ShowWorth(marketKey, banked)
+        local mine = ns.Assets.Worth(marketKey, ns.Bags.Holdings(), banked)
+
+        -- The banks answer with what's in them and when they were last
+        -- seen. Only the first is wanted here.
+        local shared = ns.Bank.AccountHoldings()
+        local everything = mine + ns.Assets.Worth(marketKey, shared)
+        for _, character in ipairs(ns.Characters.Others(ns.Market.Home())) do
+            local theirBank = ns.Bank.Holdings(character.key)
+            everything = everything + ns.Assets.Worth(marketKey, character.holdings, theirBank)
+        end
+
+        local text
+        if everything > mine then
+            text = ("Worth at auction: %s on this character  |cffb9aa8c(%s in total)|r"):format(
+                Theme.Coins(mine),
+                Theme.Coins(everything)
+            )
+        elseif mine > 0 then
+            text = ("Worth at auction: %s"):format(Theme.Coins(mine))
+        end
+
+        -- The list gives up its bottom edge to the line while there's
+        -- something to say.
+        worth:SetText(text or "")
+        worth:SetShown(text ~= nil)
+        scrollBox:SetPoint("BOTTOMRIGHT", -22, text and WORTH_HEIGHT or 6)
+    end
+
     --- Rebuilds the rows from what the player holds and the current prices.
     ---@return number total  what selling everything marked Sell should bring in
     function list:Refresh()
@@ -293,6 +333,7 @@ function ShelfList.Create(parent, onSelect)
 
         local banked, bankSeenAt = ns.Bank.Holdings()
         AddAll(ns.Bags.Holdings(), banked)
+        ShowWorth(marketKey, banked)
 
         -- The bank every character shares is this character's to sell
         -- from as much as anyone's.

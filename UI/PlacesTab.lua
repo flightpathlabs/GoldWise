@@ -2,7 +2,8 @@ local _, ns = ...
 
 -- The Places tab: the nearest trainer for the player's class and for each
 -- profession, and the nearest of the services everyone needs, each with a
--- button that puts it on the map.
+-- button that puts it on the map. For a craft, that's the nearest trainer
+-- of the grade the player's skill calls for, who may not be the nearest.
 
 local PlacesTab = {}
 ns.PlacesTab = PlacesTab
@@ -107,9 +108,13 @@ local function FillRow(row, data)
         row.Who:SetTextColor(1, 1, 1)
         row.Where:SetText(WhereText(data.spot, data.yards))
     else
-        row.Who:SetText("Not found yet")
+        -- Knowing of trainers, but not of one who can take this player
+        -- any further, is worth saying differently from knowing of none.
+        row.Who:SetText(
+            data.needs and ("You need %s trainer next"):format(data.needs) or "Not found yet"
+        )
         row.Who:SetTextColor(unpack(Theme.MUTED))
-        row.Where:SetText("")
+        row.Where:SetText(data.needs and "none found yet" or "")
     end
 end
 
@@ -118,6 +123,13 @@ end
 local function Place(label, kind)
     local spot, yards = Directory.Nearest(kind)
     return { label = label, spot = spot, yards = yards }
+end
+
+-- A profession's trainer: not simply the nearest, but the nearest who has
+-- something to teach at the player's skill.
+local function Trainer(label, profession, skill)
+    local spot, yards, needs = Directory.NearestTrainer(profession, skill)
+    return { label = label, spot = spot, yards = yards, needs = needs }
 end
 
 local function Rows()
@@ -132,11 +144,12 @@ local function Rows()
     local others = {}
     for _, profession in ipairs(Directory.PROFESSIONS) do
         local skill = ns.Professions.SkillByName(profession.name)
-        local kind = Directory.ProfessionKind(profession)
         if skill then
-            table.insert(rows, Place(("%s (%d)"):format(profession.name, skill), kind))
+            local label = ("%s (%d)"):format(profession.name, skill)
+            table.insert(rows, Trainer(label, profession, skill))
         else
-            table.insert(others, Place(profession.name, kind))
+            -- Whoever would start them off.
+            table.insert(others, Trainer(profession.name, profession, nil))
         end
     end
 
