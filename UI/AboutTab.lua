@@ -78,7 +78,9 @@ local function Sections()
                 "Want the whole chain? Alt-right-click anything you can make, or make "
                     .. "something from, for its crafting tree: what it takes, what that "
                     .. "takes, what it goes into, and what each costs to buy or to make. "
-                    .. "/gw tree does the same for the item you last pointed at.",
+                    .. "/gw tree does the same for the item you last pointed at. To change "
+                    .. "the click or give it a key, see Shortcuts under Goldwise in the "
+                    .. "game's options.",
                 "Saving for a mount? /gw goal 50 tracks a 50 gold target on the Purse tab.",
                 "Right-click the minimap button for options, Auditor mode among them.",
             },

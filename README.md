@@ -99,8 +99,12 @@ materials, making it and selling it. Click any row to walk up or down
 the chain.
 
 It follows the recipes your character knows, so open each profession
-window once first. `/gw tree`, a key binding, and the item's price
-history page open it too.
+window once first. `/gw tree`, a key of your choosing, and the item's
+price history page open it too.
+
+The click and the keys are set under Options > AddOns > Goldwise >
+Shortcuts. That page tells you when the click or key you've picked is
+already used for something else.
 
 ### Prospects: tell it what you want to do
 

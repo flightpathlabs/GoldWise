@@ -92,4 +92,5 @@ UI\ItemMarks.lua
 UI\Check.lua
 UI\Report.lua
 UI\Demo.lua
+UI\Shortcuts.lua
 UI\Settings.lua

@@ -202,4 +202,7 @@ ns.OnEvent("PLAYER_LOGIN", function()
     )
 
     Settings.RegisterAddOnCategory(category)
+
+    -- The click and the keys have a page of their own beneath this one.
+    ns.Shortcuts.Register(category)
 end)

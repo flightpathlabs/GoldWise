@@ -76,6 +76,10 @@ local DEFAULT_SETTINGS = {
     -- from, saying how to open their crafting tree.
     tooltipTree = true,
 
+    -- Which click on an item opens its crafting tree: a place in the
+    -- list in UI\Shortcuts.lua, or 0 for none.
+    treeClick = 1,
+
     -- Trade prices with other Goldwise players over a hidden chat channel.
     sharePrices = true,
 

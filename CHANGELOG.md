@@ -21,6 +21,10 @@ the `dev` branch.
   selling it. Click a row to follow the chain. `/gw tree`, a new key
   binding, the Assets right-click menu and the price history page open
   it as well.
+- **A Shortcuts page in the options.** Choose which click opens the
+  crafting tree, and give it and the price history a key each, by
+  pressing the key. The page warns you when the click or the key is
+  already used for something else, and asks before taking a key over.
 
 - **Listing deposits are weighed as a risk, not a fee.** You get the
   deposit back when an auction sells and lose it when it doesn't, so

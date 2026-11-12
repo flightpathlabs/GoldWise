@@ -541,23 +541,8 @@ function Goldwise_ShowHoveredItemTree()
     ShowPointedAtTree()
 end
 
--- Alt-right-click on an item, wherever the game shows one: a bag, a chat
--- link, the auction house. The game sends every click made with a key
--- held down through this one function, and we only watch it go by. Kept
--- to items that are part of something the player can make, so the click
--- does nothing new anywhere else.
-if HandleModifiedItemClick then
-    hooksecurefunc("HandleModifiedItemClick", function(link)
-        if not link or not IsAltKeyDown() or GetMouseButtonClicked() ~= "RightButton" then
-            return
-        end
-
-        local itemID = C_Item.GetItemInfoInstant(link)
-        if itemID and ns.CraftTree.Has(itemID) then
-            ns.ShowCraftTree(itemID)
-        end
-    end)
-end
+-- The click that opens the crafting tree from an item is in Shortcuts.lua,
+-- with the page where it and these keys are set.
 
 -- Named in the TOC file. The client calls it when the player picks Goldwise
 -- from the addon list by the minimap. Right-click goes to the options, the
