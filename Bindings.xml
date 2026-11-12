@@ -3,4 +3,5 @@
      binding is set in UI\MainWindow.lua. -->
 <Bindings>
 	<Binding name="GOLDWISE_HISTORY" category="Goldwise">Goldwise_ShowHoveredItemHistory()</Binding>
+	<Binding name="GOLDWISE_TREE" category="Goldwise">Goldwise_ShowHoveredItemTree()</Binding>
 </Bindings>

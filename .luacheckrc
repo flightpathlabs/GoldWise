@@ -35,6 +35,8 @@ globals = {
     "Goldwise_OnAddonCompartmentClick",
     "Goldwise_ShowHoveredItemHistory",
     "BINDING_NAME_GOLDWISE_HISTORY",
+    "Goldwise_ShowHoveredItemTree",
+    "BINDING_NAME_GOLDWISE_TREE",
 }
 
 read_globals = {
@@ -150,6 +152,9 @@ read_globals = {
     "GetTrainerServiceInfo",
     "GetTrainerServiceStepIndex",
     "IsTradeskillTrainer",
+    "HandleModifiedItemClick",
+    "IsAltKeyDown",
+    "GetMouseButtonClicked",
     "PlaySound",
     "IsInInstance",
     "RemoveChatWindowChannel",

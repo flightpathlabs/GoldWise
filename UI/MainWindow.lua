@@ -168,19 +168,27 @@ local function Refresh()
     -- footer still belongs to the tab underneath.
     local tab = TABS[currentTab]
     window.Footer:SetText(tab.refresh(window[tab.page]) or "")
+
+    -- The crafting tree is made of prices and names, and both can change
+    -- under it.
+    if window.Tree:IsShown() then
+        window.Tree:Refresh()
+    end
 end
 
+-- Puts away every tab's page, and the two pages that can cover them.
 local function HidePages()
     for _, tab in ipairs(TABS) do
         window[tab.page]:Hide()
     end
+    window.Detail:Hide()
+    window.Tree:Hide()
 end
 
 local function ShowTab(index)
     currentTab = index
     PanelTemplates_SetTab(window, index)
 
-    window.Detail:Hide()
     HidePages()
     window[TABS[index].page]:Show()
     Refresh()
@@ -269,6 +277,9 @@ local function CreateWindow()
     frame.Recipes = ns.RecipesTab.Create(frame.Inset)
     frame.About = ns.AboutTab.Create(frame.Inset)
     frame.Detail = ns.ItemDetail.Create(frame.Inset, ShowCurrentTab)
+    frame.Tree = ns.CraftTreeView.Create(frame.Inset, ShowCurrentTab, function(itemID)
+        ns.ShowItemHistory(itemID)
+    end)
     CreateTabs(frame)
 
     frame:SetScript("OnShow", Refresh)
@@ -335,11 +346,30 @@ function ns.ShowItemHistory(itemID, link)
     ShowDetail(row)
 end
 
+--- Opens the window on one item's crafting tree: what it's made from and
+--- what it goes into.
+---@param itemID number
+function ns.ShowCraftTree(itemID)
+    ns.ShowWindow()
+    HidePages()
+    window.Tree:ShowItem(itemID)
+end
+
 -- Opens the history of whatever the player last pointed at.
 local function ShowPointedAtItem()
     local itemID, link = ns.PointedAtItem()
     if itemID then
         ns.ShowItemHistory(itemID, link)
+    else
+        ns.Print("Point at an item first, then try again.")
+    end
+end
+
+-- Opens the crafting tree of whatever the player last pointed at.
+local function ShowPointedAtTree()
+    local itemID = ns.PointedAtItem()
+    if itemID then
+        ns.ShowCraftTree(itemID)
     else
         ns.Print("Point at an item first, then try again.")
     end
@@ -456,9 +486,13 @@ SLASH_GOLDWISE2 = "/gw"
 SlashCmdList.GOLDWISE = function(message)
     message = strtrim(message or "")
 
-    -- An item shift-clicked into the command: "/gw [Light Leather]".
+    -- An item shift-clicked into the command: "/gw [Light Leather]" for
+    -- its price history, "/gw tree [Light Leather]" for its crafting tree.
     local linkedItem = message:match("|Hitem:(%d+)")
-    if linkedItem then
+    if linkedItem and message:lower():find("^tree%s") then
+        ns.ShowCraftTree(tonumber(linkedItem))
+        return
+    elseif linkedItem then
         ns.ShowItemHistory(tonumber(linkedItem), message:match("|c.-|h|r"))
         return
     end
@@ -468,6 +502,8 @@ SlashCmdList.GOLDWISE = function(message)
         SetGoal(argument)
     elseif command == "history" then
         ShowPointedAtItem()
+    elseif command == "tree" then
+        ShowPointedAtTree()
     elseif command == "check" then
         ns.RunCheck()
     elseif command == "report" or command == "bug" or command == "feedback" then
@@ -479,12 +515,35 @@ SlashCmdList.GOLDWISE = function(message)
     end
 end
 
--- The key binding, declared in Bindings.xml. The game finds the function
--- and these labels by name, so they have to be global.
+-- The key bindings, declared in Bindings.xml. The game finds the
+-- functions and these labels by name, so they have to be global.
 BINDING_NAME_GOLDWISE_HISTORY = "Price history for the item under the mouse"
+BINDING_NAME_GOLDWISE_TREE = "Crafting tree for the item under the mouse"
 
 function Goldwise_ShowHoveredItemHistory()
     ShowPointedAtItem()
+end
+
+function Goldwise_ShowHoveredItemTree()
+    ShowPointedAtTree()
+end
+
+-- Alt-right-click on an item, wherever the game shows one: a bag, a chat
+-- link, the auction house. The game sends every click made with a key
+-- held down through this one function, and we only watch it go by. Kept
+-- to items that are part of something the player can make, so the click
+-- does nothing new anywhere else.
+if HandleModifiedItemClick then
+    hooksecurefunc("HandleModifiedItemClick", function(link)
+        if not link or not IsAltKeyDown() or GetMouseButtonClicked() ~= "RightButton" then
+            return
+        end
+
+        local itemID = C_Item.GetItemInfoInstant(link)
+        if itemID and ns.CraftTree.Has(itemID) then
+            ns.ShowCraftTree(itemID)
+        end
+    end)
 end
 
 -- Named in the TOC file. The client calls it when the player picks Goldwise

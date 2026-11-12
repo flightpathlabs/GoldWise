@@ -16,6 +16,11 @@ ns.SECONDS_PER_DAY = 86400
 -- A gain smaller than this isn't worth walking anywhere for.
 ns.SMALL_CHANGE = 100
 
+-- A vendor usually asks four times what they'd pay for the same thing.
+-- Used to put a price on ingredients nobody auctions because a vendor
+-- sells them.
+ns.VENDOR_MARKUP = 4
+
 -- The auction house's share of a sale. The client doesn't expose it, so
 -- these are the Classic figures until a real sale tells us otherwise. The
 -- goblin-run neutral houses have always taken more.

@@ -41,6 +41,11 @@ local function ShowKeepMenu(row, data, onSelect)
         root:CreateButton("Price history", function()
             onSelect(data)
         end)
+        if ns.CraftTree.Has(data.itemID) then
+            root:CreateButton("Crafting tree", function()
+                ns.ShowCraftTree(data.itemID)
+            end)
+        end
     end)
 end
 

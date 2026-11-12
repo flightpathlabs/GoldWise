@@ -72,6 +72,10 @@ local DEFAULT_SETTINGS = {
     -- characters carry. Left to Bagnon when that's installed.
     tooltipHeld = true,
 
+    -- A tooltip line, on things the player can make or make something
+    -- from, saying how to open their crafting tree.
+    tooltipTree = true,
+
     -- Trade prices with other Goldwise players over a hidden chat channel.
     sharePrices = true,
 

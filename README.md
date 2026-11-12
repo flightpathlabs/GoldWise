@@ -88,6 +88,20 @@ Goldwise, or type `/gw ` and shift-click the item.
 
 ![An item's price over ninety days, with its usual price marked](docs/images/price-history.png)
 
+### A crafting tree for anything you can make
+
+Alt-right-click an item you can make, or make something from, and
+Goldwise lays out the whole chain: what it takes, what each of those
+takes in turn, and what it goes into. Every step has its auction price,
+what it costs to buy and what it costs to make, with the cheaper one
+marked. The top of the page says what you'd clear by buying the
+materials, making it and selling it. Click any row to walk up or down
+the chain.
+
+It follows the recipes your character knows, so open each profession
+window once first. `/gw tree`, a key binding, and the item's price
+history page open it too.
+
 ### Prospects: tell it what you want to do
 
 Press **I want to...** and choose:
@@ -181,6 +195,7 @@ rather than guessing.
 |---|---|
 | `/gw` or `/goldwise` | Open or close the window |
 | `/gw history` | Price history for the item you last pointed at |
+| `/gw tree` | Crafting tree for the item you last pointed at |
 | `/gw goal 50` | Save toward 50 gold. `/gw goal off` clears it |
 | `/gw report` | Gather what a bug report needs, ready to copy |
 | `/gw demo` | Fill the charts with sample history, for screenshots |

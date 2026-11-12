@@ -65,12 +65,14 @@ Advisor\Trip.lua
 Advisor\Resale.lua
 Advisor\Materials.lua
 Advisor\Conversions.lua
+Advisor\CraftTree.lua
 
 UI\Theme.lua
 UI\Companions.lua
 UI\Chart.lua
 UI\MapMarks.lua
 UI\ItemDetail.lua
+UI\CraftTreeView.lua
 UI\ShelfList.lua
 UI\TripPlan.lua
 UI\ProspectList.lua

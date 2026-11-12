@@ -268,6 +268,13 @@ local function OnItemTooltip(tooltip, data)
         end
     end
 
+    -- One quiet line on things the player can make, or make something
+    -- from: there's nothing else to say the tree is there.
+    if settings.tooltipTree and HandleModifiedItemClick and ns.CraftTree.Has(itemID) then
+        local muted = Theme.MUTED
+        tooltip:AddLine("Alt-right-click for its crafting tree", muted[1], muted[2], muted[3])
+    end
+
     if settings.tooltipChart and tooltip == GameTooltip then
         if #found.history >= MIN_DAYS_FOR_CHART then
             ShowChart(tooltip, found.history, found.chartUsesFeed)

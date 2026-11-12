@@ -6,6 +6,15 @@ the `dev` branch.
 
 ## Unreleased
 
+- **A crafting tree for anything you can make.** Alt-right-click an item
+  you can make, or make something from, to see the whole chain: what it
+  takes, what those take, and what it goes into. Each step shows its
+  auction price, what it costs to buy and what it costs to make, and the
+  page says what you'd clear by buying the materials, making it and
+  selling it. Click a row to follow the chain. `/gw tree`, a new key
+  binding, the Assets right-click menu and the price history page open
+  it as well.
+
 - **Listing deposits are weighed as a risk, not a fee.** You get the
   deposit back when an auction sells and lose it when it doesn't, so
   Goldwise now asks whether the gain over a vendor is worth that stake,

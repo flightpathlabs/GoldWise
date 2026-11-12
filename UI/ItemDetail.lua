@@ -26,6 +26,17 @@ function ItemDetail.Create(parent, onBack)
     back:SetText("Back")
     back:SetScript("OnClick", onBack)
 
+    -- Only there for an item that's part of something the player can
+    -- make. For anything else the tree would have nothing in it.
+    local shown
+    local tree = CreateFrame("Button", nil, detail, "UIPanelButtonTemplate")
+    tree:SetSize(110, 22)
+    tree:SetPoint("TOPRIGHT", -14, -12)
+    tree:SetText("Crafting tree")
+    tree:SetScript("OnClick", function()
+        ns.ShowCraftTree(shown)
+    end)
+
     local icon = detail:CreateTexture(nil, "ARTWORK")
     icon:SetSize(36, 36)
     icon:SetPoint("TOPLEFT", back, "TOPRIGHT", 14, 4)
@@ -62,6 +73,9 @@ function ItemDetail.Create(parent, onBack)
         -- drawn here agrees with the sentence beneath it.
         local usual =
             ns.Stats.UsualPrice(ns.Ledger.History(marketKey, row.itemID, ns.Stats.USUAL_DAYS))
+
+        shown = row.itemID
+        tree:SetShown(ns.CraftTree.Has(row.itemID))
 
         icon:SetTexture(row.icon)
         name:SetText(Theme.ItemName(row.name, row.quality))

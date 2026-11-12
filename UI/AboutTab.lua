@@ -75,6 +75,10 @@ local function Sections()
                     .. 'can read your recipes, then choose "Turn what I have into more" '
                     .. 'under "I want to..." on Prospects. It compares making a thing with '
                     .. "selling what goes into it.",
+                "Want the whole chain? Alt-right-click anything you can make, or make "
+                    .. "something from, for its crafting tree: what it takes, what that "
+                    .. "takes, what it goes into, and what each costs to buy or to make. "
+                    .. "/gw tree does the same for the item you last pointed at.",
                 "Saving for a mount? /gw goal 50 tracks a 50 gold target on the Purse tab.",
                 "Right-click the minimap button for options, Auditor mode among them.",
             },

@@ -18,10 +18,6 @@ local _, ns = ...
 local Conversions = {}
 ns.Conversions = Conversions
 
--- A vendor usually asks four times what they'd pay for the same thing.
--- Used for ingredients nobody auctions because a vendor sells them.
-local BUY_TO_SELL_RATIO = 4
-
 -- Making something has to beat selling the ingredients by this share of
 -- their value before it's worth the bother, and never by less than a
 -- silver.
@@ -60,7 +56,7 @@ local function IngredientValue(itemID, marketKey, cut)
 
     local sellsFor = select(11, C_Item.GetItemInfo(itemID))
     if sellsFor and sellsFor > 0 then
-        return sellsFor * BUY_TO_SELL_RATIO, false
+        return sellsFor * ns.VENDOR_MARKUP, false
     end
 end
 

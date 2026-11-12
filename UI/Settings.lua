@@ -189,6 +189,13 @@ ns.OnEvent("PLAYER_LOGIN", function()
 
     AddCheckbox(
         category,
+        "tooltipTree",
+        "Show how to open an item's crafting tree",
+        "One line, only on things you can make or make something from."
+    )
+
+    AddCheckbox(
+        category,
         "auditorMode",
         "Auditor mode",
         "The goblin delivers the same advice at full volume. The facts don't change."
