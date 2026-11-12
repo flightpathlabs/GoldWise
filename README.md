@@ -93,6 +93,10 @@ Click a row for the item's full history. For anything else you can point
 at, type `/gw history`, give it a key under Options > Keybindings >
 Goldwise, or type `/gw ` and shift-click the item.
 
+The chart draws a point a day. A menu on the page switches it to every
+separate reading over the last week or two days, for prices that swing
+between morning and evening.
+
 ![An item's price over ninety days, with its usual price marked](docs/images/price-history.png)
 
 ### A crafting tree for anything you can make
@@ -139,6 +143,11 @@ What you have, a chart of what's come in and gone out each day, and what's
 about to cost you: repairs, training for the levels ahead, and anything
 you're saving for (`/gw goal 50`). Training lines say where your
 reputation makes it cheaper, and **Where** puts the trainer on your map.
+
+A menu at the top sets how long a stretch each bar of the chart covers,
+from a day down to an hour, or swaps the bars for a line of the coin your
+characters hold between them. Days run midnight to midnight on your own
+clock.
 
 ![The Purse tab, with a month of income and spending](docs/images/purse.png)
 

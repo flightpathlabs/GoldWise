@@ -6,6 +6,24 @@ the `dev` branch.
 
 ## Unreleased
 
+- **A day is now your day.** Goldwise counted days by the game's clock,
+  which turns over in the middle of the afternoon in America and the
+  middle of the morning in Australia. An evening's play and the next
+  morning's landed on the same day, and the charts didn't move on. Days
+  now run from midnight to midnight on your own clock, on every chart.
+  Records from before the change sit a few hours out of place on their
+  last day.
+- **The Purse chart can be cut finer.** A menu at the top of the tab
+  sets how long a stretch each bar covers: a day, twelve hours, six, or
+  one. Your choice is remembered.
+- **Coin held, as a line.** The same menu swaps the bars for a line of
+  what your characters held between them, stretch by stretch. It starts
+  from this version: what you held before isn't on record.
+- **An item's price within the day.** The price history page has a menu
+  of its own: a point a day, as before, or every separate reading over
+  the last week or the last two days. Prices that swing between morning
+  and evening show up there. Goldwise keeps three times as many readings
+  of each thing you hold as it did.
 - **Fewer requests to the auction house when other addons are reading
   it.** When another addon asks for every auction, as Profession Atlas
   does, Goldwise now waits for that answer and uses it instead of reading
