@@ -143,8 +143,10 @@ function ProspectList.Create(parent, onSelect)
     -- to go, and the tab shows a plan for the trip. RESALE is buying from
     -- vendors to sell at auction, which is laid out as a plan too.
     -- MATERIALS is every trade good on the market, by kind.
+    -- CRAFTING is what's worth making from what the player holds.
     local RESALE = {}
     local MATERIALS = {}
+    local CRAFTING = {}
     local destination
 
     -- The button that chooses between them, and the plan it can show.
@@ -178,6 +180,9 @@ function ProspectList.Create(parent, onSelect)
             root:CreateTitle("I want to...")
             root:CreateButton("Make gold gathering", function()
                 GoTo(nil)
+            end)
+            root:CreateButton("Turn what I have into more", function()
+                GoTo(CRAFTING)
             end)
             root:CreateButton("See what every material is worth", function()
                 GoTo(MATERIALS)
@@ -242,7 +247,15 @@ function ProspectList.Create(parent, onSelect)
         scrollBar:SetShown(destination == nil)
         plan:SetShown(destination ~= nil)
 
-        if destination == MATERIALS then
+        if destination == CRAFTING then
+            course:SetText("Making things to sell")
+            about:SetText("What's worth making, against selling the ingredients as they are")
+            empty:Hide()
+
+            plan:SetPlan(ns.Conversions.Plan())
+            return "After the auction house's cut on both sides. "
+                .. "Each line assumes its ingredients go to that alone."
+        elseif destination == MATERIALS then
             course:SetText("What materials are worth")
             about:SetText("Every trade good on the market, by kind, dearest first")
             empty:Hide()

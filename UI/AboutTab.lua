@@ -71,6 +71,10 @@ local function Sections()
                     .. 'never find them. On Prospects, press "I want to..." and choose '
                     .. '"Buy from vendors, sell at auction" for the list, with the profit '
                     .. "worked out.",
+                "Ore or bars? Cloth or bolts? Open each profession window once so Goldwise "
+                    .. 'can read your recipes, then choose "Turn what I have into more" '
+                    .. 'under "I want to..." on Prospects. It compares making a thing with '
+                    .. "selling what goes into it.",
                 "Saving for a mount? /gw goal 50 tracks a 50 gold target on the Purse tab.",
                 "Right-click the minimap button for options, Auditor mode among them.",
             },

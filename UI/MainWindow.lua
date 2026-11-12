@@ -380,6 +380,7 @@ end)
 for _, message in ipairs({
     "PRICES_CHANGED",
     "BAGS_CHANGED",
+    "CRAFTS_CHANGED",
     "PROFILE_CHANGED",
     "SETTINGS_CHANGED",
     "AUCTION_HOUSE_CLOSED",

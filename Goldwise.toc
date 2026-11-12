@@ -53,6 +53,7 @@ Profile\Directory.lua
 Profile\Training.lua
 Profile\Recipes.lua
 Profile\Keep.lua
+Profile\Crafts.lua
 
 Advisor\Advice.lua
 Advisor\Assets.lua
@@ -60,6 +61,7 @@ Advisor\Prospects.lua
 Advisor\Trip.lua
 Advisor\Resale.lua
 Advisor\Materials.lua
+Advisor\Conversions.lua
 
 UI\Theme.lua
 UI\Companions.lua
