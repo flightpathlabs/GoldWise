@@ -24,10 +24,28 @@ local LIST_INDENT = 20
 
 -- What the page says -----------------------------------------------------------------
 
--- Each section is a heading and what goes under it. `text` entries are
--- paragraphs and `list` entries are short points, each with a marker.
+-- Each section is a heading and what goes under it: `intro` paragraphs,
+-- then a `list` of short points, each with a marker, then `text`
+-- paragraphs to close. Any of the three can be left out.
 local function Sections()
     return {
+        {
+            heading = "It gets sharper the more you play",
+            intro = {
+                "Goldwise starts out knowing nothing and learns from what your own game "
+                    .. "sees. There's nothing to set up. Play as you normally would, and "
+                    .. "stop by an auction house when you're in town.",
+            },
+            list = {
+                "Your first visit: it knows what everything costs today, and what in your "
+                    .. "bags is worth selling.",
+                "After visits on four different days: charts fill in, and it can tell a good "
+                    .. "price from a poor one, so it starts saying when to hold.",
+                "Every visit after that: the history gets longer and the advice steadier.",
+                "Along the way it remembers the trainers, repairers, banks and flight masters "
+                    .. "you use, so Places fills in too.",
+            },
+        },
         {
             heading = "Quick tips",
             list = {
@@ -82,11 +100,6 @@ local function Sections()
                 "Other Goldwise players. Whoever was at the auction house last keeps "
                     .. "everyone's prices fresh, over a hidden chat channel. Only prices are "
                     .. "exchanged, and you can turn it off in the options.",
-                "Goldwise Prices, if you have it installed: the last thirty days for every "
-                    .. "auction house, so a new character isn't starting from nothing. That "
-                    .. "data comes from "
-                    .. ns.Feed.SOURCE
-                    .. ".",
             },
             text = { "Every price can tell you how old it is and which of these it came from." },
         },
@@ -231,21 +244,22 @@ function AboutTab.Create(parent)
     for _, section in ipairs(Sections()) do
         AddHeading(content, blocks, section.heading)
 
-        for index, item in ipairs(section.list or {}) do
-            AddListItem(content, blocks, item, index == 1)
+        -- Whatever comes first under a heading needs to clear its rule.
+        local first = true
+        local function Paragraphs(paragraphs)
+            for _, paragraph in ipairs(paragraphs or {}) do
+                local gap = first and 14 or LINE_GAP + 4
+                AddText(content, blocks, "GameFontHighlight", paragraph, 0, gap)
+                first = false
+            end
         end
-        for index, paragraph in ipairs(section.text or {}) do
-            -- The first thing under a heading needs to clear its rule.
-            local first = index == 1 and not section.list
-            AddText(
-                content,
-                blocks,
-                "GameFontHighlight",
-                paragraph,
-                0,
-                first and 14 or LINE_GAP + 4
-            )
+
+        Paragraphs(section.intro)
+        for _, item in ipairs(section.list or {}) do
+            AddListItem(content, blocks, item, first)
+            first = false
         end
+        Paragraphs(section.text)
     end
 
     -- Places every piece under the one before. Done each time the tab is

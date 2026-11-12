@@ -383,6 +383,19 @@ function Ledger.History(marketKey, itemID, numDays)
     return history
 end
 
+--- On how many separate days the given market has been read in full. It
+--- stops counting at the number of daily snapshots kept, which is more
+--- than anything that asks needs to know.
+---@param marketKey string
+---@return number days
+function Ledger.DaysRecorded(marketKey)
+    local days = 0
+    for _ in pairs(ns.MarketData(marketKey).daily) do
+        days = days + 1
+    end
+    return days
+end
+
 --- When the given market last had a whole-market scan.
 ---@param marketKey string
 ---@return number|nil serverTime

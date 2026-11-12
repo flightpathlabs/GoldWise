@@ -11,6 +11,10 @@ ns.Stats = Stats
 -- fewer, one odd day would swing the answer.
 local MIN_DAYS_FOR_USUAL = 3
 
+-- Days of prices an item needs before it has a usual price at all: the
+-- earlier days, and a newest one to hold against them.
+Stats.DAYS_FOR_USUAL = MIN_DAYS_FOR_USUAL + 1
+
 -- How far back "usual" looks. Everything that talks about a usual price
 -- should take its history from this many days, so the list and the chart
 -- can't disagree.

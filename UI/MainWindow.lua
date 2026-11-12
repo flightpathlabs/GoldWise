@@ -17,11 +17,25 @@ local TABS = {
         page = "List",
         refresh = function(page)
             local total = page:Refresh()
+            local parts = {}
             if total > 0 then
-                return "Selling what's marked Sell should bring in about "
-                    .. Theme.Coins(total)
-                    .. "."
+                table.insert(
+                    parts,
+                    ("About %s from what's marked Sell."):format(Theme.Coins(total))
+                )
             end
+
+            -- In the first few days there are prices but nothing to judge
+            -- them against. Say so, and say that it passes, so a list of
+            -- cautious verdicts doesn't look like all there is.
+            local days = ns.Ledger.DaysRecorded(ns.Market.Current())
+            local needed = ns.Stats.DAYS_FOR_USUAL
+            if days > 0 and days < needed then
+                local early = "Day %d of your price history. "
+                    .. "Trends and sharper advice come after day %d."
+                table.insert(parts, early:format(days, needed))
+            end
+            return table.concat(parts, " ")
         end,
     },
     {
