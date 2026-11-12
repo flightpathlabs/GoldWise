@@ -17,11 +17,20 @@ local LEVELS_SHOWN = 3
 local ROW_COUNT = 7
 local ROW_HEIGHT = 30
 
--- The cash flow chart: how far down the tab it sits, its height, and how
--- many days it covers. A month is as far back as the purse remembers.
+-- The cash flow chart: how far down the tab it sits, and its height.
 local CHART_TOP = 124
 local CHART_HEIGHT = 90
-local CHART_DAYS = 30
+
+-- What the chart can cover, in the order the menu lists them: how long a
+-- stretch each bar stands for, and how many of them. A month is as far
+-- back as the purse remembers, and about thirty bars is as many as stay
+-- readable, so the shorter the stretch, the shorter the time on show.
+local SPANS = {
+    { label = "30 days, a day at a time", heading = "LAST 30 DAYS", hours = 24, count = 30 },
+    { label = "2 weeks, 12 hours at a time", heading = "LAST 2 WEEKS", hours = 12, count = 28 },
+    { label = "A week, 6 hours at a time", heading = "LAST WEEK", hours = 6, count = 28 },
+    { label = "A day, an hour at a time", heading = "LAST 24 HOURS", hours = 1, count = 24 },
+}
 
 -- How far down the tab the "Coming up" list starts.
 local ROWS_TOP = CHART_TOP + CHART_HEIGHT + 32
@@ -383,10 +392,82 @@ function PurseTab.Create(parent)
 
     local flowHeading = tab:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     flowHeading:SetPoint("TOPLEFT", 14, -(CHART_TOP - 14))
-    flowHeading:SetText(("CASH FLOW, LAST %d DAYS"):format(CHART_DAYS))
 
+    -- Two charts in the one place: bars of what came in and went out, or
+    -- a line of what was held. Only one shows at a time.
     local flow = ns.Chart.CreateCashFlow(tab, 746, CHART_HEIGHT)
     flow:SetPoint("TOPLEFT", 12, -CHART_TOP)
+
+    local held = ns.Chart.CreateLines(tab, 746, CHART_HEIGHT)
+    held:SetPoint("TOPLEFT", 12, -CHART_TOP)
+
+    -- What the chart shows and over how long, chosen from one menu and
+    -- remembered.
+    local pick = CreateFrame("Button", nil, tab, "UIPanelButtonTemplate")
+    pick:SetSize(210, 20)
+    pick:SetPoint("TOPRIGHT", -24, -6)
+    pick:SetScript("OnClick", function(self)
+        MenuUtil.CreateContextMenu(self, function(_, root)
+            root:CreateTitle("Show...")
+            root:CreateRadio("Coming in and going out", function()
+                return not ns.settings.purseCoin
+            end, function()
+                ns.settings.purseCoin = false
+                tab:Refresh()
+            end)
+            root:CreateRadio("Coin held, as a line", function()
+                return ns.settings.purseCoin
+            end, function()
+                ns.settings.purseCoin = true
+                tab:Refresh()
+            end)
+
+            root:CreateDivider()
+            root:CreateTitle("Over...")
+            for index, span in ipairs(SPANS) do
+                root:CreateRadio(span.label, function()
+                    return ns.settings.purseSpan == index
+                end, function()
+                    ns.settings.purseSpan = index
+                    tab:Refresh()
+                end)
+            end
+        end)
+    end)
+
+    -- Draws whichever chart is chosen, over the stretch that's chosen.
+    local function DrawChart()
+        local span = SPANS[ns.settings.purseSpan] or SPANS[1]
+        local byHour = span.hours < 24
+        local function Label(stretch)
+            return ns.Chart.Label(ns.Purse.StartOf(stretch, span.hours), byHour)
+        end
+
+        pick:SetText(span.label)
+        flow:SetShown(not ns.settings.purseCoin)
+        held:SetShown(ns.settings.purseCoin)
+
+        if ns.settings.purseCoin then
+            local coin, first, last = ns.Purse.Coin(span.hours, span.count)
+            first = first or last
+
+            flowHeading:SetText("COIN ACROSS YOUR CHARACTERS, " .. span.heading)
+            held:SetSeries(
+                -- One line, named in the heading, needs no key.
+                { { label = "", color = Theme.COIN, values = coin } },
+                first,
+                last,
+                #coin == 1 and "One figure on record so far. The line starts as you play on."
+                    or "Nothing on record yet. Goldwise notes what you hold as you play.",
+                { fitted = true, firstLabel = Label(first), lastLabel = Label(last) }
+            )
+        else
+            local bars, first, last = ns.Purse.Flow(span.hours, span.count)
+
+            flowHeading:SetText("CASH FLOW, " .. span.heading)
+            flow:SetBars(bars, first, last, Label(first), Label(last))
+        end
+    end
 
     local upcoming = tab:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     upcoming:SetPoint("TOPLEFT", 14, -(ROWS_TOP - 22))
@@ -436,7 +517,7 @@ function PurseTab.Create(parent)
             )
         end
 
-        flow:SetDays(ns.Purse.Daily(CHART_DAYS))
+        DrawChart()
 
         local costs = UpcomingCosts(level)
         local shown = 0

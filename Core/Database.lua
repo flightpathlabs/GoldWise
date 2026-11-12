@@ -13,7 +13,7 @@ local addonName, ns = ...
 --   banks      what's in each character's bank, and the shared one (see Bank)
 --   crafts     the recipes each character knows (see Crafts)
 --   keep       what the player has said isn't for sale (see Keep)
---   purse      money in and out by day (see Purse)
+--   purse      money in and out, and coin held, by the hour (see Purse)
 --   trade      auction sales, purchases and deposits by day (see Trade)
 --   worth      coin and goods by day (see Worth)
 --   directory  trainers and services the account has visited (see Directory)
@@ -100,6 +100,16 @@ local DEFAULT_SETTINGS = {
 
     -- Whether the list shows every character's holdings or just this one's.
     allCharacters = true,
+
+    -- How long a stretch each bar of the Purse chart covers: a place in
+    -- the list in UI\PurseTab.lua. And whether that chart shows a line of
+    -- coin held in place of the bars.
+    purseSpan = 1,
+    purseCoin = false,
+
+    -- What an item's price history page draws: a place in the list in
+    -- UI\ItemDetail.lua.
+    historyView = 1,
 }
 
 -- The options page needs these too, for its "Defaults" button.

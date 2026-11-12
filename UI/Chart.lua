@@ -108,9 +108,25 @@ local function CreateLabel(chart, justify)
 end
 
 local function DayLabel(day)
-    -- Days are counted in UTC, so format in UTC too (the "!"). Otherwise
-    -- anyone west of Greenwich sees every label a day early.
+    -- A day's number already has the player's time zone worked into it
+    -- (see Ledger.Today), so it's written out as it stands (the "!").
+    -- Letting the clock shift it a second time would put every label a
+    -- day out for half the world.
     return date("!%d %b", day * ns.SECONDS_PER_DAY)
+end
+
+-- The same for a moment partway through a day, where the hour matters.
+local function HourLabel(day)
+    return date("!%d %b, %H:%M", day * ns.SECONDS_PER_DAY)
+end
+
+--- How a chart writes a moment under one of its ends.
+---@param day number         days as Ledger.Today counts them; 12.5 is
+---        noon on day 12
+---@param withHour boolean|nil  true where the time of day matters
+---@return string  "14 Nov", or "14 Nov, 18:00"
+function Chart.Label(day, withHour)
+    return withHour and HourLabel(day) or DayLabel(day)
 end
 
 --- Creates a price chart with labelled axes.
@@ -167,16 +183,27 @@ function Chart.Create(parent, width, height)
     end
 
     --- Draws a price history.
-    ---@param history table       from Ledger.History, oldest first
+    ---@param history table       from Ledger.History or Ledger.Readings,
+    ---        oldest first. A day needn't be a whole number: 12.5 is noon
+    ---        on day 12, and is drawn halfway along it.
     ---@param usual number|nil    from Stats.UsualPrice, drawn as a level line
-    function chart:SetHistory(history, usual)
+    ---@param byReading boolean|nil  true when the history is of single
+    ---        readings, where the hour belongs in the labels
+    function chart:SetHistory(history, usual, byReading)
         ReleaseLines(self)
 
         if #history == 0 then
-            ShowEmpty("No prices recorded yet. Visit an auction house to start the ledger.")
+            ShowEmpty(
+                byReading
+                        and "No readings in this stretch. Each visit to an auction house adds one."
+                    or "No prices recorded yet. Visit an auction house to start the ledger."
+            )
             return
-        elseif #history == 1 then
-            ShowEmpty("One day of prices so far. The line starts tomorrow.")
+        elseif #history == 1 or history[#history].day <= history[1].day then
+            ShowEmpty(
+                byReading and "One reading in this stretch so far. The line starts with the next."
+                    or "One day of prices so far. The line starts tomorrow."
+            )
             return
         end
         emptyLabel:Hide()
@@ -228,8 +255,8 @@ function Chart.Create(parent, width, height)
 
         highLabel:SetText(ns.Money(high))
         lowLabel:SetText(ns.Money(low))
-        firstDayLabel:SetText(DayLabel(firstDay))
-        lastDayLabel:SetText(DayLabel(lastDay))
+        firstDayLabel:SetText(Chart.Label(firstDay, byReading))
+        lastDayLabel:SetText(Chart.Label(lastDay, byReading))
     end
 
     return chart
@@ -297,10 +324,18 @@ function Chart.CreateLines(parent, width, height)
     ---@param firstDay number
     ---@param lastDay number
     ---@param emptyText string   what to say when every value is nothing
-    function chart:SetSeries(series, firstDay, lastDay, emptyText)
+    ---@param look table|nil     for a chart that isn't of days around a
+    ---        zero: firstLabel and lastLabel to write under its ends, and
+    ---        fitted = true to draw it as tall as its own highs and lows
+    ---        allow, where measuring from nothing would flatten it
+    function chart:SetSeries(series, firstDay, lastDay, emptyText, look)
         ReleaseLines(self)
+        look = look or {}
 
         local low, high, any = 0, 0, false
+        if look.fitted then
+            low, high = math.huge, -math.huge
+        end
         for _, line in ipairs(series) do
             for _, value in ipairs(line.values) do
                 low, high = math.min(low, value), math.max(high, value)
@@ -333,7 +368,14 @@ function Chart.CreateLines(parent, width, height)
 
         -- A little air above and below, so no line runs along the edge.
         local padding = (high - low) * 0.08
-        low, high = low - (low < 0 and padding or 0), high + (high > 0 and padding or 0)
+        if look.fitted then
+            -- A figure that never moved still needs a chart with some
+            -- height to it, and a purse can't hold less than nothing.
+            padding = math.max(padding, 1)
+            low, high = math.max(low - padding, 0), high + padding
+        else
+            low, high = low - (low < 0 and padding or 0), high + (high > 0 and padding or 0)
+        end
 
         local function Place(day, value)
             local x = MARGIN_LEFT + (day - firstDay) / (lastDay - firstDay) * plotWidth
@@ -346,9 +388,12 @@ function Chart.CreateLines(parent, width, height)
         DrawLine(self, left, bottom, right, bottom, 1, Theme.MUTED, 0.2)
         DrawLine(self, left, top, right, top, 1, Theme.MUTED, 0.2)
 
-        -- The line everything is measured from.
+        -- The line everything is measured from, where it's on the chart
+        -- at all.
         local _, zero = Place(firstDay, 0)
-        DrawLine(self, left, zero, right, zero, 1, Theme.MUTED, 0.6)
+        if low <= 0 then
+            DrawLine(self, left, zero, right, zero, 1, Theme.MUTED, 0.6)
+        end
 
         -- Drawn last first, so the first line given lies on top.
         for index = #series, 1, -1 do
@@ -361,19 +406,19 @@ function Chart.CreateLines(parent, width, height)
         end
 
         highLabel:SetText(high > 0 and ns.Money(high) or "")
-        lowLabel:SetText(low < 0 and ns.Money(low) or "")
+        lowLabel:SetText((low < 0 or look.fitted) and ns.Money(low) or "")
 
         -- Zero is only worth marking where it isn't the top or bottom of
         -- the chart, and where it wouldn't sit on top of their labels.
-        local clear = zero - bottom > 14 and top - zero > 14
+        local clear = low < 0 and zero - bottom > 14 and top - zero > 14
         zeroLabel:SetShown(clear)
         if clear then
             zeroLabel:ClearAllPoints()
             zeroLabel:SetPoint("RIGHT", self, "BOTTOMLEFT", MARGIN_LEFT - 6, zero)
         end
 
-        firstDayLabel:SetText(DayLabel(firstDay))
-        lastDayLabel:SetText(DayLabel(lastDay))
+        firstDayLabel:SetText(look.firstLabel or DayLabel(firstDay))
+        lastDayLabel:SetText(look.lastLabel or DayLabel(lastDay))
     end
 
     return chart
@@ -413,12 +458,12 @@ local function DrawBar(chart, x, y, width, height, color)
     bar:Show()
 end
 
---- Creates a chart of money in and out, a bar a day: income above a line
---- across the middle, spending below it.
+--- Creates a chart of money in and out, a bar for each stretch of time:
+--- income above a line across the middle, spending below it.
 ---@param parent table  frame
 ---@param width number
 ---@param height number
----@return table chart  with :SetDays(days, firstDay, lastDay)
+---@return table chart  with :SetBars(bars, first, last, firstLabel, lastLabel)
 function Chart.CreateCashFlow(parent, width, height)
     local chart = CreateFrame("Frame", nil, parent)
     chart:SetSize(width, height)
@@ -460,19 +505,23 @@ function Chart.CreateCashFlow(parent, width, height)
     emptyLabel:SetPoint("CENTER")
     emptyLabel:SetWidth(width - 60)
 
-    --- Draws the days given.
-    ---@param days table      list of { day, income, spending }, in copper
-    ---@param firstDay number the first day the chart covers
-    ---@param lastDay number  the last, normally today
-    function chart:SetDays(days, firstDay, lastDay)
+    --- Draws the bars given. What a bar stands for (a day, six hours) is
+    --- the caller's business: here they're numbered places along the
+    --- chart.
+    ---@param bars table      list of { at, income, spending }, in copper
+    ---@param first number    the first place the chart covers
+    ---@param last number     the last, normally now
+    ---@param firstLabel string  what to write under the left-hand end
+    ---@param lastLabel string   and under the right
+    function chart:SetBars(bars, first, last, firstLabel, lastLabel)
         ReleaseLines(self)
         ReleaseBars(self)
 
         -- Both sides are drawn to one scale, so a tall bar means the same
         -- money whichever way it points.
         local peak = 0
-        for _, day in ipairs(days) do
-            peak = math.max(peak, day.income, day.spending)
+        for _, bar in ipairs(bars) do
+            peak = math.max(peak, bar.income, bar.spending)
         end
 
         if peak == 0 then
@@ -490,20 +539,20 @@ function Chart.CreateCashFlow(parent, width, height)
         emptyLabel:Hide()
         key:Show()
 
-        local slot = plotWidth / (lastDay - firstDay + 1)
+        local slot = plotWidth / (last - first + 1)
         local barWidth = math.max(slot - BAR_GAP, 2)
 
-        for _, day in ipairs(days) do
-            local x = MARGIN_LEFT + (day.day - firstDay) * slot + (slot - barWidth) / 2
+        for _, bar in ipairs(bars) do
+            local x = MARGIN_LEFT + (bar.at - first) * slot + (slot - barWidth) / 2
 
-            -- Anything at all gets at least a sliver, so a small day isn't
-            -- mistaken for a day not played.
-            if day.income > 0 then
-                local rise = math.max(day.income / peak * reach, 1)
+            -- Anything at all gets at least a sliver, so a quiet stretch
+            -- isn't mistaken for one not played.
+            if bar.income > 0 then
+                local rise = math.max(bar.income / peak * reach, 1)
                 DrawBar(self, x, middle, barWidth, rise, Theme.INCOME)
             end
-            if day.spending > 0 then
-                local drop = math.max(day.spending / peak * reach, 1)
+            if bar.spending > 0 then
+                local drop = math.max(bar.spending / peak * reach, 1)
                 DrawBar(self, x, middle - drop, barWidth, drop, Theme.SPENDING)
             end
         end
@@ -512,8 +561,8 @@ function Chart.CreateCashFlow(parent, width, height)
 
         incomeLabel:SetText(ns.Money(peak))
         spendingLabel:SetText(ns.Money(peak))
-        firstDayLabel:SetText(DayLabel(firstDay))
-        lastDayLabel:SetText(DayLabel(lastDay))
+        firstDayLabel:SetText(firstLabel)
+        lastDayLabel:SetText(lastLabel)
     end
 
     return chart

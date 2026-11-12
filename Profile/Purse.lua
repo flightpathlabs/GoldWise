@@ -7,12 +7,16 @@ local _, ns = ...
 -- mailbox) and file each change under that. It's the same approach
 -- Blizzard's own receipt code takes.
 --
--- Totals are kept per day for a month, across the whole account.
+-- Totals are kept per hour for a month, across the whole account. An hour
+-- is fine enough to show how an evening went, and from hours any longer
+-- stretch can be added up: six of them, twelve, or a day.
 
 local Purse = {}
 ns.Purse = Purse
 
 local KEEP_DAYS = 30
+
+local SECONDS_PER_HOUR = 3600
 
 -- What money changing hands right now is most likely about.
 local OTHER = "other"
@@ -47,33 +51,79 @@ local flightMapOpen = false
 -- nothing promises which arrives first.
 local atMerchant = false
 
+-- The saved record: hours = { [hour] = { income, spending, coin } }, with
+-- hours numbered from 1970 in UTC. income and spending are copper by what
+-- the money was about, and coin is what the whole account held at the
+-- last moment of that hour we saw.
 local function Book()
     if type(ns.db.purse) ~= "table" then
-        ns.db.purse = { days = {} }
+        ns.db.purse = {}
     end
-    return ns.db.purse
+
+    local book = ns.db.purse
+    if type(book.hours) ~= "table" then
+        book.hours = {}
+    end
+
+    -- Before hours there were days, and UTC ones. When in such a day the
+    -- coin moved wasn't kept, so each is put down at the hour the day
+    -- began. That's the evening before in the Americas, the small hours
+    -- in Europe and the morning in Asia and Australia: for each, the
+    -- local day that someone who plays of an evening was playing in.
+    if type(book.days) == "table" then
+        for day, record in pairs(book.days) do
+            local hour = day * 24
+            if not book.hours[hour] and type(record) == "table" then
+                book.hours[hour] = {
+                    income = record.income or {},
+                    spending = record.spending or {},
+                }
+            end
+        end
+        book.days = nil
+    end
+
+    return book
 end
 
 -- Recording --------------------------------------------------------------------
 
-local function Record(delta)
-    local days = Book().days
-    local today = ns.Ledger.Today()
+-- This hour's record, made if it isn't there yet.
+local function ThisHour()
+    local hours = Book().hours
+    local now = math.floor(GetServerTime() / SECONDS_PER_HOUR)
 
-    local day = days[today]
-    if not day then
-        day = { income = {}, spending = {} }
-        days[today] = day
+    local hour = hours[now]
+    if not hour then
+        hour = { income = {}, spending = {} }
+        hours[now] = hour
 
-        -- A new day is as good a moment as any to drop the oldest.
-        ns.Ledger.ForgetOldDays(days, KEEP_DAYS)
+        -- A new hour is as good a moment as any to drop the oldest.
+        local oldest = now - KEEP_DAYS * 24
+        for at in pairs(hours) do
+            if at <= oldest then
+                hours[at] = nil
+            end
+        end
     end
+    return hour
+end
 
-    local side = delta > 0 and day.income or day.spending
+-- Notes what the account holds at this moment, for the line of coin over
+-- time. This character's purse is read now, and the others' as they were
+-- when each was last played.
+local function NoteCoin()
+    ThisHour().coin = ns.Characters.TotalMoney()
+end
+
+local function Record(delta)
+    local hour = ThisHour()
+    local side = delta > 0 and hour.income or hour.spending
     side[context] = (side[context] or 0) + math.abs(delta)
+    NoteCoin()
 
     -- For anything that wants to look closer at one kind of money than a
-    -- daily total (see Trade.lua).
+    -- total (see Trade.lua).
     ns.Publish("MONEY_MOVED", delta, context)
 end
 
@@ -89,6 +139,9 @@ end)
 
 ns.OnEvent("PLAYER_LOGIN", function()
     lastMoney = GetMoney()
+
+    -- A point on the line for today even if no coin moves.
+    NoteCoin()
 end)
 
 ns.OnEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", function(window)
@@ -121,6 +174,108 @@ end)
 
 -- Reading it back -----------------------------------------------------------------
 
+-- Time is cut into stretches of so many hours, numbered so that a stretch
+-- of 24 is a day as Ledger.Today counts them: midnight to midnight on the
+-- player's clock, with the shorter ones dividing that evenly.
+
+-- Which stretch an hour of the record falls in.
+local function StretchOf(hour, hoursEach)
+    return math.floor((hour * SECONDS_PER_HOUR + ns.ClockOffset()) / (hoursEach * SECONDS_PER_HOUR))
+end
+
+-- Adds the record up by stretch, over the last `count` of them.
+-- Returns [stretch] = { income, spending, byCategory, coin }, the first
+-- stretch of the window and the last, which is the one we're in.
+local function AddUp(hoursEach, count)
+    local last = StretchOf(math.floor(GetServerTime() / SECONDS_PER_HOUR), hoursEach)
+    local first = last - count + 1
+    local stretches = {}
+
+    for hour, record in pairs(Book().hours) do
+        local at = StretchOf(hour, hoursEach)
+        if at >= first and at <= last then
+            local stretch = stretches[at]
+            if not stretch then
+                stretch = { income = 0, spending = 0, byCategory = {} }
+                stretches[at] = stretch
+            end
+
+            for _, amount in pairs(record.income or {}) do
+                stretch.income = stretch.income + amount
+            end
+            for category, amount in pairs(record.spending or {}) do
+                stretch.spending = stretch.spending + amount
+                stretch.byCategory[category] = (stretch.byCategory[category] or 0) + amount
+            end
+
+            -- What was held at the end of a stretch is what its last hour
+            -- on record says.
+            if record.coin and (not stretch.coinHour or hour > stretch.coinHour) then
+                stretch.coin, stretch.coinHour = record.coin, hour
+            end
+        end
+    end
+
+    return stretches, first, last
+end
+
+--- The moment a stretch starts.
+---@param stretch number    as Purse.Flow and Purse.Coin number them
+---@param hoursEach number  how long each stretch is
+---@return number day  that moment in days, counted as Ledger.Today counts
+---        them, so 12.5 is noon on day 12
+function Purse.StartOf(stretch, hoursEach)
+    return stretch * hoursEach / 24
+end
+
+--- Income and spending over a run of equal stretches of time, for
+--- charting.
+---@param hoursEach number  how long each stretch is: 24 for a day
+---@param count number      how many stretches back to look, counting
+---        the one we're in
+---@return table flow     list of { at, income, spending } in copper,
+---        oldest first, where at is the stretch's number. Stretches in
+---        which no coin moved are left out.
+---@return number first   the first stretch of the window
+---@return number last    the last: the one we're in
+function Purse.Flow(hoursEach, count)
+    local stretches, first, last = AddUp(hoursEach, count)
+
+    local flow = {}
+    for at = first, last do
+        local stretch = stretches[at]
+        if stretch and stretch.income + stretch.spending > 0 then
+            table.insert(flow, { at = at, income = stretch.income, spending = stretch.spending })
+        end
+    end
+    return flow, first, last
+end
+
+--- What the account held at the end of each of a run of stretches.
+---
+--- Starts at the first stretch there's a figure for, not at the start of
+--- the window: before that nothing is known. A stretch with no figure of
+--- its own carries the last one forward.
+---@param hoursEach number
+---@param count number
+---@return table coin         list of copper, one for each stretch from
+---        first to last; empty if nothing is on record in the window
+---@return number|nil first   the stretch the list starts on
+---@return number last        the one we're in
+function Purse.Coin(hoursEach, count)
+    local stretches, windowStart, last = AddUp(hoursEach, count)
+
+    local coin, first, held = {}, nil, nil
+    for at = windowStart, last do
+        held = stretches[at] and stretches[at].coin or held
+        if held then
+            first = first or at
+            table.insert(coin, held)
+        end
+    end
+    return coin, first, last
+end
+
 --- Average income and spending over the days the player was active.
 ---@param numDays number  how far back to look, counting today
 ---@return number income       copper per active day
@@ -128,20 +283,15 @@ end)
 ---@return number activeDays   how many days in the window had any activity
 ---@return string|nil biggest  the spending category that cost the most
 function Purse.Averages(numDays)
-    local days = Book().days
-    local today = ns.Ledger.Today()
     local income, spending, activeDays = 0, 0, 0
     local byCategory = {}
 
-    for day = today - numDays + 1, today do
-        local record = days[day]
-        if record then
+    for _, day in pairs((AddUp(24, numDays))) do
+        if day.income + day.spending > 0 then
             activeDays = activeDays + 1
-            for _, amount in pairs(record.income) do
-                income = income + amount
-            end
-            for category, amount in pairs(record.spending) do
-                spending = spending + amount
+            income = income + day.income
+            spending = spending + day.spending
+            for category, amount in pairs(day.byCategory) do
                 byCategory[category] = (byCategory[category] or 0) + amount
             end
         end
@@ -160,32 +310,19 @@ function Purse.Averages(numDays)
     return income / activeDays, spending / activeDays, activeDays, biggest
 end
 
---- Income and spending for each day the player was active, for charting.
+--- Income and spending for each day the player was active.
 ---@param numDays number  how far back to look, counting today
 ---@return table days       list of { day, income, spending } in copper,
 ---        oldest first. Days with nothing recorded are left out.
 ---@return number firstDay  the first day of the window
 ---@return number lastDay   the last: today
 function Purse.Daily(numDays)
-    local recorded = Book().days
-    local today = ns.Ledger.Today()
-    local firstDay = today - numDays + 1
+    local flow, firstDay, today = Purse.Flow(24, numDays)
+
     local days = {}
-
-    for day = firstDay, today do
-        local record = recorded[day]
-        if record then
-            local income, spending = 0, 0
-            for _, amount in pairs(record.income) do
-                income = income + amount
-            end
-            for _, amount in pairs(record.spending) do
-                spending = spending + amount
-            end
-            table.insert(days, { day = day, income = income, spending = spending })
-        end
+    for index, day in ipairs(flow) do
+        days[index] = { day = day.at, income = day.income, spending = day.spending }
     end
-
     return days, firstDay, today
 end
 
