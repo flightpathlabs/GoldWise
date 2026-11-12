@@ -159,6 +159,7 @@ end
 ---               onward }, where cost is the materials at their cheapest,
 ---             and onward counts the recipes the product goes into in turn
 ---   intoMore  how many more it goes into than are listed
+---   cut       the auction house's share of a sale on this market
 ---   known     false if no recipes have been read for this character yet
 function CraftTree.For(itemID)
     Index()
@@ -221,6 +222,7 @@ function CraftTree.For(itemID)
         materials = materials,
         into = into,
         intoMore = intoMore,
+        cut = cut,
         known = next(makers) ~= nil,
     }
 end

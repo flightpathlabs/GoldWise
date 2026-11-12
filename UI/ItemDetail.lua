@@ -11,6 +11,13 @@ local Theme = ns.Theme
 local CHART_WIDTH = 740
 local CHART_HEIGHT = 250
 
+-- Fewer listed than this and the price is one or two sellers' opinion.
+local THIN_MARKET = 5
+
+-- A stack this size or bigger is worth a word when it's more than the
+-- whole market has on offer.
+local SIZEABLE_STACK = 5
+
 --- Creates the detail page. It starts hidden and fills its parent.
 ---@param parent table        frame to fill
 ---@param onBack fun()        called when the player presses Back
@@ -106,6 +113,43 @@ function ItemDetail.Create(parent, onBack)
                     Theme.Coins(row.advice.proceeds)
                 )
             )
+        end
+
+        -- How far the price can be trusted, and what selling a lot at
+        -- once would do to it. Both come from how many are listed.
+        local listed = row.listed or 0
+        if row.price and listed > 0 and listed < THIN_MARKET then
+            table.insert(
+                lines,
+                ("Only %d listed, so that price is one or two sellers' opinion."):format(listed)
+            )
+        elseif row.price and listed > 0 and row.count >= SIZEABLE_STACK and row.count > listed then
+            table.insert(
+                lines,
+                ("You have more of these than are listed altogether (%d against %d). "):format(
+                    row.count,
+                    listed
+                ) .. "Put up all at once, they'd likely push the price down."
+            )
+        end
+
+        -- What they paid, if they bought it at auction, against what it
+        -- would clear today.
+        local paid, paidAt = ns.Trade.LastPaid(row.itemID)
+        if paid then
+            local line = ("You last paid %s each for these at auction, %s."):format(
+                Theme.Coins(paid),
+                ns.Ago(GetServerTime() - paidAt)
+            )
+            if row.price then
+                local clears = row.price * (1 - ns.Market.Cut(marketKey)) - paid
+                line = line
+                    .. (
+                        clears >= 0 and " Sold today, each would clear about %s over that."
+                        or " Sold today, each would come in about %s under that."
+                    ):format(Theme.Coins(math.abs(clears)))
+            end
+            table.insert(lines, line)
         end
 
         local low, high = ns.Stats.Range(history)

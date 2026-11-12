@@ -204,6 +204,16 @@ local function Summary(tree)
     end
 
     local second = {}
+
+    -- The price below which making it to sell loses money, whatever the
+    -- market does. It's a sum, not a forecast, so it can always be said.
+    local cheapest = math.min(outlay, root.make or outlay)
+    table.insert(
+        second,
+        ("It has to fetch more than %s each to cover what goes into it."):format(
+            Theme.Coins(cheapest / root.quantity / (1 - tree.cut))
+        )
+    )
     if root.make and root.make < outlay then
         local line = ("Making the parts you can make yourself brings the cost down to %s"):format(
             Theme.Coins(root.make)

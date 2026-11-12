@@ -62,9 +62,9 @@ local TABS = {
         label = "Profit",
         page = "Profit",
         refresh = function(page)
-            page:Refresh()
-            return "Sales count when you take the coin from your mailbox. "
-                .. "Everything bought at auction counts, whatever it was for."
+            -- The tab has three things it can chart, and a different
+            -- caution for each.
+            return page:Refresh()
         end,
     },
     {

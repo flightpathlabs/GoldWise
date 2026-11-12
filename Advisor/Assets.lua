@@ -110,6 +110,29 @@ function Assets.Worth(marketKey, ...)
     return worth
 end
 
+--- What this character's things, and everything on the account, would be
+--- listed for. This character is their bags and bank. The account adds
+--- the bank everyone shares and every other character on the same market,
+--- as of their last login.
+---@param marketKey string
+---@return number mine        copper
+---@return number everything  copper, mine included
+function Assets.WorthOfEverything(marketKey)
+    -- The banks answer with what's in them and when they were last
+    -- seen. Only the first is wanted here.
+    local banked = ns.Bank.Holdings()
+    local shared = ns.Bank.AccountHoldings()
+
+    local mine = Assets.Worth(marketKey, ns.Bags.Holdings(), banked)
+    local everything = mine + Assets.Worth(marketKey, shared)
+
+    for _, character in ipairs(ns.Characters.Others(ns.Market.Home())) do
+        local theirBank = ns.Bank.Holdings(character.key)
+        everything = everything + Assets.Worth(marketKey, character.holdings, theirBank)
+    end
+    return mine, everything
+end
+
 --- Assesses everything sellable in the player's own bags.
 ---@param marketKey string
 ---@return table assets   list of assets, as from Describe, unordered

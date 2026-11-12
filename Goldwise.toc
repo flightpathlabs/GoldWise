@@ -61,6 +61,7 @@ Profile\Crafts.lua
 
 Advisor\Advice.lua
 Advisor\Assets.lua
+Advisor\Worth.lua
 Advisor\Prospects.lua
 Advisor\Trip.lua
 Advisor\Resale.lua

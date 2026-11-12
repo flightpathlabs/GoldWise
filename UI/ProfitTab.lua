@@ -24,6 +24,33 @@ local LIST_TOP = CHART_TOP + CHART_HEIGHT + 30
 
 local ROW_HEIGHT = 26
 
+-- The three things the chart can show, in the order the menu lists them.
+-- Each day on its own shows the good days and the bad. Added up as they
+-- go, the same figures show whether the month is going anywhere. And what
+-- the player is worth is where it has all got to.
+local EACH_DAY, RUNNING, WORTH = 1, 2, 3
+
+local VIEWS = {
+    [EACH_DAY] = {
+        label = "Each day",
+        about = "What you came out ahead or behind by, each day for 30 days",
+        footer = "Sales count when you take the coin from your mailbox. "
+            .. "Everything bought at auction counts, whatever it was for.",
+    },
+    [RUNNING] = {
+        label = "Running total",
+        about = "What you're up or down over the last 30 days, as it added up",
+        footer = "Sales count when you take the coin from your mailbox. "
+            .. "Everything bought at auction counts, whatever it was for.",
+    },
+    [WORTH] = {
+        label = "What you're worth",
+        about = "Your coin and your goods, across your characters",
+        footer = "Goods are counted at their cheapest listing, as though all of them "
+            .. "would sell. Take that part as the most they could fetch.",
+    },
+}
+
 -- Building blocks ---------------------------------------------------------------
 
 -- A sum that can be below nothing, in the colour of which side it's on.
@@ -134,16 +161,25 @@ function ProfitTab.Create(parent)
     about:SetPoint("LEFT", heading, "RIGHT", 10, 0)
     about:SetTextColor(unpack(Theme.MUTED))
 
-    -- Each day on its own shows the good days and the bad. Added up as
-    -- they go, the same figures show whether the month is going anywhere.
-    local running = false
+    local showing = EACH_DAY
 
-    local mode = CreateFrame("Button", nil, tab, "UIPanelButtonTemplate")
-    mode:SetSize(130, 20)
-    mode:SetPoint("TOPRIGHT", -24, -6)
-    mode:SetScript("OnClick", function()
-        running = not running
-        tab:Refresh()
+    local pick = CreateFrame("Button", nil, tab, "UIPanelButtonTemplate")
+    pick:SetSize(150, 20)
+    pick:SetPoint("TOPRIGHT", -24, -6)
+    pick:SetScript("OnClick", function(self)
+        MenuUtil.CreateContextMenu(self, function(_, root)
+            root:CreateTitle("Show...")
+            for index, view in ipairs(VIEWS) do
+                root:CreateRadio(view.label, function()
+                    return showing == index
+                end, function()
+                    showing = index
+                    -- The window takes its footer from the tab, so it has
+                    -- to be the one to redraw.
+                    ns.Publish("TRADE_CHANGED")
+                end)
+            end
+        end)
     end)
 
     local sold = Theme.CreateTile(tab, "Sold at auction")
@@ -189,7 +225,59 @@ function ProfitTab.Create(parent)
             .. "the coin out of your mailbox, and purchases as you make them."
     )
 
+    -- Draws what the player is worth: one line for everything, and one
+    -- for the coin alone, so the gap between them is the goods.
+    local function DrawWorth()
+        local days, firstDay, lastDay = ns.Worth.Daily(DAYS)
+
+        local everything, coin = {}, {}
+        for index, day in ipairs(days) do
+            everything[index] = day.coin + day.goods
+            coin[index] = day.coin
+        end
+
+        chart:SetSeries(
+            {
+                { label = "Coin and goods", color = Theme.COIN, values = everything },
+                { label = "Coin alone", color = Theme.CHART_USUAL, values = coin },
+            },
+            firstDay or lastDay,
+            lastDay,
+            #days == 1 and "One day on record so far. The line starts tomorrow."
+                or "Nothing on record yet. Goldwise notes what you're worth as you play."
+        )
+    end
+
+    -- Draws how each day went, or how the days added up.
+    local function DrawProfit(running)
+        local trade, firstDay, lastDay = ns.Trade.Daily(DAYS)
+        local atAuction = {}
+        for index, day in ipairs(trade) do
+            atAuction[index] = day.net
+        end
+        local overall = OverallByDay(firstDay, lastDay)
+
+        if running then
+            atAuction, overall = RunningTotal(atAuction), RunningTotal(overall)
+        end
+
+        chart:SetSeries(
+            {
+                { label = "Everything", color = Theme.COIN, values = overall },
+                {
+                    label = "The auction house alone",
+                    color = Theme.CHART_USUAL,
+                    values = atAuction,
+                },
+            },
+            firstDay,
+            lastDay,
+            "Nothing earned or spent on record yet. It starts with your next coin."
+        )
+    end
+
     --- Rebuilds the tab from what's on record.
+    ---@return string footer  a line about what's on show, for the window
     function tab:Refresh()
         local totals = ns.Trade.Totals(DAYS)
 
@@ -219,36 +307,14 @@ function ProfitTab.Create(parent)
         net.Figure:SetTextColor(unpack(color))
         net.Note:SetText("Sold, less what you spent there.")
 
-        local trade, firstDay, lastDay = ns.Trade.Daily(DAYS)
-        local atAuction = {}
-        for index, day in ipairs(trade) do
-            atAuction[index] = day.net
+        local chosen = VIEWS[showing]
+        if showing == WORTH then
+            DrawWorth()
+        else
+            DrawProfit(showing == RUNNING)
         end
-        local overall = OverallByDay(firstDay, lastDay)
-
-        if running then
-            atAuction, overall = RunningTotal(atAuction), RunningTotal(overall)
-        end
-
-        chart:SetSeries(
-            {
-                { label = "Everything", color = Theme.COIN, values = overall },
-                {
-                    label = "The auction house alone",
-                    color = Theme.CHART_USUAL,
-                    values = atAuction,
-                },
-            },
-            firstDay,
-            lastDay,
-            "Nothing earned or spent on record yet. It starts with your next coin."
-        )
-
-        about:SetText(
-            running and "What you're up or down over the last 30 days, as it added up"
-                or "What you came out ahead or behind by, each day for 30 days"
-        )
-        mode:SetText(running and "Each day" or "Running total")
+        about:SetText(chosen.about)
+        pick:SetText(chosen.label)
 
         local recent = ns.Trade.Recent()
         empty:SetShown(#recent == 0)
@@ -256,6 +322,7 @@ function ProfitTab.Create(parent)
             CreateDataProvider(recent),
             ScrollBoxConstants.RetainScrollPosition
         )
+        return chosen.footer
     end
 
     return tab

@@ -255,17 +255,8 @@ function ShelfList.Create(parent, onSelect)
     worth:SetJustifyH("LEFT")
     worth:SetWordWrap(false)
 
-    local function ShowWorth(marketKey, banked)
-        local mine = ns.Assets.Worth(marketKey, ns.Bags.Holdings(), banked)
-
-        -- The banks answer with what's in them and when they were last
-        -- seen. Only the first is wanted here.
-        local shared = ns.Bank.AccountHoldings()
-        local everything = mine + ns.Assets.Worth(marketKey, shared)
-        for _, character in ipairs(ns.Characters.Others(ns.Market.Home())) do
-            local theirBank = ns.Bank.Holdings(character.key)
-            everything = everything + ns.Assets.Worth(marketKey, character.holdings, theirBank)
-        end
+    local function ShowWorth(marketKey)
+        local mine, everything = ns.Assets.WorthOfEverything(marketKey)
 
         local text
         if everything > mine then
@@ -338,7 +329,7 @@ function ShelfList.Create(parent, onSelect)
 
         local banked, bankSeenAt = ns.Bank.Holdings()
         AddAll(ns.Bags.Holdings(), banked)
-        ShowWorth(marketKey, banked)
+        ShowWorth(marketKey)
 
         -- The bank every character shares is this character's to sell
         -- from as much as anyone's.

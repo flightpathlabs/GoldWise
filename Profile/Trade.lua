@@ -52,6 +52,9 @@ local function Book()
     if type(book.recent) ~= "table" then
         book.recent = {}
     end
+    if type(book.paid) ~= "table" then
+        book.paid = {}
+    end
     return book
 end
 
@@ -66,10 +69,18 @@ local function Today()
     if not days[today] then
         days[today] = { sold = 0, bought = 0, deposits = 0, refunds = 0, cut = 0, sales = 0 }
 
-        -- A new day is as good a moment as any to drop the oldest.
+        -- A new day is as good a moment as any to drop the oldest, and
+        -- with it any note of what was paid for something that long ago.
         for recorded in pairs(days) do
             if recorded <= today - ns.settings.historyDays then
                 days[recorded] = nil
+            end
+        end
+
+        local oldest = GetServerTime() - ns.settings.historyDays * ns.SECONDS_PER_DAY
+        for itemID, paid in pairs(Book().paid) do
+            if paid.at < oldest then
+                Book().paid[itemID] = nil
             end
         end
     end
@@ -99,6 +110,16 @@ local function File(kind, amount, expected)
         day.deposits = day.deposits + amount
     else
         day.bought = day.bought + amount
+
+        -- What the player paid for a thing is worth knowing the next time
+        -- they wonder whether to sell it. Only where the game said what
+        -- was bought and how many.
+        if expected.itemID and (expected.count or 0) > 0 then
+            Book().paid[expected.itemID] = {
+                each = amount / expected.count,
+                at = GetServerTime(),
+            }
+        end
     end
 
     -- Deposits are left off the list: one for every listing would bury
@@ -335,6 +356,18 @@ function Trade.Totals(numDays)
         end
     end
     return totals
+end
+
+--- What the player last paid for an item at auction.
+---@param itemID number
+---@return number|nil each  copper per unit; nil if they haven't bought
+---        any on record
+---@return number|nil at    server time of the purchase
+function Trade.LastPaid(itemID)
+    local paid = Book().paid[itemID]
+    if paid then
+        return paid.each, paid.at
+    end
 end
 
 --- The latest sales, purchases and returned bids, newest first.
