@@ -149,6 +149,14 @@ function Bank.Count(itemID)
     return (own and own.counts[itemID] or 0) + (shared and shared.counts[itemID] or 0)
 end
 
+--- How many of an item the current character has, in their bags and
+--- banked.
+---@param itemID number
+---@return number
+function Bank.Held(itemID)
+    return (ns.Bags.Counts()[itemID] or 0) + Bank.Count(itemID)
+end
+
 ns.OnEvent("BANKFRAME_OPENED", function()
     isOpen = true
     ScanSoon()

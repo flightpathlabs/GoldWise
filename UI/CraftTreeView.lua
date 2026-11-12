@@ -29,14 +29,6 @@ local GOES_INTO_CAPTIONS = { "auction, each", "materials", "profit" }
 
 -- Words --------------------------------------------------------------------------
 
-local function Tint(text, color)
-    return ("|cff%02x%02x%02x%s|r"):format(color[1] * 255, color[2] * 255, color[3] * 255, text)
-end
-
-local function NameOf(itemID)
-    return ns.ItemName(itemID) or ("Item " .. itemID)
-end
-
 -- A recipe that makes five at a time can leave a step wanting two and a
 -- half of something. Nobody buys half an ore.
 local function Whole(quantity)
@@ -45,10 +37,7 @@ end
 
 -- A profit in green; a loss in red, with a minus sign.
 local function ProfitText(amount)
-    if amount >= 0 then
-        return Tint(Theme.Coins(amount), Theme.INCOME)
-    end
-    return Tint("-" .. Theme.Coins(-amount), Theme.SPENDING)
+    return Theme.Tint(Theme.SignedCoins(amount))
 end
 
 -- Rows --------------------------------------------------------------------------
@@ -63,10 +52,10 @@ local function PartRow(part)
 
     if makeable and part.buy and part.make then
         if part.make < part.buy then
-            make = Tint(make, Theme.INCOME)
+            make = Theme.Tint(make, Theme.INCOME)
             note = ("You can make this, and save %s."):format(ns.Money(part.buy - part.make))
         else
-            buy = Tint(buy, Theme.INCOME)
+            buy = Theme.Tint(buy, Theme.INCOME)
             note = "You can make this, but it's cheaper bought."
         end
     elseif makeable and part.make then
@@ -85,7 +74,7 @@ local function PartRow(part)
     return {
         itemID = part.itemID,
         depth = part.depth,
-        title = ("%d %s"):format(Whole(part.quantity), NameOf(part.itemID)),
+        title = ("%d %s"):format(Whole(part.quantity), ns.ItemLabel(part.itemID)),
         note = note,
         figures = { part.price and Theme.Coins(part.price) or "", buy, make },
     }
@@ -120,7 +109,10 @@ local function IntoRow(product)
     return {
         itemID = product.itemID,
         depth = 1,
-        title = ("%s  |cffb9aa8c%s|r"):format(NameOf(product.itemID), product.recipe.profession),
+        title = ("%s  |cffb9aa8c%s|r"):format(
+            ns.ItemLabel(product.itemID),
+            product.recipe.profession
+        ),
         note = table.concat(notes, " "),
         figures = {
             product.price and Theme.Coins(product.price) or "",
@@ -195,7 +187,10 @@ local function Summary(tree)
             forHowMany,
             Theme.Coins(outlay),
             profit >= 0 and "a profit of" or "a loss of",
-            Tint(Theme.Coins(math.abs(profit)), profit >= 0 and Theme.INCOME or Theme.SPENDING)
+            Theme.Tint(
+                Theme.Coins(math.abs(profit)),
+                profit >= 0 and Theme.INCOME or Theme.SPENDING
+            )
         )
     else
         local unsold = "%sThe materials cost %s. It has no auction price yet, "
@@ -416,9 +411,9 @@ function CraftTreeView.Create(parent, onBack, onHistory)
         local root = tree.root
 
         icon:SetTexture(C_Item.GetItemIconByID(subject))
-        name:SetText(Theme.ItemName(NameOf(subject), C_Item.GetItemQualityByID(subject)))
+        name:SetText(Theme.ItemName(ns.ItemLabel(subject), C_Item.GetItemQualityByID(subject)))
 
-        local held = (ns.Bags.Counts()[subject] or 0) + ns.Bank.Count(subject)
+        local held = ns.Bank.Held(subject)
         local have = held > 0 and (" You have %d."):format(held) or ""
         if root.price then
             facts:SetText(

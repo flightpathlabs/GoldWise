@@ -120,6 +120,15 @@ function ns.ItemName(itemID)
     return nil, true
 end
 
+--- An item's name for a sentence that can't wait for one: the name if
+--- the client has it, and "item 1234" until it does. Asks for the name,
+--- as ns.ItemName does, so whatever shows it gets told to redraw.
+---@param itemID number
+---@return string
+function ns.ItemLabel(itemID)
+    return ns.ItemName(itemID) or ("item " .. itemID)
+end
+
 local function OnItemLoaded(itemID, success)
     -- Given up on, and here after all. Whatever was drawn without it
     -- will want to know.

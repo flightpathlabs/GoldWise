@@ -77,6 +77,27 @@ function Theme.Listed(quantity)
     return FormatLargeNumber(quantity) .. " listed"
 end
 
+--- Wraps text in a colour.
+---@param text string
+---@param color table  { red, green, blue }, each from 0 to 1
+---@return string
+function Theme.Tint(text, color)
+    return ("|cff%02x%02x%02x%s|r"):format(color[1] * 255, color[2] * 255, color[3] * 255, text)
+end
+
+--- A sum that can be below nothing, with the colour of the side it's on:
+--- what came in, or what went out.
+---@param copper number
+---@return string text  with the game's coin icons, and a minus sign for
+---        a loss
+---@return table color  Theme.INCOME or Theme.SPENDING
+function Theme.SignedCoins(copper)
+    if copper < 0 then
+        return "-" .. Theme.Coins(-copper), Theme.SPENDING
+    end
+    return Theme.Coins(copper), Theme.INCOME
+end
+
 --- Creates one of the boxes the money tabs put across the top: a label,
 --- a figure and a footnote.
 ---@param parent table  frame

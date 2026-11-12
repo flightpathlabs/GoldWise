@@ -176,9 +176,6 @@ function Materials.Plan(only, nearLevel)
         end
     end
 
-    -- What the player already has says whether it's theirs to sell.
-    local carried = ns.Bags.Counts()
-
     local sections = {}
     local loading
 
@@ -191,7 +188,9 @@ function Materials.Plan(only, nearLevel)
             local steps = {}
             for _, choice in ipairs(chosen) do
                 local item = choice.item
-                local held = (carried[item.itemID] or 0) + ns.Bank.Count(item.itemID)
+                -- What the player already has says whether it's theirs
+                -- to sell.
+                local held = ns.Bank.Held(item.itemID)
 
                 local detail = FormatLargeNumber(item.listed) .. " listed"
                 if held > 0 then

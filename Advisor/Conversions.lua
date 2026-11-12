@@ -37,14 +37,6 @@ local INGREDIENTS_NAMED = 3
 
 -- The sums -------------------------------------------------------------------------
 
-local function Held(itemID)
-    return (ns.Bags.Counts()[itemID] or 0) + ns.Bank.Count(itemID)
-end
-
-local function NameOf(itemID)
-    return ns.ItemName(itemID) or ("item " .. itemID)
-end
-
 -- What one of an ingredient is worth to the player, and whether that's an
 -- auction price. Something with an auction price costs what it would
 -- have fetched. Something without is taken to come from a vendor.
@@ -81,7 +73,7 @@ local function Assess(recipe, marketKey, cut)
         -- Only what has to be found limits how many can be made. A
         -- vendor's goods can always be bought.
         if auctioned then
-            batches = math.min(batches, math.floor(Held(need.itemID) / need.count))
+            batches = math.min(batches, math.floor(ns.Bank.Held(need.itemID) / need.count))
         end
     end
 
@@ -112,7 +104,7 @@ local function IngredientsText(recipe, batches)
             table.insert(parts, ("%d more"):format(#recipe.needs - INGREDIENTS_NAMED))
             break
         end
-        table.insert(parts, ("%d %s"):format(need.count * batches, NameOf(need.itemID)))
+        table.insert(parts, ("%d %s"):format(need.count * batches, ns.ItemLabel(need.itemID)))
     end
     return table.concat(parts, ", ")
 end
@@ -121,7 +113,7 @@ local function FromHoldingsStep(assessed)
     local recipe, batches = assessed.recipe, assessed.batches
     return {
         itemID = recipe.item,
-        title = ("Make %d %s"):format(recipe.makes * batches, NameOf(recipe.item)),
+        title = ("Make %d %s"):format(recipe.makes * batches, ns.ItemLabel(recipe.item)),
         detail = ("Uses %s. Sold as they are: %s. Made up: %s."):format(
             IngredientsText(recipe, batches),
             ns.Money(assessed.cost * batches),
@@ -136,7 +128,7 @@ local function BuyForStep(assessed)
     local recipe = assessed.recipe
     return {
         itemID = recipe.item,
-        title = ("%s (%s)"):format(NameOf(recipe.item), recipe.profession),
+        title = ("%s (%s)"):format(ns.ItemLabel(recipe.item), recipe.profession),
         detail = ("Takes %s, about %s to buy. Brings in %s."):format(
             IngredientsText(recipe, 1),
             ns.Money(assessed.outlay),
@@ -151,7 +143,7 @@ local function NotWorthStep(assessed)
     local recipe, batches = assessed.recipe, assessed.batches
     return {
         itemID = recipe.item,
-        title = ("Don't make %s"):format(NameOf(recipe.item)),
+        title = ("Don't make %s"):format(ns.ItemLabel(recipe.item)),
         detail = ("%s sells for %s as it is, and only %s made up."):format(
             IngredientsText(recipe, batches),
             ns.Money(assessed.cost * batches),

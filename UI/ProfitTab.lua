@@ -30,18 +30,20 @@ local ROW_HEIGHT = 26
 -- the player is worth is where it has all got to.
 local EACH_DAY, RUNNING, WORTH = 1, 2, 3
 
+-- What the two profit views need saying about them.
+local HOW_PROFIT_COUNTS = "Sales count when you take the coin from your mailbox. "
+    .. "Everything bought at auction counts, whatever it was for."
+
 local VIEWS = {
     [EACH_DAY] = {
         label = "Each day",
         about = "What you came out ahead or behind by, each day for 30 days",
-        footer = "Sales count when you take the coin from your mailbox. "
-            .. "Everything bought at auction counts, whatever it was for.",
+        footer = HOW_PROFIT_COUNTS,
     },
     [RUNNING] = {
         label = "Running total",
         about = "What you're up or down over the last 30 days, as it added up",
-        footer = "Sales count when you take the coin from your mailbox. "
-            .. "Everything bought at auction counts, whatever it was for.",
+        footer = HOW_PROFIT_COUNTS,
     },
     [WORTH] = {
         label = "What you're worth",
@@ -52,14 +54,6 @@ local VIEWS = {
 }
 
 -- Building blocks ---------------------------------------------------------------
-
--- A sum that can be below nothing, in the colour of which side it's on.
-local function Signed(copper)
-    if copper < 0 then
-        return "-" .. Theme.Coins(-copper), Theme.SPENDING
-    end
-    return Theme.Coins(copper), Theme.INCOME
-end
 
 -- The list ---------------------------------------------------------------------------
 
@@ -111,7 +105,7 @@ local function FillRow(row, entry)
     row.What:SetText(WhatText(entry))
 
     local spent = entry.kind == ns.Trade.PURCHASE
-    local text, color = Signed(spent and -entry.amount or entry.amount)
+    local text, color = Theme.SignedCoins(spent and -entry.amount or entry.amount)
     row.Amount:SetText(text)
     row.Amount:SetTextColor(unpack(color))
 end
@@ -302,7 +296,7 @@ function ProfitTab.Create(parent)
             )
         )
 
-        local text, color = Signed(totals.net)
+        local text, color = Theme.SignedCoins(totals.net)
         net.Figure:SetText(text)
         net.Figure:SetTextColor(unpack(color))
         net.Note:SetText("Sold, less what you spent there.")
