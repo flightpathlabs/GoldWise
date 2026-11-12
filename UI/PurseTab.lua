@@ -17,8 +17,14 @@ local LEVELS_SHOWN = 3
 local ROW_COUNT = 7
 local ROW_HEIGHT = 30
 
+-- The cash flow chart: how far down the tab it sits, its height, and how
+-- many days it covers. A month is as far back as the purse remembers.
+local CHART_TOP = 124
+local CHART_HEIGHT = 90
+local CHART_DAYS = 30
+
 -- How far down the tab the "Coming up" list starts.
-local ROWS_TOP = 150
+local ROWS_TOP = CHART_TOP + CHART_HEIGHT + 32
 
 -- Building blocks ---------------------------------------------------------------
 
@@ -401,8 +407,15 @@ function PurseTab.Create(parent)
     local goingOut = CreateTile(tab, "Going out")
     goingOut:SetPoint("LEFT", comingIn, "RIGHT", 13, 0)
 
+    local flowHeading = tab:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    flowHeading:SetPoint("TOPLEFT", 14, -(CHART_TOP - 14))
+    flowHeading:SetText(("CASH FLOW, LAST %d DAYS"):format(CHART_DAYS))
+
+    local flow = ns.Chart.CreateCashFlow(tab, 746, CHART_HEIGHT)
+    flow:SetPoint("TOPLEFT", 12, -CHART_TOP)
+
     local upcoming = tab:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-    upcoming:SetPoint("TOPLEFT", 14, -128)
+    upcoming:SetPoint("TOPLEFT", 14, -(ROWS_TOP - 22))
     upcoming:SetText("COMING UP")
 
     local rows = {}
@@ -448,6 +461,8 @@ function PurseTab.Create(parent)
                 biggest and ("mostly " .. ns.Purse.SPENDING_LABELS[biggest]) or span
             )
         end
+
+        flow:SetDays(ns.Purse.Daily(CHART_DAYS))
 
         local costs = UpcomingCosts(level)
         local shown = 0

@@ -6,7 +6,9 @@ local _, ns = ...
 
 local Theme = ns.Theme
 
-local WIDTH, HEIGHT = 780, 520
+-- Tall enough for the Purse tab, which has the most to fit: three tiles, a
+-- chart, the list of what's coming and the verdict under it.
+local WIDTH, HEIGHT = 780, 570
 
 -- The tabs along the bottom edge, in order. Each names the page it shows
 -- (a field on the window) and how to bring that page up to date. Whatever

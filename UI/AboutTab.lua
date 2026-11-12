@@ -80,8 +80,9 @@ local function Sections()
                     .. 'by what each one sells for today. Or press "I want to..." and pick '
                     .. "a zone, and it plans the trip: what to see to before you leave, "
                     .. "what to gather and buy while you're there, and who's on the spot.",
-                "Purse: what you have, what comes in and goes out, and what's about to "
-                    .. "cost you: repairs, training, and whatever you're saving for.",
+                "Purse: what you have, a chart of what's come in and gone out each day "
+                    .. "for the last month, and what's about to cost you: repairs, training, "
+                    .. "and whatever you're saving for.",
                 "Places: the nearest trainer for your class and each profession, and the "
                     .. "nearest auction house, repairer, bank, flight master and inn.",
                 "Recipes: what vendors sell that you haven't learned, for the professions "

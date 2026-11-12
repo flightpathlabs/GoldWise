@@ -160,6 +160,35 @@ function Purse.Averages(numDays)
     return income / activeDays, spending / activeDays, activeDays, biggest
 end
 
+--- Income and spending for each day the player was active, for charting.
+---@param numDays number  how far back to look, counting today
+---@return table days       list of { day, income, spending } in copper,
+---        oldest first. Days with nothing recorded are left out.
+---@return number firstDay  the first day of the window
+---@return number lastDay   the last: today
+function Purse.Daily(numDays)
+    local recorded = Book().days
+    local today = ns.Ledger.Today()
+    local firstDay = today - numDays + 1
+    local days = {}
+
+    for day = firstDay, today do
+        local record = recorded[day]
+        if record then
+            local income, spending = 0, 0
+            for _, amount in pairs(record.income) do
+                income = income + amount
+            end
+            for _, amount in pairs(record.spending) do
+                spending = spending + amount
+            end
+            table.insert(days, { day = day, income = income, spending = spending })
+        end
+    end
+
+    return days, firstDay, today
+end
+
 -- Repairs ------------------------------------------------------------------------------
 
 --- How worn the player's gear is, as a whole.
