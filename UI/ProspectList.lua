@@ -165,6 +165,49 @@ function ProspectList.Create(parent, onSelect)
         ns.Publish("COURSE_CHANGED")
     end
 
+    -- The materials list can be narrowed: to one kind, which then gets
+    -- the page to itself, and to what a character of this level could
+    -- come by. The level limit starts on, because a list topped by things
+    -- from zones the player can't survive in isn't much of a guide.
+    local materialKind
+    local materialsNearLevel = true
+
+    local narrow = CreateFrame("Button", nil, list, "UIPanelButtonTemplate")
+    narrow:SetSize(150, 20)
+    narrow:SetPoint("RIGHT", course, "LEFT", -6, 0)
+    narrow:Hide()
+
+    narrow:SetScript("OnClick", function(self)
+        MenuUtil.CreateContextMenu(self, function(_, root)
+            local function IsShowing(kindName)
+                return materialKind == kindName
+            end
+            local function Show(kindName)
+                materialKind = kindName
+                ns.Publish("COURSE_CHANGED")
+            end
+
+            root:CreateTitle("Show...")
+            root:CreateRadio("The best of every kind", IsShowing, Show, nil)
+            for _, kind in ipairs(ns.Materials.Kinds()) do
+                root:CreateRadio(
+                    ("%s (%d)"):format(kind.name, kind.count),
+                    IsShowing,
+                    Show,
+                    kind.name
+                )
+            end
+
+            root:CreateDivider()
+            root:CreateCheckbox("Only what's within reach of my level", function()
+                return materialsNearLevel
+            end, function()
+                materialsNearLevel = not materialsNearLevel
+                ns.Publish("COURSE_CHANGED")
+            end)
+        end)
+    end)
+
     course:SetScript("OnClick", function(self)
         local level = UnitLevel("player")
         local zones = ns.Prospects.Zones(UnitFactionGroup("player"))
@@ -250,6 +293,7 @@ function ProspectList.Create(parent, onSelect)
         scrollBox:SetShown(destination == nil)
         scrollBar:SetShown(destination == nil)
         plan:SetShown(destination ~= nil)
+        narrow:SetShown(destination == MATERIALS)
 
         if destination == CRAFTING then
             course:SetText("Making things to sell")
@@ -261,10 +305,33 @@ function ProspectList.Create(parent, onSelect)
                 .. "Each line assumes its ingredients go to that alone."
         elseif destination == MATERIALS then
             course:SetText("What materials are worth")
-            about:SetText("Every trade good on the market, by kind, dearest first")
             empty:Hide()
 
-            plan:SetPlan(ns.Materials.Plan())
+            -- A kind picked before the last read of the auction house may
+            -- have nothing listed any more.
+            local stillThere = false
+            for _, kind in ipairs(ns.Materials.Kinds()) do
+                stillThere = stillThere or kind.name == materialKind
+            end
+            if not stillThere then
+                materialKind = nil
+            end
+
+            narrow:SetText(materialKind or "Every kind")
+            -- Kept short: it shares the line with two buttons.
+            about:SetText(
+                materialsNearLevel and "Within reach of your level, dearest first"
+                    or "Dearest first"
+            )
+
+            local sections, loading = ns.Materials.Plan(materialKind, materialsNearLevel)
+            if loading then
+                -- The game is asked about each material in turn, and
+                -- answers in its own time.
+                loading.label = ("Looking up: %s"):format(loading.kind)
+            end
+            plan:SetPlan(sections, loading)
+
             return "From the last full read of the auction house. "
                 .. "Click anything for its price history."
         elseif destination == RESALE then

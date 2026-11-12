@@ -13,33 +13,105 @@ local _, ns = ...
 -- Gather them into one redraw.
 local SETTLE_DELAY = 0.4
 
--- Items we've asked for and not yet heard back about.
+-- The client doesn't always answer. It gets this many seconds before it's
+-- asked again, and this many askings before we stop waiting: a list that
+-- waits for ever on one item is worse than a list without it.
+local PATIENCE = 5
+local MOST_ASKS = 2
+
+-- Items we've asked for and not yet heard back about, each with when it
+-- was last asked for and how many times.
 local awaited = {}
 
--- Items the client couldn't give us. Asked for once: asking again on
+-- Items the client couldn't give us. Not asked for again: asking on
 -- every redraw would never end.
 local unavailable = {}
 
 local announcePending = false
+local watching = false
+
+local function Announce()
+    if announcePending then
+        return
+    end
+    announcePending = true
+    C_Timer.After(SETTLE_DELAY, function()
+        announcePending = false
+        ns.Publish("ITEM_NAMES_LOADED")
+    end)
+end
+
+-- Looks in on what's still awaited, and keeps looking for as long as
+-- anything is.
+local Watch
+
+local function KeepWatch()
+    if not watching then
+        watching = true
+        C_Timer.After(PATIENCE, Watch)
+    end
+end
+
+function Watch()
+    watching = false
+
+    local now = GetTime()
+    local changed, waiting = false, false
+
+    for itemID, wait in pairs(awaited) do
+        if C_Item.GetItemNameByID(itemID) then
+            -- It arrived without the event that should have said so.
+            awaited[itemID] = nil
+            changed = true
+        elseif now - wait.since < PATIENCE then
+            waiting = true
+        elseif wait.asks < MOST_ASKS then
+            wait.asks = wait.asks + 1
+            wait.since = now
+            C_Item.RequestLoadItemDataByID(itemID)
+            waiting = true
+        else
+            awaited[itemID] = nil
+            unavailable[itemID] = true
+            changed = true
+        end
+    end
+
+    -- A list holding a place for something that isn't coming needs to
+    -- hear that as much as it needs to hear about an arrival.
+    if changed then
+        Announce()
+    end
+    if waiting then
+        KeepWatch()
+    end
+end
 
 --- An item's name, if the client has it yet. If it hasn't, the item is
---- asked for, and ITEM_NAMES_LOADED is published once it's here.
+--- asked for, and ITEM_NAMES_LOADED is published once it's here or once
+--- it's clear that it isn't coming.
 ---@param itemID number
 ---@return string|nil name
+---@return boolean coming  true while there's no name but one is on its
+---        way; false with no name means the client has none to give
 function ns.ItemName(itemID)
     local name = C_Item.GetItemNameByID(itemID)
     if name then
-        return name
+        return name, false
+    end
+    if unavailable[itemID] then
+        return nil, false
     end
 
-    if not awaited[itemID] and not unavailable[itemID] then
-        awaited[itemID] = true
+    if not awaited[itemID] then
+        awaited[itemID] = { since = GetTime(), asks = 1 }
         C_Item.RequestLoadItemDataByID(itemID)
+        KeepWatch()
     end
-    return nil
+    return nil, true
 end
 
-ns.OnEvent("GET_ITEM_INFO_RECEIVED", function(itemID, success)
+local function OnItemLoaded(itemID, success)
     -- This fires for every item anything in the game loads. Only the
     -- ones we asked for are ours to act on.
     if not awaited[itemID] then
@@ -50,14 +122,11 @@ ns.OnEvent("GET_ITEM_INFO_RECEIVED", function(itemID, success)
     -- Told it loaded, and still nameless: there's no name coming.
     if not success or not C_Item.GetItemNameByID(itemID) then
         unavailable[itemID] = true
-        return
     end
+    Announce()
+end
 
-    if not announcePending then
-        announcePending = true
-        C_Timer.After(SETTLE_DELAY, function()
-            announcePending = false
-            ns.Publish("ITEM_NAMES_LOADED")
-        end)
-    end
-end)
+-- The client has two ways of saying an item has arrived, and which one it
+-- uses depends on how the item came to be loaded. Either will do.
+ns.OnEvent("GET_ITEM_INFO_RECEIVED", OnItemLoaded)
+ns.OnEvent("ITEM_DATA_LOAD_RESULT", OnItemLoaded)

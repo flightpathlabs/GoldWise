@@ -62,7 +62,9 @@ end
 -- The sections ------------------------------------------------------------------------
 
 -- Each returns a list of steps: { title, detail, amount, amountLabel,
--- action }. amount is in copper, and action is { label, onClick }.
+-- action }. amount is in copper, and action is { label, onClick }. A step
+-- with more than one figure to show gives figures, a list of
+-- { amount, caption }, in place of amount (see Advisor\Resale).
 
 local function BeforeLeaving(zone, level)
     local steps = {}

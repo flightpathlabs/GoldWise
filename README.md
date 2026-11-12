@@ -98,9 +98,11 @@ Press **I want to...** and choose:
   worth making from what you hold, against selling the ingredients as
   they are, with the margin.
 - **See what every material is worth.** Every trade good on the market,
-  by kind.
+  by kind, kept to what's within reach of your level unless you say
+  otherwise. Pick one kind to see more of it.
 - **Buy from vendors, sell at auction.** Recipes a vendor sells for less
-  than they fetch at auction, with the profit worked out.
+  than they fetch at auction: what the vendor asks, what it's listed for,
+  and the profit.
 - **Go to a zone.** A numbered plan: what to see to before you leave, what
   to gather and buy while you're there, and who's on the spot.
 

@@ -18,6 +18,15 @@ local ACTION_RIGHT = 10
 local AMOUNT_RIGHT = 84
 local AMOUNT_WIDTH = 170
 
+-- A step can show a few figures side by side in place of the one amount,
+-- each with a word under it saying what it is.
+local MOST_FIGURES = 3
+local FIGURE_WIDTH = 96
+
+-- The strip along the bottom that says how far a slow list has got.
+local LOADING_HEIGHT = 24
+local LOADING_LABEL_WIDTH = 230
+
 -- Rows --------------------------------------------------------------------------
 
 local function CreateRowWidgets(row)
@@ -57,6 +66,23 @@ local function CreateRowWidgets(row)
     row.Amount:SetJustifyH("RIGHT")
     row.Amount:SetWordWrap(false)
 
+    -- Counted from the right, so the last figure given sits where the
+    -- single amount would.
+    row.Figures = {}
+    for index = 1, MOST_FIGURES do
+        local value = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+        value:SetPoint("TOPRIGHT", -(AMOUNT_RIGHT + (index - 1) * FIGURE_WIDTH), -8)
+        value:SetWidth(FIGURE_WIDTH)
+        value:SetJustifyH("RIGHT")
+        value:SetWordWrap(false)
+
+        local caption = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        caption:SetPoint("TOPRIGHT", value, "BOTTOMRIGHT", 0, -4)
+        caption:SetTextColor(unpack(Theme.MUTED))
+
+        row.Figures[index] = { Value = value, Caption = caption }
+    end
+
     row.Title = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     row.Title:SetPoint("TOPLEFT", row.Number, "TOPRIGHT", 4, 7)
     row.Title:SetPoint("RIGHT", row.Amount, "LEFT", -10, 0)
@@ -92,16 +118,28 @@ end
 
 local function FillRow(row, data)
     local isHeading = data.heading ~= nil
+    local figures = not isHeading and data.figures or nil
 
     row.Stripe:SetShown(not isHeading and row:GetOrderIndex() % 2 == 0)
     row.Heading:SetShown(isHeading)
     row.Number:SetShown(not isHeading)
     row.Title:SetShown(not isHeading)
     row.Detail:SetShown(not isHeading)
-    row.Amount:SetShown(not isHeading)
+    row.Amount:SetShown(not isHeading and figures == nil)
     row.Action:SetShown(not isHeading and data.action ~= nil)
     -- Only rows with something behind them should light up when pointed at.
     row:EnableMouse(not isHeading and data.itemID ~= nil)
+
+    -- Figures are given left to right and placed from the right.
+    for index, figure in ipairs(row.Figures) do
+        local given = figures and figures[#figures - index + 1]
+        figure.Value:SetShown(given ~= nil)
+        figure.Caption:SetShown(given ~= nil)
+        if given then
+            figure.Value:SetText(Theme.Coins(given.amount))
+            figure.Caption:SetText(given.caption)
+        end
+    end
 
     if isHeading then
         row.Heading:SetText(data.heading:upper())
@@ -112,7 +150,7 @@ local function FillRow(row, data)
 
     -- A step with no figure and no button has the row to itself, and its
     -- words can run the full width.
-    local fullWidth = data.amount == nil and data.action == nil
+    local fullWidth = data.amount == nil and data.action == nil and figures == nil
     for _, text in ipairs({ row.Title, row.Detail }) do
         text:ClearAllPoints()
     end
@@ -121,6 +159,10 @@ local function FillRow(row, data)
     if fullWidth then
         row.Title:SetPoint("RIGHT", row, "RIGHT", -12, 0)
         row.Detail:SetPoint("RIGHT", row, "RIGHT", -12, 0)
+    elseif figures then
+        local taken = AMOUNT_RIGHT + #figures * FIGURE_WIDTH + 10
+        row.Title:SetPoint("RIGHT", row, "RIGHT", -taken, 0)
+        row.Detail:SetPoint("RIGHT", row, "RIGHT", -taken, 0)
     else
         row.Title:SetPoint("RIGHT", row.Amount, "LEFT", -10, 0)
         row.Detail:SetPoint("RIGHT", row.Amount, "LEFT", -10, 0)
@@ -181,9 +223,43 @@ function TripPlan.Create(parent)
     end)
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
 
+    -- Some plans can't be laid out all at once, because the game has to
+    -- be asked about each thing in them. While one is filling in, this
+    -- says what it's waiting on and how far it has got.
+    local loadingLabel = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    loadingLabel:SetPoint("BOTTOMLEFT", 8, 6)
+    loadingLabel:SetWidth(LOADING_LABEL_WIDTH)
+    loadingLabel:SetJustifyH("LEFT")
+    loadingLabel:SetWordWrap(false)
+    loadingLabel:SetTextColor(unpack(Theme.MUTED))
+
+    local loadingBar = CreateFrame("StatusBar", nil, frame)
+    loadingBar:SetHeight(6)
+    loadingBar:SetPoint("LEFT", loadingLabel, "RIGHT", 10, 0)
+    loadingBar:SetPoint("RIGHT", scrollBox, "RIGHT", -6, 0)
+    loadingBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    loadingBar:SetStatusBarColor(unpack(Theme.COIN))
+    loadingBar:SetMinMaxValues(0, 1)
+
+    local trough = loadingBar:CreateTexture(nil, "BACKGROUND")
+    trough:SetAllPoints()
+    trough:SetColorTexture(0, 0, 0, 0.5)
+
     --- Shows a plan.
-    ---@param sections table  from Trip.Plan
-    function frame:SetPlan(sections)
+    ---@param sections table      from Trip.Plan
+    ---@param loading table|nil   { label, fraction } for a plan that's
+    ---        still filling in: what to say, and how far along it is from
+    ---        0 to 1
+    function frame:SetPlan(sections, loading)
+        -- The list gives up its bottom edge to the strip while it's there.
+        scrollBox:SetPoint("BOTTOMRIGHT", -16, loading and LOADING_HEIGHT or 0)
+        loadingLabel:SetShown(loading ~= nil)
+        loadingBar:SetShown(loading ~= nil)
+        if loading then
+            loadingLabel:SetText(loading.label)
+            loadingBar:SetValue(loading.fraction)
+        end
+
         -- Flattened into one list of rows, a heading and then its steps.
         -- Things to do are numbered straight through, so the plan reads
         -- as one sequence from top to bottom.

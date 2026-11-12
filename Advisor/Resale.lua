@@ -33,36 +33,40 @@ local function WhereText(deal)
     return text
 end
 
--- One deal as a step: what to buy, what it costs and where, and what's
--- left over once it's sold.
+-- One deal as a step: what to buy and where, then the three figures that
+-- make the case for it, side by side: what the vendor asks, what it's
+-- listed for at auction, and what's left over once it's sold.
 local function Step(deal, sayWhere)
     local parts = {}
 
-    -- A price we've seen is a fact; one we've worked out is "about".
-    table.insert(
-        parts,
-        (deal.costIsSeen and "Costs %s" or "Costs about %s"):format(ns.Money(deal.cost))
-    )
     if sayWhere then
-        table.insert(parts, "in " .. WhereText(deal))
+        table.insert(parts, "In " .. WhereText(deal))
     end
-    local detail = table.concat(parts, " ") .. (". Sells for %s"):format(ns.Money(deal.price))
 
     -- The two things that turn a good price into a bad buy.
     if (deal.listed or 0) > 0 then
-        detail = ("%s, %s listed"):format(detail, FormatLargeNumber(deal.listed))
+        table.insert(parts, FormatLargeNumber(deal.listed) .. " listed at auction")
     end
     if deal.stock then
-        detail = ("%s. %d in stock when last seen"):format(detail, deal.stock)
+        table.insert(parts, ("%d in stock when last seen"):format(deal.stock))
+    end
+
+    local detail = ""
+    if #parts > 0 then
+        detail = table.concat(parts, ". ") .. "."
     end
 
     local spot = ns.Recipes.VendorSpot(deal)
     return {
         itemID = deal.item,
         title = ns.ItemName(deal.item) or "Recipe",
-        detail = detail .. ".",
-        amount = deal.profit,
-        amountLabel = "profit",
+        detail = detail,
+        figures = {
+            -- A price we've seen is a fact; one we've worked out is a guess.
+            { amount = deal.cost, caption = deal.costIsSeen and "vendor" or "vendor, about" },
+            { amount = deal.price, caption = "auction" },
+            { amount = deal.profit, caption = "profit" },
+        },
         action = spot and {
             label = "Map",
             onClick = function()

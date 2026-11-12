@@ -9,18 +9,32 @@ local _, ns = ...
 -- gems, elemental bits, enchanting dust, everything the game files as a
 -- trade good. It's the answer to "what's actually worth picking up?",
 -- drawn from what's really for sale and not from anyone's list.
+--
+-- Most of these are things the player has never held, so the client has
+-- to fetch each one before it can say what it's called, and it does that
+-- slowly. The list is therefore laid out in order as far as the names
+-- have come, and says how far that is; it never shows a row it can't
+-- name yet.
 
 local Materials = {}
 ns.Materials = Materials
 
--- Items shown per kind. The top of each list is where the money is.
+-- Items shown per kind when every kind is on show: the top of each list
+-- is where the money is. A kind with the page to itself gets more.
 local PER_KIND = 6
+local ONE_KIND = 30
 
--- Kinds shown. The rest are small or odd.
+-- Kinds shown together. The rest are small or odd, and can still be
+-- picked on their own.
 local MOST_KINDS = 12
 
 -- Fewer than this many listed and the price is one seller's opinion.
 local FEWEST_LISTED = 5
+
+-- A material counts as within reach when its level is no more than this
+-- far above the player's. The game gives every material a level that
+-- follows where it's found: copper is 10, mithril 40, runecloth 50.
+local LEVEL_HEADROOM = 5
 
 -- The work is going through thirteen thousand prices, and it only needs
 -- redoing when they change: kept by market, with the scan it came from.
@@ -79,55 +93,152 @@ local function Kinds(marketKey)
     return kinds
 end
 
---- Lays out what the market's materials are worth.
----@return table sections  list of { heading, steps, numbered }, shaped
----        like Trip.Plan's
-function Materials.Plan()
-    local marketKey = ns.Market.Home()
-    local kinds = Kinds(marketKey)
-    local sections = {}
+-- Whether a material is one the player could come by at their level.
+local function WithinReach(itemID, ceiling)
+    if not ceiling then
+        return true
+    end
 
-    for index = 1, math.min(MOST_KINDS, #kinds) do
-        local kind = kinds[index]
-        local steps = {}
+    local _, _, _, level = C_Item.GetItemInfo(itemID)
+    -- No level to go on is no reason to hide it.
+    return not level or level <= ceiling
+end
 
-        for position = 1, math.min(PER_KIND, #kind.items) do
-            local item = kind.items[position]
-            local name = ns.ItemName(item.itemID)
+-- Goes down one kind, dearest first, choosing what to show. Returns the
+-- chosen items with their names, and whether that's the whole of it.
+--
+-- It stops choosing at the first item the client hasn't fetched yet, so
+-- that rows only ever arrive at the bottom of the list, in order. It
+-- carries on past that point just far enough to ask for the names it's
+-- going to need next.
+local function Choose(kind, most, ceiling)
+    -- With a level to keep to, some of what's asked for will turn out to
+    -- be out of reach. Ask for twice as many, or a list of things too
+    -- high for the player would be fetched six at a time.
+    local reach = ceiling and most * 2 or most
 
-            -- What the player already has says whether it's theirs to sell.
-            local held = (ns.Bags.Counts()[item.itemID] or 0) + ns.Bank.Count(item.itemID)
-            local detail = FormatLargeNumber(item.listed) .. " listed"
-            if held > 0 then
-                detail = ("%s. You have %d"):format(detail, held)
+    local chosen = {}
+    local settled = true
+    local candidates = 0
+
+    for _, item in ipairs(kind.items) do
+        local name, coming = ns.ItemName(item.itemID)
+        if coming then
+            settled = false
+            candidates = candidates + 1
+        elseif name and WithinReach(item.itemID, ceiling) then
+            candidates = candidates + 1
+            if settled then
+                table.insert(chosen, { item = item, name = name })
             end
-
-            table.insert(steps, {
-                itemID = item.itemID,
-                -- A moment's placeholder: the list redraws when the game
-                -- has told us what it's called.
-                title = name or "Looking it up...",
-                detail = detail .. ".",
-                amount = item.price,
-                amountAfter = "each",
-            })
         end
 
-        table.insert(sections, { heading = kind.name, steps = steps, numbered = false })
+        if #chosen == most or candidates == reach then
+            break
+        end
     end
 
-    if #sections == 0 then
-        table.insert(sections, {
-            heading = "Nothing to show yet",
-            numbered = false,
-            steps = {
-                {
-                    title = "This needs auction prices",
-                    detail = "Visit an auction house and let Goldwise read it. "
-                        .. "Every material on sale will be listed here.",
-                },
-            },
-        })
+    return chosen, settled
+end
+
+--- The kinds of material on the market, biggest first, for a menu.
+---@return table kinds  list of { name, count }
+function Materials.Kinds()
+    local kinds = {}
+    for index, kind in ipairs(Kinds(ns.Market.Home())) do
+        kinds[index] = { name = kind.name, count = #kind.items }
     end
-    return sections
+    return kinds
+end
+
+--- Lays out what the market's materials are worth.
+---@param only string|nil     the name of one kind to show on its own; nil
+---        shows the top of every kind
+---@param nearLevel boolean   true to leave out what's beyond the player's
+---        level
+---@return table sections     list of { heading, steps, numbered }, shaped
+---        like Trip.Plan's
+---@return table|nil loading  { kind, fraction } while names are still
+---        being fetched: the kind being waited on and how far through the
+---        list we are, from 0 to 1. Nil once it's all here.
+function Materials.Plan(only, nearLevel)
+    local every = Kinds(ns.Market.Home())
+    local ceiling = nearLevel and (UnitLevel("player") + LEVEL_HEADROOM) or nil
+
+    -- Which kinds are on show, and how deep into each.
+    local kinds, most = {}, PER_KIND
+    for index, kind in ipairs(every) do
+        if kind.name == only then
+            kinds, most = { kind }, ONE_KIND
+            break
+        elseif index <= MOST_KINDS then
+            table.insert(kinds, kind)
+        end
+    end
+
+    -- What the player already has says whether it's theirs to sell.
+    local carried = ns.Bags.Counts()
+
+    local sections = {}
+    local loading
+
+    for index, kind in ipairs(kinds) do
+        -- Every kind is gone through, even those below the one being
+        -- waited on, so that their names are asked for in the meantime.
+        local chosen, settled = Choose(kind, most, ceiling)
+
+        if not loading then
+            local steps = {}
+            for _, choice in ipairs(chosen) do
+                local item = choice.item
+                local held = (carried[item.itemID] or 0) + ns.Bank.Count(item.itemID)
+
+                local detail = FormatLargeNumber(item.listed) .. " listed"
+                if held > 0 then
+                    detail = ("%s. You have %d"):format(detail, held)
+                end
+
+                table.insert(steps, {
+                    itemID = item.itemID,
+                    title = choice.name,
+                    detail = detail .. ".",
+                    amount = item.price,
+                    amountAfter = "each",
+                })
+            end
+
+            if #steps > 0 then
+                table.insert(sections, { heading = kind.name, steps = steps, numbered = false })
+            end
+
+            if not settled then
+                local expected = math.min(most, #kind.items)
+                loading = {
+                    kind = kind.name,
+                    fraction = (index - 1 + #chosen / expected) / #kinds,
+                }
+            end
+        end
+    end
+
+    if #sections == 0 and not loading then
+        local heading, note
+        if #every == 0 then
+            heading = "Nothing to show yet"
+            note = {
+                title = "This needs auction prices",
+                detail = "Visit an auction house and let Goldwise read it. "
+                    .. "Every material on sale will be listed here.",
+            }
+        else
+            heading = "Nothing within reach"
+            note = {
+                title = "Everything on sale here is beyond your level",
+                detail = "Untick the level limit in the menu above to see it anyway.",
+            }
+        end
+        table.insert(sections, { heading = heading, numbered = false, steps = { note } })
+    end
+
+    return sections, loading
 end

@@ -17,6 +17,16 @@ the `dev` branch.
   it (a drop to 1 copper has been announced), and it knows that things a
   vendor pays well for take a bigger deposit. It says so in chat when the
   minimum moves.
+- **"What materials are worth" fills in as it goes.** The game has to be
+  asked about each material, and answers slowly. The list used to show a
+  page of "Looking it up..." while it waited. It now shows each kind as
+  soon as it's ready, top to bottom, with a bar saying how far it has got,
+  and gives up on anything the game never answers for.
+- **Materials can be narrowed down.** A new menu on that page shows one
+  kind at a time, with up to 30 of it, and the list keeps to what's within
+  reach of your level unless you untick that.
+- **Buying to sell shows its working.** Each line now has the vendor's
+  price and the auction price beside the profit.
 
 ## 0.3.2 (11 November 2026)
 
