@@ -198,7 +198,11 @@ local function CreateRow(page, top, label, about)
 end
 
 local function CreatePage()
+    -- Hidden until the options show it. A frame with no parent counts as
+    -- on screen from the moment it's made, and this one has buttons that
+    -- can take the keyboard.
     local page = CreateFrame("Frame")
+    page:Hide()
 
     local title = page:CreateFontString(nil, "ARTWORK", "GameFontHighlightHuge")
     title:SetPoint("TOPLEFT", 16, -16)
@@ -269,7 +273,11 @@ local function CreatePage()
             Refresh()
         end)
 
-        row.Button:SetScript("OnKeyDown", function(_, pressed)
+        -- What the button does with a key while it's waiting for one.
+        -- It's only given this, and the keyboard, for as long as it is
+        -- waiting: a button with a key handler takes every key pressed,
+        -- anywhere in the game, whether it wants it or not.
+        function row.OnKey(_, pressed)
             if listening ~= row or HELD_KEYS[pressed] then
                 return
             end
@@ -301,7 +309,7 @@ local function CreatePage()
             Assign(row.command, chord)
             listening, contested = nil, nil
             Refresh()
-        end)
+        end
     end
 
     local footnote = page:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
@@ -345,8 +353,9 @@ local function CreatePage()
             local waiting = listening == row
 
             -- Only the button that's waiting takes keys, and while it is,
-            -- it keeps them to itself. The rest of the time they go on to
-            -- the game as usual.
+            -- it keeps them to itself. The rest of the time it has no
+            -- handler and no keyboard, and keys go on to the game.
+            row.Button:SetScript("OnKeyDown", waiting and row.OnKey or nil)
             row.Button:EnableKeyboard(waiting)
 
             if waiting and contested then
@@ -387,6 +396,13 @@ local function CreatePage()
         end
     end
 
+    -- The options call this each time they put the page up, including
+    -- the times the page doesn't hear that it has been shown.
+    page.OnRefresh = function()
+        listening, contested = nil, nil
+        Refresh()
+    end
+
     page:SetScript("OnShow", function()
         listening, contested = nil, nil
         Refresh()
@@ -400,6 +416,15 @@ local function CreatePage()
     -- Bindings changed somewhere else: the game's own list, or a profile.
     ns.OnEvent("UPDATE_BINDINGS", function()
         if page:IsVisible() then
+            Refresh()
+        end
+    end)
+
+    -- A fight has started. A button left waiting would eat the first
+    -- ability the player reached for.
+    ns.OnEvent("PLAYER_REGEN_DISABLED", function()
+        if listening then
+            listening, contested = nil, nil
             Refresh()
         end
     end)

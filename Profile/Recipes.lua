@@ -321,9 +321,12 @@ function Recipes.Resale(marketKey)
             if price then
                 local cost, costIsSeen, stock = VendorCost(item)
                 if not cost then
-                    unpriced = unpriced + 1
-                    -- The list redraws when the client has fetched it.
-                    ns.LoadItem(item)
+                    -- Only counted as on its way if it is: something the
+                    -- client has nothing to say about isn't coming. The
+                    -- list redraws when the rest arrive.
+                    if ns.LoadItem(item) then
+                        unpriced = unpriced + 1
+                    end
                 else
                     local profit = price * (1 - cut) - cost
                     if profit >= math.max(ns.SMALL_CHANGE, cost * WORTHWHILE_SHARE) then

@@ -237,7 +237,7 @@ function Materials.Plan(only, nearLevel)
             note = {
                 title = "The game wouldn't say what these are",
                 detail = "It was asked about each of them and didn't answer. "
-                    .. "Come back to this page in a moment.",
+                    .. "It may after you next log in.",
             }
         end
         table.insert(sections, { heading = heading, numbered = false, steps = { note } })

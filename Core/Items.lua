@@ -74,8 +74,10 @@ function Watch()
     local changed, waiting = false, false
 
     for itemID, wait in pairs(awaited) do
-        if C_Item.GetItemNameByID(itemID) then
-            -- It arrived without the event that should have said so.
+        if C_Item.GetItemInfo(itemID) ~= nil then
+            -- It arrived without the event that should have said so. Its
+            -- details are what's looked for, not only its name: the name
+            -- can be known long before a vendor price is.
             awaited[itemID] = nil
             answered[itemID] = true
             lastArrival = now
@@ -146,7 +148,10 @@ end
 ---        hasn't fetched the item yet
 function ns.VendorGuess(itemID)
     local sellsFor = select(11, C_Item.GetItemInfo(itemID))
-    if sellsFor and sellsFor > 0 then
+    if sellsFor == nil then
+        -- Not fetched yet. Whatever asked gets told to redraw when it is.
+        ns.LoadItem(itemID)
+    elseif sellsFor > 0 then
         return sellsFor * ns.VENDOR_MARKUP
     end
 end
@@ -165,6 +170,7 @@ local function OnItemLoaded(itemID, success)
     -- will want to know.
     if unavailable[itemID] and success and C_Item.GetItemNameByID(itemID) then
         unavailable[itemID] = nil
+        answered[itemID] = true
         Announce()
         return
     end

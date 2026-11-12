@@ -2,11 +2,11 @@ local _, ns = ...
 
 -- Charts, drawn with the client's own lines and textures.
 --
--- Three kinds: a sparkline small enough to sit in a list row, a price
--- chart with labelled axes, and a cash flow chart of money in and out by
--- day. They are drawn to belong on the game's dark panels: a dark wash
--- behind, thin light strokes on it, nothing glossy. Theme.lua has the
--- colours.
+-- Four kinds: a sparkline small enough to sit in a list row, a price
+-- chart with labelled axes, a chart of lines around a zero for sums that
+-- can be losses, and a cash flow chart of money in and out by day. They
+-- are drawn to belong on the game's dark panels: a dark wash behind, thin
+-- light strokes on it, nothing glossy. Theme.lua has the colours.
 
 local Chart = {}
 ns.Chart = Chart

@@ -39,11 +39,6 @@ local SAMPLE = 20
 -- nonsense for a moment while it's still setting itself up.
 local OPEN_DELAY = 1
 
--- An item only shows the minimum when the minimum is what it's being
--- charged: when its own share of vendor value would come to less. To be
--- sure of that, the answer has to beat the share by this much.
-local CLEAR_OF_SHARE = 1.5
-
 local function Saved()
     if type(ns.db.deposits) ~= "table" then
         ns.db.deposits = {}
@@ -53,6 +48,12 @@ end
 
 local function AssumedRates(marketKey)
     return marketKey:match("%-Neutral$") and ASSUMED_RATES.neutral or ASSUMED_RATES.faction
+end
+
+-- The least any listing costs in a market, as far as is known.
+local function KnownFloor(marketKey)
+    local rule = Saved()[marketKey]
+    return rule and rule.floor or ASSUMED_FLOOR
 end
 
 --- An estimate of the deposit for listing a lot.
@@ -65,16 +66,9 @@ function Deposit.Estimate(vendorValue, marketKey, duration)
     duration = duration or LONGEST
 
     local rule = Saved()[marketKey]
-    local floor = rule and rule.floor or ASSUMED_FLOOR
     local rate = rule and rule.rates[duration] or AssumedRates(marketKey)[duration]
 
-    return math.max(floor, math.floor(vendorValue * rate + 0.5))
-end
-
--- The least any listing costs in a market, as far as is known.
-local function KnownFloor(marketKey)
-    local rule = Saved()[marketKey]
-    return rule and rule.floor or ASSUMED_FLOOR
+    return math.max(KnownFloor(marketKey), math.floor(vendorValue * rate + 0.5))
 end
 
 -- Measuring ---------------------------------------------------------------------
@@ -104,17 +98,37 @@ local function CanBeListed(location)
     return ok and valid
 end
 
-local function Measure(marketKey)
-    local saved = Saved()
-    local rule = saved[marketKey] or { rates = {} }
-    local shortRate = rule.rates[SHORTEST] or AssumedRates(marketKey)[SHORTEST]
-
-    -- The minimum is whatever the game asks for one of something too
-    -- cheap for its share of vendor value to matter. Something dearer
-    -- is charged its share, which says nothing about the minimum, and
-    -- taking that for the minimum would have it change with whatever
-    -- happens to be in the bags.
+-- Works the minimum out of what the game asked for one of each thing.
+-- Each answer is the minimum or the item's own share of vendor value,
+-- whichever is more, and it doesn't say which. So an answer is only taken
+-- for the minimum when something vouches for it: the item has no vendor
+-- value, so it can only be the minimum; or another item with a different
+-- vendor value was asked the very same. Shares of different values don't
+-- come out equal by chance.
+local function FloorAmong(answers)
     local floor
+
+    for index, answer in ipairs(answers) do
+        local vouched = answer.vendorPrice == 0
+        for other, second in ipairs(answers) do
+            vouched = vouched
+                or (
+                    other ~= index
+                    and second.least == answer.least
+                    and second.vendorPrice ~= answer.vendorPrice
+                )
+        end
+
+        if vouched and (not floor or answer.least < floor) then
+            floor = answer.least
+        end
+    end
+    return floor
+end
+
+local function Measure(marketKey)
+    -- What the game asks for one of each thing, for the shortest time.
+    local answers = {}
 
     -- For the share of vendor value, the most valuable lot gives the most
     -- exact answer, because deposits are rounded to the copper.
@@ -137,11 +151,8 @@ local function Measure(marketKey)
                     -- Nothing costs nothing to list. An answer of zero is
                     -- the auction house not being ready to give one.
                     local least = Ask(location, item.itemID, isCommodity, SHORTEST, 1)
-                    local heldUp = least
-                        and least > 0
-                        and vendorPrice * shortRate * CLEAR_OF_SHARE < least
-                    if heldUp and (not floor or least < floor) then
-                        floor = least
+                    if least and least > 0 then
+                        table.insert(answers, { least = least, vendorPrice = vendorPrice })
                     end
 
                     local value = vendorPrice * item.stackCount
@@ -161,14 +172,22 @@ local function Measure(marketKey)
     end
 
     -- Nothing in the bags could be asked about. What's known stands.
-    if not floor and next(biggest) == nil then
+    if #answers == 0 and next(biggest) == nil then
         return
     end
 
-    -- With nothing cheap enough to show the minimum, it stays what it was.
+    local saved = Saved()
+    local rule = saved[marketKey] or { rates = {} }
     local before = KnownFloor(marketKey)
-    rule.floor = floor or before
-    rule.at = time()
+
+    -- With nothing to vouch for a minimum this time, it stays what it was.
+    local floor = FloorAmong(answers)
+    if floor then
+        rule.floor = floor
+        rule.at = time()
+    else
+        rule.floor = before
+    end
 
     for duration = SHORTEST, LONGEST do
         -- A lot that only costs the minimum says nothing about the share.

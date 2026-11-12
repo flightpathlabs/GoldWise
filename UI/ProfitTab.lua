@@ -47,13 +47,11 @@ local VIEWS = {
     },
     [WORTH] = {
         label = "What you're worth",
-        about = "Your coin and your goods, across your characters",
+        about = "Your coin and your goods, on this side's characters",
         footer = "Goods are counted at their cheapest listing, as though all of them "
             .. "would sell. Take that part as the most they could fetch.",
     },
 }
-
--- Building blocks ---------------------------------------------------------------
 
 -- The list ---------------------------------------------------------------------------
 

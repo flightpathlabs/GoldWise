@@ -105,6 +105,9 @@ end
 ---        a loss
 ---@return table color  Theme.INCOME or Theme.SPENDING
 function Theme.SignedCoins(copper)
+    -- Rounded first, so a fraction of a copper under nothing isn't
+    -- written as a loss of none.
+    copper = math.floor(copper + 0.5)
     if copper < 0 then
         return "-" .. Theme.Coins(-copper), Theme.SPENDING
     end

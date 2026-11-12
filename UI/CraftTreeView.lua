@@ -34,11 +34,15 @@ local GOES_INTO_CAPTIONS = { "auction, each", "materials", "profit" }
 -- of each ingredient. The figures beside it are for that half, so the
 -- count has to say so too.
 local function HowMany(quantity)
-    local whole = math.floor(quantity + 0.5)
-    if math.abs(quantity - whole) < 0.01 then
-        return tostring(whole)
+    -- A recipe that makes a great many at a time can leave a step
+    -- wanting next to nothing of an ingredient.
+    if quantity < 0.05 then
+        return "under 0.1"
     end
-    return ("%.1f"):format(quantity)
+
+    -- To one place, and no ".0" on a whole number.
+    local text = ("%.1f"):format(quantity)
+    return (text:gsub("%.0$", ""))
 end
 
 -- A profit in green; a loss in red, with a minus sign.
@@ -115,10 +119,7 @@ local function IntoRow(product)
     return {
         itemID = product.itemID,
         depth = 1,
-        title = ("%s  |cffb9aa8c%s|r"):format(
-            ns.ItemLabel(product.itemID),
-            product.recipe.profession
-        ),
+        title = ns.ItemLabel(product.itemID) .. "  " .. Theme.Aside(product.recipe.profession),
         note = table.concat(notes, " "),
         figures = {
             product.price and Theme.Coins(product.price) or "",
@@ -189,7 +190,7 @@ local function Summary(tree)
     local first
     if tree.sells then
         local profit = tree.sells - outlay
-        first = ("%sBuy the materials for %s, make it and sell it: %s %s."):format(
+        first = ("%sBuy the materials for %s, make it and sell it: %s %s after the cut."):format(
             forHowMany,
             Theme.Coins(outlay),
             profit >= 0 and "a profit of" or "a loss of",
@@ -237,10 +238,6 @@ local function Summary(tree)
             )
         end
     end
-    if tree.sells then
-        table.insert(second, "Profit is after the auction house's cut.")
-    end
-
     return first, table.concat(second, " ")
 end
 
@@ -476,11 +473,12 @@ function CraftTreeView.Create(parent, onBack, onHistory)
     end)
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, list)
 
-    --- Shows the tree for an item. Asked for the item it's already on,
-    --- it keeps the way the player came, so Back still retraces it.
+    --- Shows the tree for an item, starting afresh: Back from here
+    --- leaves the page. Only when it's asked for the item already on show
+    --- does it keep the way the player came.
     ---@param itemID number
     function view:ShowItem(itemID)
-        if itemID ~= subject then
+        if itemID ~= subject or not self:IsShown() then
             subject = itemID
             table.wipe(trail)
         end
