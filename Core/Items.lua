@@ -13,9 +13,14 @@ local _, ns = ...
 -- Gather them into one redraw.
 local SETTLE_DELAY = 0.4
 
--- The client doesn't always answer. It gets this many seconds before it's
--- asked again, and this many askings before we stop waiting: a list that
--- waits for ever on one item is worse than a list without it.
+-- The client doesn't always answer. It gets this many seconds of silence
+-- before it's asked again, and this many askings before we stop waiting:
+-- a list that waits for ever on one item is worse than a list without it.
+--
+-- Silence, not time. Ask for a hundred items and the client works through
+-- them in its own time, which can be a good deal longer than this. While
+-- answers are still coming, the ones that haven't are only further back
+-- in the queue.
 local PATIENCE = 5
 local MOST_ASKS = 2
 
@@ -26,6 +31,9 @@ local awaited = {}
 -- Items the client couldn't give us. Not asked for again: asking on
 -- every redraw would never end.
 local unavailable = {}
+
+-- When the client last gave us any item we were waiting on.
+local lastArrival = 0
 
 local announcePending = false
 local watching = false
@@ -62,8 +70,9 @@ function Watch()
         if C_Item.GetItemNameByID(itemID) then
             -- It arrived without the event that should have said so.
             awaited[itemID] = nil
+            lastArrival = now
             changed = true
-        elseif now - wait.since < PATIENCE then
+        elseif now - math.max(wait.since, lastArrival) < PATIENCE then
             waiting = true
         elseif wait.asks < MOST_ASKS then
             wait.asks = wait.asks + 1
@@ -112,12 +121,21 @@ function ns.ItemName(itemID)
 end
 
 local function OnItemLoaded(itemID, success)
+    -- Given up on, and here after all. Whatever was drawn without it
+    -- will want to know.
+    if unavailable[itemID] and success and C_Item.GetItemNameByID(itemID) then
+        unavailable[itemID] = nil
+        Announce()
+        return
+    end
+
     -- This fires for every item anything in the game loads. Only the
     -- ones we asked for are ours to act on.
     if not awaited[itemID] then
         return
     end
     awaited[itemID] = nil
+    lastArrival = GetTime()
 
     -- Told it loaded, and still nameless: there's no name coming.
     if not success or not C_Item.GetItemNameByID(itemID) then
