@@ -3,9 +3,10 @@ local _, ns = ...
 -- Charts, drawn with the client's own lines and textures.
 --
 -- Three kinds: a sparkline small enough to sit in a list row, a price
--- chart on a parchment background with labelled axes, and a cash flow
--- chart of money in and out by day. All are meant to look like something
--- inked into a ledger: dark strokes on a light page, nothing glossy.
+-- chart with labelled axes, and a cash flow chart of money in and out by
+-- day. They are drawn to belong on the game's dark panels: a dark wash
+-- behind, thin light strokes on it, nothing glossy. Theme.lua has the
+-- colours.
 
 local Chart = {}
 ns.Chart = Chart
@@ -101,9 +102,7 @@ local MARGIN_BOTTOM = 22
 
 local function CreateLabel(chart, justify)
     local label = chart:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetTextColor(unpack(Theme.FADED_INK))
-    -- The stock fonts carry a dark shadow, which smears on a light page.
-    label:SetShadowOffset(0, 0)
+    label:SetTextColor(unpack(Theme.MUTED))
     label:SetJustifyH(justify)
     return label
 end
@@ -114,7 +113,7 @@ local function DayLabel(day)
     return date("!%d %b", day * ns.SECONDS_PER_DAY)
 end
 
---- Creates a price chart on a parchment background.
+--- Creates a price chart with labelled axes.
 ---@param parent table  frame
 ---@param width number
 ---@param height number
@@ -127,7 +126,7 @@ function Chart.Create(parent, width, height)
 
     local page = chart:CreateTexture(nil, "BACKGROUND")
     page:SetAllPoints()
-    page:SetColorTexture(unpack(Theme.PARCHMENT))
+    page:SetColorTexture(0, 0, 0, Theme.CHART_WASH)
 
     local plotWidth = width - MARGIN_LEFT - MARGIN_RIGHT
     local plotHeight = height - MARGIN_TOP - MARGIN_BOTTOM
@@ -145,7 +144,7 @@ function Chart.Create(parent, width, height)
     lastDayLabel:SetPoint("BOTTOMRIGHT", -MARGIN_RIGHT, 5)
 
     local usualLabel = CreateLabel(chart, "LEFT")
-    usualLabel:SetTextColor(unpack(Theme.RUST))
+    usualLabel:SetTextColor(unpack(Theme.CHART_USUAL))
 
     local emptyLabel = CreateLabel(chart, "CENTER")
     emptyLabel:SetPoint("CENTER")
@@ -154,7 +153,7 @@ function Chart.Create(parent, width, height)
     -- Marks the newest price.
     local dot = chart:CreateTexture(nil, "OVERLAY")
     dot:SetSize(6, 6)
-    dot:SetColorTexture(unpack(Theme.OXBLOOD))
+    dot:SetColorTexture(unpack(Theme.CHART_NEWEST))
 
     local function ShowEmpty(message)
         highLabel:SetText("")
@@ -202,12 +201,12 @@ function Chart.Create(parent, width, height)
         -- Frame the plot with a baseline and a faint top rule.
         local left, right = MARGIN_LEFT, MARGIN_LEFT + plotWidth
         local bottom, top = MARGIN_BOTTOM, MARGIN_BOTTOM + plotHeight
-        DrawLine(self, left, bottom, right, bottom, 1, Theme.FADED_INK)
-        DrawLine(self, left, top, right, top, 1, Theme.FADED_INK, 0.3)
+        DrawLine(self, left, bottom, right, bottom, 1, Theme.MUTED, 0.6)
+        DrawLine(self, left, top, right, top, 1, Theme.MUTED, 0.2)
 
         if usual then
             local _, y = Place(firstDay, usual)
-            DrawLine(self, left, y, right, y, 1, Theme.RUST, 0.8)
+            DrawLine(self, left, y, right, y, 1, Theme.CHART_USUAL, 0.8)
             usualLabel:ClearAllPoints()
             usualLabel:SetPoint("BOTTOMLEFT", self, "BOTTOMLEFT", left + 4, y + 2)
             usualLabel:SetText("usual " .. ns.Money(usual))
@@ -220,7 +219,7 @@ function Chart.Create(parent, width, height)
         for index, day in ipairs(history) do
             points[index] = { Place(day.day, day.last) }
         end
-        DrawPath(self, points, 2, Theme.INK)
+        DrawPath(self, points, 2, Theme.CHART_LINE)
 
         local newest = points[#points]
         dot:ClearAllPoints()
@@ -238,11 +237,9 @@ end
 
 -- Cash flow ----------------------------------------------------------------------
 
--- Ink for money coming in and money going out. They differ in lightness
--- as well as hue, and sit on opposite sides of a line, so nothing depends
--- on telling red from green.
-local INCOME_INK = { 0.22, 0.42, 0.18 }
-local SPENDING_INK = Theme.OXBLOOD
+-- Money coming in and money going out are drawn in Theme.INCOME and
+-- Theme.SPENDING. They differ in lightness as well as hue, and sit on
+-- opposite sides of a line, so nothing depends on telling red from green.
 
 -- Space left between one day's bar and the next.
 local BAR_GAP = 4
@@ -286,7 +283,7 @@ function Chart.CreateCashFlow(parent, width, height)
 
     local page = chart:CreateTexture(nil, "BACKGROUND")
     page:SetAllPoints()
-    page:SetColorTexture(unpack(Theme.PARCHMENT))
+    page:SetColorTexture(0, 0, 0, Theme.CHART_WASH)
 
     local plotWidth = width - MARGIN_LEFT - MARGIN_RIGHT
     local plotHeight = height - MARGIN_TOP - MARGIN_BOTTOM
@@ -297,11 +294,11 @@ function Chart.CreateCashFlow(parent, width, height)
 
     local incomeLabel = CreateLabel(chart, "RIGHT")
     incomeLabel:SetPoint("TOPRIGHT", chart, "TOPLEFT", MARGIN_LEFT - 6, -MARGIN_TOP + 5)
-    incomeLabel:SetTextColor(unpack(INCOME_INK))
+    incomeLabel:SetTextColor(unpack(Theme.INCOME))
 
     local spendingLabel = CreateLabel(chart, "RIGHT")
     spendingLabel:SetPoint("BOTTOMRIGHT", chart, "BOTTOMLEFT", MARGIN_LEFT - 6, MARGIN_BOTTOM - 5)
-    spendingLabel:SetTextColor(unpack(SPENDING_INK))
+    spendingLabel:SetTextColor(unpack(Theme.SPENDING))
 
     local firstDayLabel = CreateLabel(chart, "LEFT")
     firstDayLabel:SetPoint("BOTTOMLEFT", MARGIN_LEFT, 5)
@@ -359,15 +356,15 @@ function Chart.CreateCashFlow(parent, width, height)
             -- mistaken for a day not played.
             if day.income > 0 then
                 local rise = math.max(day.income / peak * reach, 1)
-                DrawBar(self, x, middle, barWidth, rise, INCOME_INK)
+                DrawBar(self, x, middle, barWidth, rise, Theme.INCOME)
             end
             if day.spending > 0 then
                 local drop = math.max(day.spending / peak * reach, 1)
-                DrawBar(self, x, middle - drop, barWidth, drop, SPENDING_INK)
+                DrawBar(self, x, middle - drop, barWidth, drop, Theme.SPENDING)
             end
         end
 
-        DrawLine(self, MARGIN_LEFT, middle, MARGIN_LEFT + plotWidth, middle, 1, Theme.FADED_INK)
+        DrawLine(self, MARGIN_LEFT, middle, MARGIN_LEFT + plotWidth, middle, 1, Theme.MUTED, 0.6)
 
         incomeLabel:SetText(ns.Money(peak))
         spendingLabel:SetText(ns.Money(peak))

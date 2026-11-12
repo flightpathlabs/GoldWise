@@ -11,12 +11,23 @@ ns.Theme = Theme
 
 -- Each colour is { red, green, blue } from 0 to 1, ready for unpack().
 Theme.COIN = { 0.88, 0.70, 0.24 }
-Theme.PARCHMENT = { 0.91, 0.85, 0.72 }
-Theme.INK = { 0.17, 0.13, 0.09 }
-Theme.FADED_INK = { 0.35, 0.27, 0.19 }
-Theme.RUST = { 0.54, 0.29, 0.11 }
-Theme.OXBLOOD = { 0.54, 0.10, 0.08 }
 Theme.MUTED = { 0.79, 0.73, 0.61 }
+
+-- Charts. They sit on the game's dark panels, so they're drawn the way
+-- the panels are: a dark wash for a background and light strokes on it,
+-- with gold for the line that matters.
+--
+-- The wash is black at CHART_WASH opacity, the same as the tiles on the
+-- Purse tab, so a chart reads as part of the panel it's on. The one under
+-- a tooltip floats over the game world with nothing behind it, and gets
+-- a solid colour instead.
+Theme.CHART_WASH = 0.35
+Theme.CHART_FLOATING = { 0.05, 0.05, 0.06 }
+Theme.CHART_LINE = Theme.COIN
+Theme.CHART_USUAL = { 0.62, 0.74, 0.88 } -- the level a price usually sits at
+Theme.CHART_NEWEST = { 1.00, 0.95, 0.80 } -- the dot on the latest price
+Theme.INCOME = { 0.49, 0.84, 0.42 }
+Theme.SPENDING = { 0.86, 0.38, 0.30 }
 
 -- One colour per verdict. They differ in brightness as well as hue, and
 -- every one is shown next to its word, so nothing depends on telling red

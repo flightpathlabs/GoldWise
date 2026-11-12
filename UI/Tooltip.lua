@@ -75,15 +75,21 @@ local function CreatePanel()
     frame:SetFrameStrata("TOOLTIP")
     frame:Hide()
 
+    -- Dark, like the tooltip it hangs under, with a hairline edge so it
+    -- reads as a panel of its own. It floats over the game world, so
+    -- unlike the charts in the window it has to be solid.
+    local edge = frame:CreateTexture(nil, "BACKGROUND", nil, -1)
+    edge:SetAllPoints()
+    edge:SetColorTexture(Theme.MUTED[1], Theme.MUTED[2], Theme.MUTED[3], 0.45)
+
     local page = frame:CreateTexture(nil, "BACKGROUND")
-    page:SetAllPoints()
-    page:SetColorTexture(unpack(Theme.PARCHMENT))
+    page:SetPoint("TOPLEFT", 1, -1)
+    page:SetPoint("BOTTOMRIGHT", -1, 1)
+    page:SetColorTexture(unpack(Theme.CHART_FLOATING))
 
     frame.Caption = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     frame.Caption:SetPoint("TOPLEFT", PADDING, -6)
-    frame.Caption:SetTextColor(unpack(Theme.FADED_INK))
-    -- The stock fonts carry a dark shadow, which smears on a light page.
-    frame.Caption:SetShadowOffset(0, 0)
+    frame.Caption:SetTextColor(unpack(Theme.MUTED))
 
     -- Hung from the top, so the credit line can be added underneath
     -- without moving it.
@@ -92,8 +98,7 @@ local function CreatePanel()
 
     frame.Credit = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     frame.Credit:SetPoint("BOTTOMLEFT", PADDING, 6)
-    frame.Credit:SetTextColor(unpack(Theme.FADED_INK))
-    frame.Credit:SetShadowOffset(0, 0)
+    frame.Credit:SetTextColor(unpack(Theme.MUTED))
     frame.Credit:SetText("Includes prices from the " .. FEED_CREDIT)
 
     return frame
@@ -115,7 +120,7 @@ local function ShowChart(tooltip, history, usesFeed)
 
     local low, high = ns.Stats.Range(history)
     panel.Caption:SetText(("%d days: %s to %s"):format(#history, ns.Money(low), ns.Money(high)))
-    panel.Trend:SetValues(values, Theme.INK)
+    panel.Trend:SetValues(values, Theme.CHART_LINE)
 
     -- Blizzard's terms ask that its data is credited where it's shown.
     local height = CHART_HEIGHT + (usesFeed and CREDIT_HEIGHT or 0)
