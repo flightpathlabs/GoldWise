@@ -8,6 +8,7 @@
 ## IconTexture: Interface\AddOns\Goldwise\Media\icon
 ## AddonCompartmentFunc: Goldwise_OnAddonCompartmentClick
 ## X-License: MIT
+## X-Curse-Project-ID: 1799775
 
 # Load order matters: each group only uses what the groups above it define.
 
