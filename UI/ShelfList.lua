@@ -142,6 +142,11 @@ local function FillRow(row, data)
     if data.count > 1 then
         name = ("%s  |cffb9aa8cx%d|r"):format(name, data.count)
     end
+    -- Where they are, if they aren't all to hand.
+    if (data.inBank or 0) > 0 and not data.owner then
+        name = data.inBank == data.count and ("%s  |cffb9aa8cin your bank|r"):format(name)
+            or ("%s  |cffb9aa8c%d in your bank|r"):format(name, data.inBank)
+    end
     -- Things another character holds say whose they are.
     if data.owner then
         name = ("%s  |cffb9aa8con %s|r"):format(name, data.owner)
@@ -242,27 +247,63 @@ function ShelfList.Create(parent, onSelect)
         local rows = {}
         local total = 0
 
-        local function Add(holding, owner)
-            local row = ns.Assets.Describe(holding, marketKey, owner)
-            table.insert(rows, row)
+        -- One row per item for each owner, however it's split between
+        -- their bags and their bank. The row says how many are banked.
+        local function AddAll(carried, banked, owner)
+            local byItem, order = {}, {}
 
-            if row.advice.verb == ns.Advice.SELL then
-                total = total + (row.advice.proceeds or 0)
+            local function Merge(holding, inBank)
+                local merged = byItem[holding.itemID]
+                if not merged then
+                    merged = {
+                        itemID = holding.itemID,
+                        name = holding.name,
+                        icon = holding.icon,
+                        quality = holding.quality,
+                        link = holding.link,
+                        count = 0,
+                        inBank = 0,
+                    }
+                    byItem[holding.itemID] = merged
+                    table.insert(order, merged)
+                end
+                merged.count = merged.count + holding.count
+                if inBank then
+                    merged.inBank = merged.inBank + holding.count
+                end
+            end
+
+            for _, holding in ipairs(carried) do
+                Merge(holding, false)
+            end
+            for _, holding in ipairs(banked) do
+                Merge(holding, true)
+            end
+
+            for _, holding in ipairs(order) do
+                local row = ns.Assets.Describe(holding, marketKey, owner)
+                row.inBank = holding.inBank
+                table.insert(rows, row)
+
+                if row.advice.verb == ns.Advice.SELL then
+                    total = total + (row.advice.proceeds or 0)
+                end
             end
         end
 
-        for _, holding in ipairs(ns.Bags.Holdings()) do
-            Add(holding)
-        end
+        local banked, bankSeenAt = ns.Bank.Holdings()
+        AddAll(ns.Bags.Holdings(), banked)
+
+        -- The bank every character shares is this character's to sell
+        -- from as much as anyone's.
+        AddAll({}, ns.Bank.AccountHoldings(), "the account bank")
 
         if everyone then
             -- Matched on home market, not the open auction house: at a
             -- neutral house nobody's home would match, and the list would
             -- quietly lose every other character.
             for _, character in ipairs(ns.Characters.Others(ns.Market.Home())) do
-                for _, holding in ipairs(character.holdings) do
-                    Add(holding, character.name)
-                end
+                AddAll(character.holdings, ns.Bank.Holdings(character.key), character.name)
             end
         end
         table.sort(rows, ByProceeds)
@@ -270,8 +311,17 @@ function ShelfList.Create(parent, onSelect)
         if everyone then
             about:SetText("Sellable things on all your characters, as of their last login")
             scope:SetText("This character")
+        elseif bankSeenAt then
+            about:SetText(
+                "Sellable things in your bags and bank (bank as of "
+                    .. ns.Ago(GetServerTime() - bankSeenAt)
+                    .. ")"
+            )
+            scope:SetText("All characters")
         else
-            about:SetText("Sellable things in your bags")
+            -- The bank can only be read while it's open, and it hasn't
+            -- been since Goldwise was installed.
+            about:SetText("Sellable things in your bags. Open your bank once to add what's in it.")
             scope:SetText("All characters")
         end
 

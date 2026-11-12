@@ -86,6 +86,7 @@ read_globals = {
     "C_TooltipInfo",
     "C_SpellBook",
     "C_Container",
+    "C_Bank",
     "TooltipUtil",
     "bit",
     "C_Spell",

@@ -46,6 +46,7 @@ Market\DeepScan.lua
 
 Profile\Bags.lua
 Profile\Characters.lua
+Profile\Bank.lua
 Profile\Professions.lua
 Profile\Purse.lua
 Profile\Directory.lua

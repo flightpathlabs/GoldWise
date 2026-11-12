@@ -93,8 +93,9 @@ end
 --- The player's other characters whose home market is the given one.
 ---@param marketKey string  normally Market.Home(), not the open auction
 ---        house: a neutral house is nobody's home
----@return table others  list of { name, money, seenAt, holdings }, where
----        holdings is a list shaped like Bags.Holdings()
+---@return table others  list of { key, name, money, seenAt, holdings },
+---        where holdings is a list shaped like Bags.Holdings() and key is
+---        what their other records, such as their bank, are filed under
 function Characters.Others(marketKey)
     local current = Characters.CurrentKey()
     local others = {}
@@ -114,6 +115,7 @@ function Characters.Others(marketKey)
             end
 
             table.insert(others, {
+                key = key,
                 name = record.name,
                 money = record.money,
                 seenAt = record.seenAt,

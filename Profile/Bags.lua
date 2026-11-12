@@ -21,9 +21,12 @@ local counts = {}
 
 local rescanPending = false
 
--- Soulbound things can't be sold, and grey items are vendor fodder that
--- other addons already handle well.
-local function IsWorthListing(item)
+--- Whether something in a bag or bank slot belongs on the list of things
+--- that could be sold. Soulbound things can't be, and grey items are
+--- vendor fodder that other addons already handle well.
+---@param item table  ContainerItemInfo, from C_Container.GetContainerItemInfo
+---@return boolean
+function Bags.IsWorthListing(item)
     -- Quality is missing until the client has loaded the item. Give it the
     -- benefit of the doubt, or things vanish from the list at login.
     local quality = item.quality or Enum.ItemQuality.Common
@@ -51,7 +54,7 @@ local function Rescan()
                 counts[item.itemID] = (counts[item.itemID] or 0) + item.stackCount
             end
 
-            if item and IsWorthListing(item) then
+            if item and Bags.IsWorthListing(item) then
                 local holding = holdings[item.itemID]
                 if holding then
                     holding.count = holding.count + item.stackCount
