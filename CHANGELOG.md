@@ -2,6 +2,15 @@
 
 What changed in each release of Goldwise, newest first.
 
+## 0.3.1 (11 November 2026)
+
+- Packaged the way CurseForge, Wago and addon managers expect, so it can
+  be installed and kept up to date from them once it's listed there.
+- Published as an ordinary release. Most addon managers hide anything
+  marked as a pre-release unless you ask for it, which would have hidden
+  Goldwise from nearly everyone. It is still a beta: expect rough edges.
+- Nothing in the addon itself has changed since 0.3.0-beta.
+
 ## 0.3.0-beta (11 November 2026)
 
 The first public beta. It was built and tested on one faction of one

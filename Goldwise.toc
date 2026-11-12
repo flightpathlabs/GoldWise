@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: Goldwise
 ## Notes: A clear guide to buying and selling. Tracks prices for what you carry and tells you what's worth doing with it.
-## Version: 0.3.0-beta
+## Version: 0.3.1
 ## Author: Flight Path Labs
 ## SavedVariables: GoldwiseDB
 ## OptionalDeps: GoldwisePrices

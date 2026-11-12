@@ -8,7 +8,8 @@ name: Release
 #   1. Set "## Version" in Goldwise.toc and add a section to CHANGELOG.md.
 #   2. Commit, then: git tag v<version> && git push origin main v<version>
 #
-# A tag with "beta" or "alpha" in it is published as that everywhere.
+# A tag with "beta" or "alpha" in it is published as that everywhere, and
+# most addon managers hide those from people who haven't asked for them.
 
 on:
   push:
