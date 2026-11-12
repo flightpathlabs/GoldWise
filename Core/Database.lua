@@ -155,6 +155,51 @@ function ns.Log(text, ...)
     end
 end
 
+-- Errors of our own, kept for bug reports. The same error tends to repeat,
+-- so each is kept once with a count.
+local ERROR_LIMIT = 20
+
+-- Whether the player has been told this session that something went wrong.
+local errorMentioned = false
+
+--- Notes an error raised by one of Goldwise's own handlers.
+---@param message string  the error text
+---@param stack string    where it happened
+function ns.NoteError(message, stack)
+    if not ns.db then
+        return
+    end
+
+    local errors = EnsureTable(ns.db, "errors")
+    message = tostring(message)
+
+    for _, known in ipairs(errors) do
+        if known.message == message then
+            known.count = known.count + 1
+            known.at = date("%m-%d %H:%M:%S")
+            return
+        end
+    end
+
+    table.insert(errors, {
+        message = message,
+        stack = stack,
+        count = 1,
+        at = date("%m-%d %H:%M:%S"),
+        version = C_AddOns.GetAddOnMetadata(addonName, "Version"),
+    })
+    while #errors > ERROR_LIMIT do
+        table.remove(errors, 1)
+    end
+
+    -- Once a session is enough. The game shows the error itself to
+    -- anyone who has asked to see them; this is for everyone else.
+    if not errorMentioned then
+        errorMentioned = true
+        ns.Print("Something went wrong inside Goldwise. Type /gw report to send in the details.")
+    end
+end
+
 --- Returns the saved data for one market, creating it on first use.
 ---@param marketKey string  from ns.Market
 ---@return table market  { tracked = {}, daily = {}, lastScan = number|nil }

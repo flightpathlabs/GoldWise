@@ -1,0 +1,34 @@
+name: An idea or a request
+description: Something Goldwise could do, or could do better.
+labels: ["idea"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like it to do?
+      description: Say it the way you'd say it to a friend. No need to know how it would work.
+      placeholder: Tell me when a fishing pool I can use is near where I'm standing.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: What would that help you with?
+      description: The problem behind the idea often suggests a better answer than the first one.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: play
+    attributes:
+      label: How do you mostly make your gold?
+      multiple: true
+      options:
+        - Gathering
+        - Crafting
+        - Buying and reselling
+        - Questing and selling what drops
+        - I'm mostly broke
+    validations:
+      required: false

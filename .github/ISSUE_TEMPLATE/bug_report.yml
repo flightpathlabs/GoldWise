@@ -1,0 +1,66 @@
+name: Something went wrong
+description: An error, a wrong number, or something that doesn't look right.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. The quickest way to a fix is the report
+        Goldwise writes for you: type `/gw report` in game, press Ctrl+C,
+        and paste it into the last box below.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you saw, and what you expected to see instead.
+      placeholder: The Purse tab says I have 3 skills waiting, but my trainer has nothing to teach me.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: What were you doing?
+      description: Where you were and what you clicked, if you remember. "It just appeared" is a fine answer.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Which part of Goldwise?
+      multiple: true
+      options:
+        - Assets
+        - Prospects
+        - Purse
+        - Places
+        - Recipes
+        - Tooltips or the chart under them
+        - Marks in bags or bank
+        - The panel on the auction house window
+        - The cards that pop up
+        - Minimap button or options
+        - Not sure
+    validations:
+      required: false
+
+  - type: textarea
+    id: report
+    attributes:
+      label: The report from /gw report
+      description: |
+        Paste the whole thing. It lists versions, your settings, any errors and a short log.
+        It has no character names, realm or gold in it, and you can read it before you send it.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: A screenshot, if it's something you can see
+      description: Drag the image into this box.
+    validations:
+      required: false

@@ -34,9 +34,20 @@ end
 -- the game's error display; it just doesn't take the handlers queued
 -- behind it down as well. Without this, one bad login handler would stop
 -- the options page, registered later in the same event, from existing.
+--
+-- A note of the failure is kept first, so that a bug report can carry it
+-- (see ns.NoteError in Database.lua and UI\Report.lua).
+local function OnError(message)
+    if ns.NoteError then
+        -- Keeping the note must never be what breaks.
+        pcall(ns.NoteError, message, debugstack(3, 12, 0))
+    end
+    return geterrorhandler()(message)
+end
+
 local function Dispatch(handlers, ...)
     for _, handler in ipairs(handlers) do
-        xpcall(handler, geterrorhandler(), ...)
+        xpcall(handler, OnError, ...)
     end
 end
 

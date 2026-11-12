@@ -128,6 +128,17 @@ local function Sections()
             },
         },
         {
+            heading = "Something wrong, or an idea?",
+            text = {
+                "Goldwise is a beta, and reports are how it gets better. Press Report a "
+                    .. "problem at the top of this page, or type /gw report. It gathers what's "
+                    .. "needed to track a fault down (versions, your settings, any errors and "
+                    .. "a short log) into a box you can copy, and tells you where to paste it. "
+                    .. "It includes no character names, realm or gold.",
+                "Ideas are welcome at the same address.",
+            },
+        },
+        {
             heading = "Thanks",
             text = {
                 "Class training prices, and the list of which vendors sell which recipes, "
@@ -235,6 +246,15 @@ local function AddMasthead(content)
         "It watches and advises. It never posts, buys or cancels anything for you.",
         "Type /gw to open it, or left-click the button on your minimap.",
     }, "\n\n"))
+
+    -- Level with the foot of the picture, where it's easy to find again.
+    local report = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+    report:SetSize(150, 22)
+    report:SetPoint("BOTTOMLEFT", mount, "BOTTOMRIGHT", SCENE_GAP, 0)
+    report:SetText("Report a problem")
+    report:SetScript("OnClick", function()
+        ns.ShowReport()
+    end)
 
     return mount
 end

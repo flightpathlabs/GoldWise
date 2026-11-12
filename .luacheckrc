@@ -87,6 +87,8 @@ read_globals = {
     "C_SpellBook",
     "C_Container",
     "C_Bank",
+    "debugstack",
+    "GetLocale",
     "C_MerchantFrame",
     "GetMerchantNumItems",
     "GetMerchantItemID",

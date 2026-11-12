@@ -84,4 +84,6 @@ UI\NextStep.lua
 UI\Tooltip.lua
 UI\ItemMarks.lua
 UI\Check.lua
+UI\Report.lua
+UI\Demo.lua
 UI\Settings.lua

@@ -32,7 +32,16 @@ local Network = {}
 ns.Network = Network
 
 local PREFIX = "Goldwise"
-local CHANNEL = "GoldwiseNet"
+-- Each market has a channel of its own. Prices on one are no use on
+-- another, and a channel shared by every faction and ruleset would carry
+-- several times the chatter to players who can use none of it.
+local CHANNEL_PREFIX = "Goldwise"
+
+-- The channel for the player's home market: "GoldwiseUSPvEAlliance".
+-- Channel names take letters and digits only.
+local function Channel()
+    return CHANNEL_PREFIX .. ns.Market.Home():gsub("%W", "")
+end
 
 -- First character of every message. Bumped if the format changes, so old
 -- and new versions ignore each other instead of misreading.
@@ -88,7 +97,7 @@ local turnedAway = false
 -- Sending -------------------------------------------------------------------------
 
 local function ChannelNumber()
-    local number = GetChannelName(CHANNEL)
+    local number = GetChannelName(Channel())
     return type(number) == "number" and number > 0 and number or nil
 end
 
@@ -335,7 +344,7 @@ end
 -- The same prefix can be whispered, or sent to a party or guild, by anyone
 -- who cares to. We only ever talk on our own channel, so only listen there.
 local function IsFromOurChannel(kind, localID, name)
-    return kind == "CHANNEL" and (localID == ChannelNumber() or name == CHANNEL)
+    return kind == "CHANNEL" and (localID == ChannelNumber() or name == Channel())
 end
 
 ns.OnEvent("CHAT_MSG_ADDON", function(prefix, text, kind, sender, _, _, localID, channelName)
@@ -384,27 +393,27 @@ end)
 -- only, so there would never be anything to read there.
 local function HideChannel()
     for window = 1, NUM_CHAT_WINDOWS or 10 do
-        pcall(RemoveChatWindowChannel, window, CHANNEL)
+        pcall(RemoveChatWindowChannel, window, Channel())
     end
 end
 
 local function UpdateMembership()
     if ns.settings.sharePrices then
         if not ChannelNumber() and not turnedAway then
-            JoinTemporaryChannel(CHANNEL)
+            JoinTemporaryChannel(Channel())
             -- The join is confirmed by a notice (below), which is the
             -- proper moment to hide the channel. This is for the day the
             -- notice doesn't come.
             C_Timer.After(2, HideChannel)
         end
     elseif ChannelNumber() then
-        LeaveChannelByName(CHANNEL)
+        LeaveChannelByName(Channel())
     end
 end
 
 -- The game tells us how joining went. The ninth value is the channel's name.
 ns.OnEvent("CHAT_MSG_CHANNEL_NOTICE", function(notice, _, _, _, _, _, _, _, channelName)
-    if type(channelName) ~= "string" or channelName:lower() ~= CHANNEL:lower() then
+    if type(channelName) ~= "string" or channelName:lower() ~= Channel():lower() then
         return
     end
 

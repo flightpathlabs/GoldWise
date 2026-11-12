@@ -470,6 +470,10 @@ SlashCmdList.GOLDWISE = function(message)
         ShowPointedAtItem()
     elseif command == "check" then
         ns.RunCheck()
+    elseif command == "report" or command == "bug" or command == "feedback" then
+        ns.ShowReport()
+    elseif command == "demo" then
+        ns.ToggleDemo()
     else
         ns.ToggleWindow()
     end
