@@ -34,34 +34,42 @@ local function Book()
     return ns.db.worth
 end
 
--- The days on record for the whole account, or for this character alone.
--- Each character's own were first kept a while after the account's, so
--- there can be fewer of them.
-local function Days(accountWide)
+-- The days on record. whose is true for the whole account, a character's
+-- key for theirs, or nothing for the one being played. Each character's
+-- own were first kept a while after the account's, so there can be fewer
+-- of them. Reading another character's never makes them a record.
+local function Days(whose)
     local book = Book()
-    if accountWide then
-        if type(book.days) ~= "table" then
-            book.days = {}
-        end
+    if type(book.days) ~= "table" then
+        book.days = {}
+    end
+    if whose == true then
         return book.days
     end
 
     if type(book.characters) ~= "table" then
         book.characters = {}
     end
-    local key = ns.Characters.CurrentKey()
-    if type(book.characters[key]) ~= "table" then
-        book.characters[key] = {}
+    local current = ns.Characters.CurrentKey()
+    if whose and whose ~= current then
+        return type(book.characters[whose]) == "table" and book.characters[whose] or {}
     end
-    return book.characters[key]
+
+    if type(book.characters[current]) ~= "table" then
+        -- Not copied from the account even when there is only one
+        -- character: the account's goods take in the shared bank and a
+        -- character's own don't, so the line would drop on the first day.
+        book.characters[current] = {}
+    end
+    return book.characters[current]
 end
 
 local function Count()
     countPending = false
 
     local today = ns.Ledger.Today()
-    for _, accountWide in ipairs({ true, false }) do
-        local days = Days(accountWide)
+    for _, whose in ipairs({ true, false }) do
+        local days = Days(whose)
         if not days[today] then
             -- A new day is as good a moment as any to drop the oldest.
             ns.Ledger.ForgetOldDays(days, ns.settings.historyDays)
@@ -101,14 +109,15 @@ ns.Subscribe("PRICES_CHANGED", CountSoon)
 --- stretch: before that nothing is known, which isn't the same as having
 --- nothing. A day with no record of its own carries the last one forward.
 ---@param numDays number  how far back to look, counting today
----@param accountWide boolean|nil  every character on this market and the
----        shared bank; this character's coin, bags and bank when not
+---@param whose boolean|string|nil  true for every character on this market
+---        and the shared bank; a character's key for their coin, bags and
+---        bank; nothing for the one being played
 ---@return table days       list of { day, coin, goods } in copper, oldest
 ---        first; empty if nothing is on record in the stretch
 ---@return number|nil firstDay  the day the list starts on
 ---@return number lastDay       today
-function Worth.Daily(numDays, accountWide)
-    local recorded = Days(accountWide)
+function Worth.Daily(numDays, whose)
+    local recorded = Days(whose)
     local today = ns.Ledger.Today()
 
     local firstDay

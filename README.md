@@ -168,8 +168,9 @@ you buy at auction counts against the auction house's line, whatever you
 bought it for.
 
 Purse and Profit start on the character you're playing. The button
-beside each tab's menu switches both to the whole account, where the
-sales list says which character made each sale.
+beside each tab's menu switches both to any of your other characters,
+or to the whole account, where the sales list says which character made
+each sale.
 
 ### Places: the nearest of everything
 

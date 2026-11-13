@@ -451,11 +451,13 @@ function PurseTab.Create(parent)
         flow:SetShown(not ns.settings.purseCoin)
         held:SetShown(ns.settings.purseCoin)
 
-        local accountWide = ns.settings.moneyAccountWide
+        local scope = Theme.MoneyWhose()
+        local accountWide = scope == true
         local owner = Theme.MoneyOwner():upper()
+        local emptyText = not accountWide and Theme.MoneyEmptyText() or nil
 
         if ns.settings.purseCoin then
-            local coin, first, last = ns.Purse.Coin(span.hours, span.count, accountWide)
+            local coin, first, last = ns.Purse.Coin(span.hours, span.count, scope)
             first = first or last
 
             flowHeading:SetText(
@@ -470,14 +472,15 @@ function PurseTab.Create(parent)
                 first,
                 last,
                 #coin == 1 and "One figure on record so far. The line starts as you play on."
+                    or emptyText
                     or "Nothing on record yet. Goldwise notes what you hold as you play.",
                 { fitted = true, firstLabel = Label(first), lastLabel = Label(last) }
             )
         else
-            local bars, first, last = ns.Purse.Flow(span.hours, span.count, accountWide)
+            local bars, first, last = ns.Purse.Flow(span.hours, span.count, scope)
 
             flowHeading:SetText(("CASH FLOW FOR %s, %s"):format(owner, span.heading))
-            flow:SetBars(bars, first, last, Label(first), Label(last))
+            flow:SetBars(bars, first, last, Label(first), Label(last), emptyText)
         end
     end
 
@@ -502,16 +505,26 @@ function PurseTab.Create(parent)
     --- Brings every figure on the tab up to date.
     function tab:Refresh()
         whose:Update()
-        local accountWide = ns.settings.moneyAccountWide
+        local scope = Theme.MoneyWhose()
+        local accountWide = scope == true
+        local someoneElse = Theme.MoneyIsSomeoneElse()
         local level = UnitLevel("player")
-        local income, spending, activeDays, biggest = ns.Purse.Averages(AVERAGE_DAYS, accountWide)
+        local income, spending, activeDays, biggest = ns.Purse.Averages(AVERAGE_DAYS, scope)
 
         -- The other figure goes underneath, so whichever is chosen, both
         -- can be seen.
         local own, everyone = GetMoney(), ns.Characters.TotalMoney()
-        local money = accountWide and everyone or own
+        local money = accountWide and everyone or ns.Characters.MoneyOf(scope)
         have.Figure:SetText(Theme.Coins(money))
-        if accountWide then
+        if someoneElse then
+            have.Note:SetText(
+                ("%s had this when last played; %s on %s"):format(
+                    Theme.MoneyOwner(),
+                    ns.Money(own),
+                    UnitName("player") or "this one"
+                )
+            )
+        elseif accountWide then
             have.Note:SetText(
                 ("across your characters, %s on %s"):format(
                     ns.Money(own),
@@ -530,14 +543,12 @@ function PurseTab.Create(parent)
         end
 
         if activeDays == 0 then
+            local nothing = accountWide and "Nothing recorded yet"
+                or ("Nothing for %s yet"):format(Theme.MoneyOwner())
             comingIn.Figure:SetText("-")
-            comingIn.Note:SetText(
-                accountWide and "Nothing recorded yet" or "Nothing for this character yet"
-            )
+            comingIn.Note:SetText(nothing)
             goingOut.Figure:SetText("-")
-            goingOut.Note:SetText(
-                accountWide and "Nothing recorded yet" or "Nothing for this character yet"
-            )
+            goingOut.Note:SetText(nothing)
         else
             local span = activeDays == 1 and "from one day of play so far"
                 or ("over your last %d days played"):format(activeDays)
@@ -576,8 +587,8 @@ function PurseTab.Create(parent)
         -- money the tab is showing: an alt's gold can't pay for training here
         -- until it's been sent over.
         local ownIncome, ownSpending = income, spending
-        if accountWide then
-            ownIncome, ownSpending = ns.Purse.Averages(AVERAGE_DAYS, false)
+        if accountWide or someoneElse then
+            ownIncome, ownSpending = ns.Purse.Averages(AVERAGE_DAYS)
         end
         verdict:SetText(Verdict(own, ownIncome, ownSpending, costs))
     end

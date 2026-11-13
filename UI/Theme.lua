@@ -147,6 +147,46 @@ function Theme.CreateTile(parent, label)
     return tile
 end
 
+-- Another character the money tabs are showing, by key. Only for this
+-- session: the saved choice is between the account and whoever is being
+-- played, so logging in on an alt shows the alt.
+local viewing
+
+--- Whose money the Purse and Profit tabs are showing, in the form their
+--- figures are asked for by: true for the whole account, or a
+--- character's key.
+---@return boolean|string
+function Theme.MoneyWhose()
+    if ns.settings.moneyAccountWide then
+        return true
+    end
+    return viewing or ns.Characters.CurrentKey()
+end
+
+--- Whether the money tabs are showing a character other than the one
+--- being played.
+---@return boolean
+function Theme.MoneyIsSomeoneElse()
+    return not ns.settings.moneyAccountWide and viewing ~= nil
+end
+
+-- A character as the menu and the headings name them: with their realm
+-- when it isn't the one being played on.
+local function CharacterLabel(character)
+    if character.realm ~= "" and character.realm ~= (GetRealmName() or "") then
+        return ("%s (%s)"):format(character.name, character.realm)
+    end
+    return character.name
+end
+
+local function FindCharacter(key)
+    for _, character in ipairs(ns.Characters.All()) do
+        if character.key == key then
+            return character
+        end
+    end
+end
+
 --- Whose money the Purse and Profit tabs are showing, in words for a
 --- heading: "Alia" or "your characters".
 ---@return string
@@ -154,55 +194,99 @@ function Theme.MoneyOwner()
     if ns.settings.moneyAccountWide then
         return "your characters"
     end
+    local character = viewing and FindCharacter(viewing)
+    if character then
+        return CharacterLabel(character)
+    end
     return UnitName("player") or "this character"
 end
 
+--- What the money tabs say when the character they're showing has
+--- nothing on record. Each character's own figures were only kept apart
+--- from 0.4.1 on, so an empty one usually has history under the account.
+---@return string|nil text  nil when that isn't so: when this is the only
+---        character, whose own record took over the account's
+function Theme.MoneyEmptyText()
+    if not viewing and ns.Characters.IsOnlyOne() then
+        return nil
+    end
+    return (
+        "Nothing on record for %s yet. Goldwise has kept each character's figures "
+        .. "apart since version 0.4.1; everything from before is under Whole account."
+    ):format(Theme.MoneyOwner())
+end
+
 --- Creates the button the money tabs share for choosing whose money they
---- show: this character's, which is where they start, or the whole
---- account's. The choice is one setting, so switching on one tab switches
---- both.
+--- show: the character being played, which is where they start, any
+--- other character on the account, or the whole account. The choice is
+--- shared, so switching on one tab switches both.
 ---@param parent table  frame
 ---@return table button  with :Update(), to bring its text up to date
 function Theme.CreateMoneyScopeButton(parent)
     local button = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     button:SetSize(140, 20)
 
-    local function Choose(accountWide)
+    local function Choose(accountWide, key)
         ns.settings.moneyAccountWide = accountWide
+        viewing = key
         ns.Publish("SETTINGS_CHANGED")
     end
 
     button:SetScript("OnClick", function(self)
         MenuUtil.CreateContextMenu(self, function(_, root)
+            root:SetScrollMode(400)
             root:CreateTitle("Whose money...")
-            root:CreateRadio(("%s only"):format(UnitName("player") or "This character"), function()
-                return not ns.settings.moneyAccountWide
-            end, function()
-                Choose(false)
-            end)
+
+            local current = ns.Characters.CurrentKey()
+            root:CreateRadio(
+                ("%s, playing now"):format(UnitName("player") or "This character"),
+                function()
+                    return not ns.settings.moneyAccountWide and not viewing
+                end,
+                function()
+                    Choose(false, nil)
+                end
+            )
+            for _, character in ipairs(ns.Characters.All()) do
+                if character.key ~= current then
+                    root:CreateRadio(CharacterLabel(character), function()
+                        return not ns.settings.moneyAccountWide and viewing == character.key
+                    end, function()
+                        Choose(false, character.key)
+                    end)
+                end
+            end
+
+            root:CreateDivider()
             root:CreateRadio("Whole account", function()
                 return ns.settings.moneyAccountWide
             end, function()
-                Choose(true)
+                Choose(true, nil)
             end)
         end)
     end)
+
+    -- Wide enough for the longest name, realm and all.
+    local MIN_WIDTH, PADDING = 140, 24
 
     function button:Update()
         if ns.settings.moneyAccountWide then
             self:SetText("Whole account")
         else
-            self:SetText(("%s only"):format(UnitName("player") or "This character"))
+            self:SetText(("%s only"):format(Theme.MoneyOwner()))
         end
+        self:SetWidth(math.max(MIN_WIDTH, self:GetFontString():GetStringWidth() + PADDING))
     end
 
     button:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText("Whose money")
         GameTooltip:AddLine(
-            "This character on their own, or every character on the account added "
-                .. "together. Each character's own figures start from when this "
-                .. "version of Goldwise first ran; the account's go back further.",
+            "The character you're playing, any of your others, or every character "
+                .. "on the account added together. Each character's own figures start "
+                .. "from when this version of Goldwise first ran, unless they're the "
+                .. "only one, who takes over everything; the account's go "
+                .. "back further.",
             1,
             1,
             1,

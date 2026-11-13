@@ -134,7 +134,7 @@ end
 -- purse leaves out days with nothing on record, and a line needs them all.
 local function OverallByDay(firstDay, lastDay)
     local byDay = {}
-    for _, day in ipairs((ns.Purse.Daily(DAYS, ns.settings.moneyAccountWide))) do
+    for _, day in ipairs((ns.Purse.Daily(DAYS, Theme.MoneyWhose()))) do
         byDay[day.day] = day.income - day.spending
     end
 
@@ -222,19 +222,27 @@ function ProfitTab.Create(parent)
     end)
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
 
+    local NO_TRADE = "Nothing sold or bought on record yet. Sales are counted when you take "
+        .. "the coin out of your mailbox, and purchases as you make them."
+
+    -- What to say when there's nothing to show: the usual words across the
+    -- account, and for a character, why their own record may be empty.
+    local function Nothing(usual)
+        if ns.settings.moneyAccountWide then
+            return usual
+        end
+        return Theme.MoneyEmptyText() or usual
+    end
+
     local empty = tab:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     empty:SetPoint("TOP", scrollBox, "TOP", 0, -30)
     empty:SetWidth(560)
     empty:SetTextColor(unpack(Theme.MUTED))
-    empty:SetText(
-        "Nothing sold or bought on record yet. Sales are counted when you take "
-            .. "the coin out of your mailbox, and purchases as you make them."
-    )
 
     -- Draws what the player is worth: one line for everything, and one
     -- for the coin alone, so the gap between them is the goods.
     local function DrawWorth()
-        local days, firstDay, lastDay = ns.Worth.Daily(DAYS, ns.settings.moneyAccountWide)
+        local days, firstDay, lastDay = ns.Worth.Daily(DAYS, Theme.MoneyWhose())
 
         local everything, coin = {}, {}
         for index, day in ipairs(days) do
@@ -250,13 +258,13 @@ function ProfitTab.Create(parent)
             firstDay or lastDay,
             lastDay,
             #days == 1 and "One day on record so far. The line starts tomorrow."
-                or "Nothing on record yet. Goldwise notes what you're worth as you play."
+                or Nothing("Nothing on record yet. Goldwise notes what you're worth as you play.")
         )
     end
 
     -- Draws how each day went, or how the days added up.
     local function DrawProfit(running)
-        local trade, firstDay, lastDay = ns.Trade.Daily(DAYS, ns.settings.moneyAccountWide)
+        local trade, firstDay, lastDay = ns.Trade.Daily(DAYS, Theme.MoneyWhose())
         local atAuction = {}
         for index, day in ipairs(trade) do
             atAuction[index] = day.net
@@ -278,7 +286,7 @@ function ProfitTab.Create(parent)
             },
             firstDay,
             lastDay,
-            "Nothing earned or spent on record yet. It starts with your next coin."
+            Nothing("Nothing earned or spent on record yet. It starts with your next coin.")
         )
     end
 
@@ -286,8 +294,8 @@ function ProfitTab.Create(parent)
     ---@return string footer  a line about what's on show, for the window
     function tab:Refresh()
         whose:Update()
-        local accountWide = ns.settings.moneyAccountWide
-        local totals = ns.Trade.Totals(DAYS, accountWide)
+        local scope = Theme.MoneyWhose()
+        local totals = ns.Trade.Totals(DAYS, scope)
 
         sold.Figure:SetText(Theme.Coins(totals.sold))
         if totals.sales == 0 then
@@ -325,7 +333,8 @@ function ProfitTab.Create(parent)
         about:SetText(words:format(Theme.MoneyOwner()))
         pick:SetText(chosen.label)
 
-        local recent = ns.Trade.Recent(accountWide)
+        local recent = ns.Trade.Recent(scope)
+        empty:SetText(Nothing(NO_TRADE))
         empty:SetShown(#recent == 0)
         scrollBox:SetDataProvider(
             CreateDataProvider(recent),

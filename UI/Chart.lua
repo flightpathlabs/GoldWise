@@ -463,7 +463,8 @@ end
 ---@param parent table  frame
 ---@param width number
 ---@param height number
----@return table chart  with :SetBars(bars, first, last, firstLabel, lastLabel)
+---@return table chart  with :SetBars(bars, first, last, firstLabel, lastLabel,
+---        emptyText)
 function Chart.CreateCashFlow(parent, width, height)
     local chart = CreateFrame("Frame", nil, parent)
     chart:SetSize(width, height)
@@ -513,7 +514,9 @@ function Chart.CreateCashFlow(parent, width, height)
     ---@param last number     the last, normally now
     ---@param firstLabel string  what to write under the left-hand end
     ---@param lastLabel string   and under the right
-    function chart:SetBars(bars, first, last, firstLabel, lastLabel)
+    ---@param emptyText string|nil  what to say when there are no bars, if
+    ---        not the usual
+    function chart:SetBars(bars, first, last, firstLabel, lastLabel, emptyText)
         ReleaseLines(self)
         ReleaseBars(self)
 
@@ -531,7 +534,7 @@ function Chart.CreateCashFlow(parent, width, height)
             lastDayLabel:SetText("")
             key:Hide()
             emptyLabel:SetText(
-                "Nothing earned or spent on record yet. It starts with your next coin."
+                emptyText or "Nothing earned or spent on record yet. It starts with your next coin."
             )
             emptyLabel:Show()
             return

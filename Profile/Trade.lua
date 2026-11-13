@@ -125,7 +125,11 @@ local function OwnBook()
     local key = ns.Characters.CurrentKey()
     local own = book.characters[key]
     if type(own) ~= "table" then
-        own = {}
+        -- Before characters were kept apart there was only the account's
+        -- record. On an account with one character, all of it is theirs.
+        own = ns.Characters.IsOnlyOne()
+                and { days = CopyTable(book.days), recent = CopyTable(book.recent) }
+            or {}
         book.characters[key] = own
     end
     if type(own.days) ~= "table" then
@@ -137,9 +141,21 @@ local function OwnBook()
     return own
 end
 
--- The record to read back: the account's, or this character's.
-local function BookFor(accountWide)
-    return accountWide and Book() or OwnBook()
+-- The record to read back. whose is true for the whole account, a
+-- character's key for theirs, or nothing for the one being played.
+-- Reading another character's never makes them a record.
+local function BookFor(whose)
+    if whose == true then
+        return Book()
+    end
+    if not whose or whose == ns.Characters.CurrentKey() then
+        return OwnBook()
+    end
+    local theirs = Book().characters and Book().characters[whose]
+    if type(theirs) ~= "table" then
+        return { days = {}, recent = {} }
+    end
+    return { days = theirs.days or {}, recent = theirs.recent or {} }
 end
 
 -- Recording --------------------------------------------------------------------
@@ -464,15 +480,16 @@ end
 
 --- What the auction house brought in and cost, for each day of a stretch.
 ---@param numDays number  how far back to look, counting today
----@param accountWide boolean|nil  the whole account's; this character's own when not
+---@param whose boolean|string|nil  true for the whole account, a character's
+---        key for theirs, nothing for the one being played
 ---@return table days       list, oldest first and with every day present,
 ---        of { day, sold, bought, deposits, net } in copper. sold is what
 ---        sales brought in after the cut; bought is less any bids that
 ---        were returned, and deposits less any handed back with a sale.
 ---@return number firstDay  the first day of the stretch
 ---@return number lastDay   the last: today
-function Trade.Daily(numDays, accountWide)
-    local recorded = BookFor(accountWide).days
+function Trade.Daily(numDays, whose)
+    local recorded = BookFor(whose).days
     local today = ns.Ledger.Today()
     local firstDay = today - numDays + 1
     local days = {}
@@ -492,11 +509,11 @@ end
 
 --- The same stretch, added up.
 ---@param numDays number
----@param accountWide boolean|nil
+---@param whose boolean|string|nil  as for Daily
 ---@return table totals  { sold, bought, deposits, cut, net, sales }, with
 ---        bought and deposits less what came back of them, as for Daily
-function Trade.Totals(numDays, accountWide)
-    local recorded = BookFor(accountWide).days
+function Trade.Totals(numDays, whose)
+    local recorded = BookFor(whose).days
     local today = ns.Ledger.Today()
     local totals = { sold = 0, bought = 0, deposits = 0, cut = 0, net = 0, sales = 0 }
 
@@ -537,13 +554,14 @@ function Trade.LastPaid(itemID)
 end
 
 --- The latest sales, purchases, bids and returned bids, newest first.
----@param accountWide boolean|nil  the whole account's; this character's own when not
+---@param whose boolean|string|nil  true for the whole account, a character's
+---        key for theirs, nothing for the one being played
 ---@return table entries  list of { at, kind, amount, itemID, name, count,
 ---        who }. who is the character's name, on entries since it was kept.
 ---        at is server time; itemID and name are each there only when
 ---        the game gave them.
-function Trade.Recent(accountWide)
-    local recent = BookFor(accountWide).recent
+function Trade.Recent(whose)
+    local recent = BookFor(whose).recent
     local entries = {}
     for index = #recent, 1, -1 do
         table.insert(entries, recent[index])

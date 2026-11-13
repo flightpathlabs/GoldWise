@@ -29,6 +29,19 @@ function Characters.CurrentKey()
     return ("%s-%s"):format(UnitName("player") or "?", GetRealmName() or "")
 end
 
+--- Whether this is the only character Goldwise has ever seen on the
+--- account. If so, everything the account has on record is theirs.
+---@return boolean
+function Characters.IsOnlyOne()
+    local current = Characters.CurrentKey()
+    for key in pairs(Roster()) do
+        if key ~= current then
+            return false
+        end
+    end
+    return true
+end
+
 local function Remember()
     local holdings = {}
     for _, holding in ipairs(ns.Bags.Holdings()) do
@@ -67,6 +80,46 @@ function Characters.TotalMoney()
         end
     end
     return total
+end
+
+--- Every character Goldwise has seen on the account, this one included,
+--- in order of name.
+---@return table characters  list of { key, name, realm, money }, where
+---        money is this character's now and the others' as of their last
+---        login
+function Characters.All()
+    local current = Characters.CurrentKey()
+    local characters = {}
+
+    for key, record in pairs(Roster()) do
+        local name = record.name or key:match("^[^-]+") or key
+        table.insert(characters, {
+            key = key,
+            name = name,
+            realm = key:sub(#name + 2),
+            money = key == current and GetMoney() or record.money,
+        })
+    end
+
+    table.sort(characters, function(a, b)
+        if a.name ~= b.name then
+            return a.name < b.name
+        end
+        return a.realm < b.realm
+    end)
+    return characters
+end
+
+--- What a character holds: the one being played as it stands now, any
+--- other as of their last login.
+---@param key string|nil  their key; nothing for the one being played
+---@return number copper
+function Characters.MoneyOf(key)
+    if not key or key == Characters.CurrentKey() then
+        return GetMoney()
+    end
+    local record = Roster()[key]
+    return record and record.money or 0
 end
 
 --- Which of the player's other characters carry an item, most first.
