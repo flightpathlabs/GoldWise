@@ -193,12 +193,24 @@ and where to buy each.
 
 ![The Recipes tab](docs/images/recipes.png)
 
+### The session tracker: how this sitting is going
+
+A small panel to keep on screen while you farm or trade. Turn it on with
+the **Session** button on the window's title bar, or `/gw session`. It
+shows what this session has made or lost in coin, how much more your bags
+are worth than when you started, the two together, and the rate an hour.
+Underneath is what your bags are worth, each thing counted the way
+Goldwise would sell it: at auction less the cut, or to a vendor. Drag it
+anywhere, right-click to lock it or start afresh, and click the pin in its
+corner for Places.
+
 ### It speaks up when it matters
 
 A few quiet cards, each once per visit and each with a switch in the
 options: when you arrive somewhere with an auction house and a visit would
 pay, when you open a merchant carrying things worth more at auction, and
-when a vendor nearby sells a recipe you could use.
+when a vendor nearby sells a recipe you could use. Drag a card to
+wherever you'd like them to appear.
 
 Or turn on **Auditor mode**, and the goblin delivers the same advice at
 full volume.
@@ -238,6 +250,7 @@ rather than guessing.
 | `/gw history` | Price history for the item you last pointed at |
 | `/gw tree` | Crafting tree for the item you last pointed at |
 | `/gw goal 50` | Save toward 50 gold. `/gw goal off` clears it |
+| `/gw session` | Show or hide the session tracker |
 | `/gw report` | Gather what a bug report needs, ready to copy |
 | `/gw demo` | Fill the charts with sample history, for screenshots |
 

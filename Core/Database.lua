@@ -116,6 +116,12 @@ local DEFAULT_SETTINGS = {
     -- this character's alone. One choice for both, so they can't disagree.
     moneyAccountWide = false,
 
+    -- The session tracker: whether it's on screen, and whether it's
+    -- pinned where it is. Where it is goes in sessionTrackerPoint, once
+    -- it's been moved.
+    sessionTracker = false,
+    sessionTrackerLocked = false,
+
     -- What an item's price history page draws: a place in the list in
     -- UI\ItemDetail.lua.
     historyView = 1,

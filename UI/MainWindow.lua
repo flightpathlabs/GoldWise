@@ -324,6 +324,49 @@ local function CreateOptionsButton(frame)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", GameTooltip_Hide)
+    return button
+end
+
+-- A button on the title bar, left of the cog, that puts the session
+-- tracker on screen or takes it off. It stays lit while the tracker is
+-- showing, so it says which way it'll go.
+local function CreateSessionButton(frame, beside)
+    local button = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    button:SetSize(74, 18)
+    button:SetPoint("RIGHT", beside, "LEFT", -6, 0)
+    button:SetFrameLevel(frame.CloseButton:GetFrameLevel())
+    button:SetText("Session")
+
+    local function Update()
+        if ns.SessionTrackerShown() then
+            button:LockHighlight()
+        else
+            button:UnlockHighlight()
+        end
+    end
+
+    button:SetScript("OnClick", function()
+        ns.ToggleSessionTracker()
+    end)
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Session tracker")
+        GameTooltip:AddLine(
+            ns.SessionTrackerShown() and "Click to take it off the screen."
+                or "Click for a small panel to keep on screen: what this session has "
+                    .. "earned or lost, and what your bags are worth at the prices "
+                    .. "Goldwise would sell them for. /gw session does the same.",
+            1,
+            1,
+            1,
+            true
+        )
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+
+    ns.Subscribe("SESSION_TRACKER_TOGGLED", Update)
+    Update()
 end
 
 local function CreateWindow()
@@ -333,7 +376,7 @@ local function CreateWindow()
     frame:SetTitle("Goldwise")
     frame:SetPortraitTextureRaw(Theme.PORTRAIT)
     CreatePortraitTooltip(frame)
-    CreateOptionsButton(frame)
+    CreateSessionButton(frame, CreateOptionsButton(frame))
     frame:Hide()
 
     frame:SetToplevel(true)
@@ -592,6 +635,8 @@ SlashCmdList.GOLDWISE = function(message)
         ns.RunCheck()
     elseif command == "report" or command == "bug" or command == "feedback" then
         ns.ShowReport()
+    elseif command == "session" or command == "tracker" then
+        ns.ToggleSessionTracker()
     elseif command == "demo" then
         ns.ToggleDemo()
     else

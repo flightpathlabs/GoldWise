@@ -13,6 +13,22 @@ the `dev` branch.
   mentioning that recipe; the card closes up and shows the next one. The
   recipe stays on the Recipes tab. The options page lists what you've
   dismissed and has a button to bring them all back.
+- **A session tracker.** A small panel to keep on screen while you play,
+  put there with the new Session button on the Goldwise window's title
+  bar, `/gw session`, or the options. It shows what this session has
+  earned or lost in coin, how much more or less your bags are worth than
+  when it began, the two together, and the rate an hour. Below that is
+  what your bags are worth, counted the way Goldwise would sell each
+  thing: at auction less the cut, or at a vendor's price. Drag it where
+  you like; right-click to lock it or start a new session. A reload, or
+  logging back in within a quarter of an hour, carries on the same
+  session. The pin in its corner opens Places, and pointing at it names
+  the nearest auction house, repairs, bank, flight master and inn.
+- **Goldwise's cards can be moved.** Drag the card that tells you about a
+  recipe for sale nearby, or any other, to wherever you'd like them to
+  appear, and they'll come up there from then on. Right-click one to put
+  it back. The options have a button that puts one out to place. A card
+  no longer puts itself away while you're pointing at it.
 - **A cog for the options.** The Goldwise window has a settings cog
   beside its close button.
 - **Any one character, or the whole account.** Purse and Profit now show

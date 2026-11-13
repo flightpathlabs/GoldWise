@@ -38,6 +38,39 @@ local shown = 0
 
 -- Building ------------------------------------------------------------------------
 
+-- Where the card goes. The player can drag it anywhere; it's kept by its
+-- top edge, so a taller card grows downward from where they put it.
+local function PlaceCard(frame)
+    frame:ClearAllPoints()
+    local saved = ns.settings.toastPoint
+    if type(saved) == "table" and saved.x and saved.top then
+        frame:SetPoint("TOP", UIParent, "BOTTOMLEFT", saved.x, saved.top)
+    else
+        frame:SetPoint("TOP", 0, -150)
+    end
+end
+
+local function SavePlace(frame)
+    local left, top, width = frame:GetLeft(), frame:GetTop(), frame:GetWidth()
+    if left and top then
+        ns.settings.toastPoint = { x = left + width / 2, top = top }
+    end
+end
+
+-- Dragging works from anywhere on the card that isn't a button: the
+-- rows pass a drag on to it.
+local function StartDrag()
+    card.dragging = true
+    GameTooltip_Hide()
+    card:StartMoving()
+end
+
+local function StopDrag()
+    card:StopMovingOrSizing()
+    card.dragging = false
+    SavePlace(card)
+    PlaceCard(card)
+end
 local function ShowItemTooltip(row)
     if row.link or row.itemID then
         GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
@@ -53,6 +86,9 @@ end
 local function CreateItemRow(parent)
     local row = CreateFrame("Frame", nil, parent)
     row:SetSize(WIDTH - 2 * PADDING, ROW_HEIGHT)
+    row:RegisterForDrag("LeftButton")
+    row:SetScript("OnDragStart", StartDrag)
+    row:SetScript("OnDragStop", StopDrag)
 
     row.Icon = row:CreateTexture(nil, "ARTWORK")
     row.Icon:SetSize(ICON_SIZE, ICON_SIZE)
@@ -115,10 +151,37 @@ end
 local function Create()
     local frame = CreateFrame("Frame", nil, UIParent, "TooltipBorderedFrameTemplate")
     frame:SetSize(WIDTH, 1)
-    frame:SetPoint("TOP", 0, -150)
+    PlaceCard(frame)
     -- High enough to be seen, low enough to sit under real dialogs.
     frame:SetFrameStrata("HIGH")
     frame:Hide()
+
+    frame:SetMovable(true)
+    frame:SetClampedToScreen(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", StartDrag)
+    frame:SetScript("OnDragStop", StopDrag)
+    -- A card can be put away mid-drag, when a fight starts. Let go of it
+    -- properly, or it would be thought to be held for good.
+    frame:SetScript("OnHide", function(self)
+        if self.dragging then
+            StopDrag()
+        end
+    end)
+    frame:SetScript("OnMouseUp", function(self, button)
+        if button == "RightButton" then
+            MenuUtil.CreateContextMenu(self, function(_, root)
+                root:CreateTitle("Goldwise's cards")
+                root:CreateButton("Put it back where it was", function()
+                    Toast.ResetPlace()
+                end)
+                root:CreateButton("Close", function()
+                    self:Hide()
+                end)
+            end)
+        end
+    end)
 
     -- The text is given its width outright. The card's height is worked
     -- out from how the text wraps, and text that takes its width from
@@ -152,6 +215,25 @@ local function Create()
     return frame
 end
 
+-- Seconds to look again when a card is due to go but the mouse is on it.
+local LINGER_MORE = 3
+
+-- Puts a card away after a while, unless it's been replaced. Not while
+-- the player is pointing at it or dragging it, though: that's someone
+-- reading it, or putting it where they want it.
+local function PutAwayLater(which, seconds)
+    C_Timer.After(seconds, function()
+        if shown ~= which or not card:IsShown() then
+            return
+        end
+        if card.dragging or card:IsMouseOver() then
+            PutAwayLater(which, LINGER_MORE)
+            return
+        end
+        card:Hide()
+    end)
+end
+
 -- Filling in ------------------------------------------------------------------------
 
 local function WireButton(button, definition)
@@ -162,7 +244,9 @@ local function WireButton(button, definition)
 
     button:SetText(definition.label)
     button:SetScript("OnClick", function()
-        card:Hide()
+        if not definition.keepOpen then
+            card:Hide()
+        end
         if definition.onClick then
             definition.onClick()
         end
@@ -239,7 +323,8 @@ end
 ---              A row with onDismiss gets a small X that calls it, and
 ---              dismissTip ({ title, line, ... }) is the X's tooltip.
 ---              Optional.
----   primary    { label, onClick } for the main button
+---   primary    { label, onClick, keepOpen } for the main button; the card
+---              closes when it's clicked unless keepOpen is set
 ---   secondary  { label, onClick } for the other button, optional
 ---@return number|nil card  for Toast.Update; nil if nothing was shown
 function Toast.Show(options)
@@ -258,12 +343,43 @@ function Toast.Show(options)
 
     shown = shown + 1
     local thisOne = shown
-    C_Timer.After(LINGER, function()
-        if shown == thisOne then
-            card:Hide()
-        end
-    end)
+    PutAwayLater(thisOne, LINGER)
     return thisOne
+end
+
+--- Shows a card that's only there to be moved, for the options page:
+--- it stays until it's closed, and says where the others will go.
+function Toast.ShowSample()
+    if InCombatLockdown() then
+        return
+    end
+    card = card or Create()
+    Fill({
+        title = "Goldwise's cards go here",
+        body = "Drag this card to wherever you'd like Goldwise to put its "
+            .. "suggestions, like a recipe for sale nearby. Right-click it to put "
+            .. "it back where it started.",
+        primary = { label = "Done" },
+        secondary = {
+            label = "Put it back",
+            -- So the player sees where it went.
+            keepOpen = true,
+            onClick = function()
+                Toast.ResetPlace()
+            end,
+        },
+    })
+    -- It's not one of the cards that put themselves away.
+    shown = shown + 1
+    card:Show()
+end
+
+--- Puts the card back where it first appeared, at the top of the screen.
+function Toast.ResetPlace()
+    ns.settings.toastPoint = nil
+    if card then
+        PlaceCard(card)
+    end
 end
 
 --- Redraws a card that's still up with new contents, as when one of its

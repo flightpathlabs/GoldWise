@@ -121,6 +121,8 @@ read_globals = {
     "Settings",
     "CreateSettingsButtonInitializer",
     "SettingsTooltip",
+    "SettingsPanel",
+    "HideUIPanel",
     "TooltipDataProcessor",
 
     -- Namespaced API

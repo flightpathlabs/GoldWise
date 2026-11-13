@@ -140,6 +140,27 @@ ns.OnEvent("PLAYER_LOGIN", function()
         end, IgnoredRecipesTooltip, true)
     )
 
+    -- Where those cards come up. A sample is put out to drag, with the
+    -- options out of the way so the screen can be seen.
+    layout:AddInitializer(
+        CreateSettingsButtonInitializer("Where cards appear", "Move them", function()
+            HideUIPanel(SettingsPanel)
+            ns.Toast.ShowSample()
+        end, function()
+            return "Puts out a card to drag where you'd like Goldwise's suggestions to "
+                .. "appear. You can also drag any card that comes up."
+        end, true)
+    )
+
+    AddCheckbox(
+        category,
+        "sessionTracker",
+        "Show the session tracker",
+        "A small panel to keep on screen: what this session has earned or lost, and what "
+            .. "your bags are worth at the prices Goldwise would sell them for. The Session "
+            .. "button on the Goldwise window and /gw session do the same."
+    )
+
     AddCheckbox(
         category,
         "vendorCheck",

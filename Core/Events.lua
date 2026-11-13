@@ -103,5 +103,7 @@ end
 --                                   or ns.LoadItem have arrived, or been
 --                                   given up on
 --   SETTINGS_CHANGED                the player changed an option
+--   SESSION_CHANGED                 the session tracker's figures moved
+--   SESSION_TRACKER_TOGGLED  shown  the session tracker was shown or hidden
 --
 -- PRICES_CHANGED also fires when another player shares prices with us.

@@ -15,7 +15,8 @@ ns.Assets = Assets
 ---@param marketKey string
 ---@param owner string|nil    the character holding it, if not the current one
 ---@return table asset  { itemID, owner, name, icon, quality, link, count,
----        price, listed, seenAt, source, trend, againstUsual, advice }
+---        price, vendorPrice, listed, seenAt, source, trend, againstUsual,
+---        advice }
 function Assets.Describe(holding, marketKey, owner)
     local itemID = holding.itemID
     local price, listed, seenAt, source = ns.Ledger.Price(marketKey, itemID)
@@ -64,6 +65,7 @@ function Assets.Describe(holding, marketKey, owner)
         link = holding.link,
         count = holding.count,
         price = price,
+        vendorPrice = vendorPrice,
         listed = listed,
         seenAt = seenAt,
         source = source,

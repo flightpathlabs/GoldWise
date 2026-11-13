@@ -54,6 +54,7 @@ Profile\Bank.lua
 Profile\Professions.lua
 Profile\Purse.lua
 Profile\Trade.lua
+Profile\Session.lua
 Profile\Directory.lua
 Profile\Training.lua
 Profile\Recipes.lua
@@ -88,6 +89,7 @@ UI\MainWindow.lua
 UI\ScanPanel.lua
 UI\MinimapButton.lua
 UI\Toast.lua
+UI\SessionTracker.lua
 UI\NextStep.lua
 UI\Tooltip.lua
 UI\ItemMarks.lua
