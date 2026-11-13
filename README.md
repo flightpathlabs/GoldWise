@@ -198,7 +198,8 @@ and where to buy each.
 A small panel to keep on screen while you farm or trade. Turn it on with
 the **Session tracker** button on the window's title bar, or `/gw session`. It
 shows what this session has made or lost in coin, how much more your bags
-are worth than when you started, the two together, and the rate an hour.
+are worth than when you started, and the two together. Its tooltip
+projects an hourly pace, once the session is ten minutes old.
 Underneath is what your bags are worth, each thing counted the way
 Goldwise would sell it: at auction less the cut, or to a vendor. Drag it
 anywhere, right-click to lock it or start afresh, and click the pin in its

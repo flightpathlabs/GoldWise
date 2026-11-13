@@ -24,7 +24,8 @@ local FOLDED_HEIGHT = 2 * PADDING + 14
 -- How often the clock on it moves on, in seconds.
 local TICK = 5
 
--- Before this long, an hourly rate is mostly noise.
+-- Before this long, an hourly rate is mostly noise, so the tooltip leaves
+-- it out.
 local RATE_AFTER_SECONDS = 10 * 60
 
 -- The places the pin's tooltip names, the nearest of each kind.
@@ -59,8 +60,8 @@ local SPENDING_LABELS = {
 }
 
 -- Where the breakdown's switch sits, and where its lines start when open.
-local BREAKDOWN_SWITCH = 8.75
-local BREAKDOWN_START = 10
+local BREAKDOWN_SWITCH = 7.75
+local BREAKDOWN_START = 9
 
 local tracker
 
@@ -306,6 +307,23 @@ local function ShowDetails(frame, opens)
     GameTooltip:SetText(("This session, %s"):format(Duration(summary.seconds)))
     GameTooltip:AddDoubleLine("Coin in", Theme.Coins(summary.earned), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Coin out", Theme.Coins(summary.spent), 1, 1, 1, 1, 1, 1)
+    if summary.seconds >= RATE_AFTER_SECONDS then
+        -- Kept to the tooltip and said in so many words: on the panel it
+        -- read as a total.
+        local overall = summary.overall or summary.coin
+        local text, color = Theme.SignedCoins(overall / summary.seconds * 3600)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddDoubleLine(
+            "Per hour, at this pace",
+            text,
+            1,
+            1,
+            1,
+            color[1],
+            color[2],
+            color[3]
+        )
+    end
     if summary.bags then
         GameTooltip:AddLine(" ")
         GameTooltip:AddDoubleLine("Bags at auction", Theme.Coins(summary.auction), 1, 1, 1, 1, 1, 1)
@@ -606,13 +624,13 @@ local function Create()
     frame.Goods = CreateLine(body, 2, "Change in bags")
     frame.Overall = CreateLine(body, 3, "Altogether", "GameFontNormal")
     frame.Overall.Figure:SetFontObject("GameFontHighlight")
-    frame.Rate = CreateLine(body, 4, "An hour")
-    frame.Bags = CreateLine(body, 5.5, "Bags worth")
-    frame.Auction = CreateLine(body, 6.5, "   at auction", "GameFontDisableSmall")
-    frame.Vendor = CreateLine(body, 7.5, "   to vendors", "GameFontDisableSmall")
+
+    frame.Bags = CreateLine(body, 4.5, "Bags worth")
+    frame.Auction = CreateLine(body, 5.5, "   at auction", "GameFontDisableSmall")
+    frame.Vendor = CreateLine(body, 6.5, "   to vendors", "GameFontDisableSmall")
 
     -- Each line opens where its figure comes from.
-    for _, line in ipairs({ frame.Coin, frame.Overall, frame.Rate }) do
+    for _, line in ipairs({ frame.Coin, frame.Overall }) do
         MakeClickable(frame, line, "your purse", OpenPurse)
     end
     for _, line in ipairs({ frame.Goods, frame.Bags, frame.Auction, frame.Vendor }) do
@@ -691,13 +709,6 @@ local function Create()
         SetSigned(self.Coin, summary.coin)
         SetSigned(self.Goods, summary.goods)
         SetSigned(self.Overall, overall)
-
-        if summary.seconds >= RATE_AFTER_SECONDS then
-            SetSigned(self.Rate, overall / summary.seconds * 3600)
-        else
-            self.Rate.Figure:SetText("after 10 minutes")
-            self.Rate.Figure:SetTextColor(unpack(Theme.MUTED))
-        end
 
         if summary.bags then
             self.Bags.Figure:SetText(Theme.Coins(summary.bags))

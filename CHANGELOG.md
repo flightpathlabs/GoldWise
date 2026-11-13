@@ -17,7 +17,7 @@ the `dev` branch.
   put there with the new Session tracker button on the Goldwise window's
   title bar, `/gw session`, or the options. It shows what this session has
   earned or lost in coin, how much more or less your bags are worth than
-  when it began, the two together, and the rate an hour. Below that is
+  when it began, and the two together. Below that is
   what your bags are worth, counted the way Goldwise would sell each
   thing: at auction less the cut, or at a vendor's price. "Coin in and
   out" opens a breakdown: looted, quest rewards, sold to vendors, auction
