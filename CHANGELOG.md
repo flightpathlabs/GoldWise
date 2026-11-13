@@ -4,6 +4,25 @@ What changed in each release of Goldwise, newest first. Work that hasn't
 been released yet is listed under "Unreleased" in the copy of this file on
 the `dev` branch.
 
+## Unreleased
+
+**New**
+
+- **Dismiss a recipe from the recipe card.** Each recipe on the "for
+  sale here" card has a small X beside it. Click it and Goldwise stops
+  mentioning that recipe; the card closes up and shows the next one. The
+  recipe stays on the Recipes tab. The options page lists what you've
+  dismissed and has a button to bring them all back.
+- **A cog for the options.** The Goldwise window has a settings cog
+  beside its close button.
+
+**Fixed**
+
+- **Recipes are named on the recipe card.** A recipe the game hadn't
+  fetched yet showed as "Recipe". It now shows the name of what it
+  teaches straight away, and the recipe's own name once the game has it.
+  The Recipes tab does the same.
+
 ## 0.4.0 (12 November 2026)
 
 **New**

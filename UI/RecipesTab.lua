@@ -129,13 +129,13 @@ end
 
 local function FillRow(row, recipe)
     -- Recipe items the player has never seen aren't known to the client
-    -- until it has fetched them. ns.ItemName asks, and the window redraws
+    -- until it has fetched them. Recipes.Name asks, and the window redraws
     -- this tab when the answer arrives.
-    local name = ns.ItemName(recipe.item)
+    local name = ns.Recipes.Name(recipe.item, recipe.spell)
 
     row.Stripe:SetShown(row:GetOrderIndex() % 2 == 0)
     row.Icon:SetTexture(C_Item.GetItemIconByID(recipe.item) or "Interface\\Icons\\INV_Scroll_03")
-    row.Name:SetText(Theme.ItemName(name or "Recipe", C_Item.GetItemQualityByID(recipe.item)))
+    row.Name:SetText(Theme.ItemName(name, C_Item.GetItemQualityByID(recipe.item)))
 
     local extras = ExtrasText(recipe)
     row.Detail:SetText(SkillText(recipe) .. (extras ~= "" and ("   " .. extras) or ""))

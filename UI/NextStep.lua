@@ -258,52 +258,48 @@ local RECIPE_DELAY = 6
 -- Once: after that the moment has passed.
 local RECIPE_RETRY = 30
 
--- How many seconds to wait for the names of the recipes a card will show.
-local NAME_WAITS = 4
-
 -- Zones we've already spoken up in this session. A recipe that wasn't
 -- wanted the first time through town isn't wanted the second.
 local recipesMentioned = {}
 
-local function CheckRecipes(isRetry, nameWaits)
-    if not ns.settings.recipePrompt or InCombatLockdown() then
+-- The recipe card while it's up: the card, the zone it's about, and the
+-- recipes it's about, first shown first. Kept so the card can be redrawn
+-- when a row is dismissed or a recipe's name arrives.
+local recipeCard
+
+local DISMISS_TIP = {
+    "Don't mention this one again",
+    "It stays on the Recipes tab. Goldwise's options can bring it back.",
+}
+
+local RecipeCardOptions
+
+-- The X on one of the card's rows: that recipe is dropped for good, and
+-- the card closes up, bringing on the next one if there are more.
+local function DismissRecipe(recipe)
+    ns.Recipes.Ignore(recipe)
+    if not recipeCard then
         return
     end
 
-    local zone = GetRealZoneText()
-    if not zone or zone == "" or recipesMentioned[zone] then
-        return
-    end
-
-    local forSale = ns.Recipes.ForSaleHere()
-    if #forSale == 0 then
-        return
-    end
-
-    -- A card can't be redrawn once it's up, and a recipe the player has
-    -- never seen has no name until the game fetches it. Ask, and give the
-    -- answers a few seconds to arrive before settling for "Recipe".
-    local unnamed = false
-    for index = 1, math.min(ns.Toast.MAX_ITEMS, #forSale) do
-        unnamed = unnamed or ns.ItemName(forSale[index].item) == nil
-    end
-    nameWaits = nameWaits or 0
-    if unnamed and nameWaits < NAME_WAITS then
-        C_Timer.After(1, function()
-            CheckRecipes(isRetry, nameWaits + 1)
-        end)
-        return
-    end
-
-    if ns.Toast.IsShowing() then
-        if not isRetry then
-            C_Timer.After(RECIPE_RETRY, function()
-                CheckRecipes(true)
-            end)
+    local remaining = {}
+    for _, other in ipairs(recipeCard.recipes) do
+        if other ~= recipe then
+            table.insert(remaining, other)
         end
-        return
     end
-    recipesMentioned[zone] = true
+    recipeCard.recipes = remaining
+
+    if #remaining == 0 then
+        ns.Toast.Hide()
+        recipeCard = nil
+    else
+        ns.Toast.Update(recipeCard.id, RecipeCardOptions())
+    end
+end
+
+function RecipeCardOptions()
+    local zone, forSale = recipeCard.zone, recipeCard.recipes
 
     local items = {}
     for index = 1, math.min(ns.Toast.MAX_ITEMS, #forSale) do
@@ -321,9 +317,13 @@ local function CheckRecipes(isRetry, nameWaits)
         items[index] = {
             itemID = recipe.item,
             icon = C_Item.GetItemIconByID(recipe.item),
-            name = ns.ItemName(recipe.item) or "Recipe",
+            name = ns.Recipes.Name(recipe.item, recipe.spell),
             quality = C_Item.GetItemQualityByID(recipe.item),
             detail = detail,
+            onDismiss = function()
+                DismissRecipe(recipe)
+            end,
+            dismissTip = DISMISS_TIP,
         }
     end
 
@@ -334,7 +334,7 @@ local function CheckRecipes(isRetry, nameWaits)
         body = body .. (" %d more are on the Recipes tab."):format(#forSale - #items)
     end
 
-    ns.Toast.Show({
+    return {
         title = ns.settings.auditorMode and "You are MISSING recipes" or "Recipes for sale here",
         body = body,
         items = items,
@@ -352,7 +352,51 @@ local function CheckRecipes(isRetry, nameWaits)
             end,
         },
         secondary = { label = "Not now" },
-    })
+    }
+end
+
+-- A recipe's name can arrive after the card is up. The card shows the
+-- spell's name until then, and swaps in the recipe's own when it comes.
+ns.Subscribe("ITEM_NAMES_LOADED", function()
+    if recipeCard and not ns.Toast.IsShowing() then
+        recipeCard = nil
+    elseif recipeCard then
+        ns.Toast.Update(recipeCard.id, RecipeCardOptions())
+    end
+end)
+
+local function CheckRecipes(isRetry)
+    if not ns.settings.recipePrompt or InCombatLockdown() then
+        return
+    end
+
+    local zone = GetRealZoneText()
+    if not zone or zone == "" or recipesMentioned[zone] then
+        return
+    end
+
+    local forSale = ns.Recipes.ForSaleHere()
+    if #forSale == 0 then
+        return
+    end
+
+    if ns.Toast.IsShowing() then
+        if not isRetry then
+            C_Timer.After(RECIPE_RETRY, function()
+                CheckRecipes(true)
+            end)
+        end
+        return
+    end
+    recipesMentioned[zone] = true
+
+    recipeCard = { zone = zone, recipes = forSale }
+    local shown = ns.Toast.Show(RecipeCardOptions())
+    if shown then
+        recipeCard.id = shown
+    else
+        recipeCard = nil
+    end
 end
 
 local function CheckRecipesSoon()

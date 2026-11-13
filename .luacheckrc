@@ -119,6 +119,8 @@ read_globals = {
     "Minimap",
     "ItemRefTooltip",
     "Settings",
+    "CreateSettingsButtonInitializer",
+    "SettingsTooltip",
     "TooltipDataProcessor",
 
     -- Namespaced API

@@ -288,6 +288,44 @@ local function CreatePortraitTooltip(frame)
     hover:SetScript("OnLeave", GameTooltip_Hide)
 end
 
+-- A small cog beside the close button that opens Goldwise's options, the
+-- one the game uses for settings on its own panels.
+local OPTIONS_SIZE = 16
+
+local function CreateOptionsButton(frame)
+    local button = CreateFrame("Button", nil, frame)
+    button:SetSize(OPTIONS_SIZE, OPTIONS_SIZE)
+    button:SetPoint("RIGHT", frame.CloseButton, "LEFT", -2, 0)
+    button:SetFrameLevel(frame.CloseButton:GetFrameLevel())
+
+    local cog = button:CreateTexture(nil, "ARTWORK")
+    cog:SetAtlas("questlog-icon-setting")
+    cog:SetAllPoints()
+
+    local glow = button:CreateTexture(nil, "HIGHLIGHT")
+    glow:SetAtlas("questlog-icon-setting")
+    glow:SetBlendMode("ADD")
+    glow:SetAlpha(0.4)
+    glow:SetAllPoints()
+
+    button:SetScript("OnClick", function()
+        ns.OpenOptions()
+    end)
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Options")
+        GameTooltip:AddLine(
+            "Prompts, tooltips, how prices are read, and the dismissed recipes.",
+            1,
+            1,
+            1,
+            true
+        )
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+end
+
 local function CreateWindow()
     local frame = CreateFrame("Frame", "GoldwiseWindow", UIParent, "ButtonFrameTemplate")
     frame:SetSize(WIDTH, HEIGHT)
@@ -295,6 +333,7 @@ local function CreateWindow()
     frame:SetTitle("Goldwise")
     frame:SetPortraitTextureRaw(Theme.PORTRAIT)
     CreatePortraitTooltip(frame)
+    CreateOptionsButton(frame)
     frame:Hide()
 
     frame:SetToplevel(true)

@@ -49,6 +49,29 @@ local function AddDropdown(category, key, label, tooltip, choices)
     end)
 end
 
+-- What the dismissed-recipes button says when the mouse is on it: the
+-- recipes themselves, so the player can see what they'd be bringing back.
+local MAX_NAMES_LISTED = 12
+
+local function IgnoredRecipesTooltip()
+    local names = ns.Recipes.IgnoredNames()
+    if #names == 0 then
+        return "None yet. Click the X beside a recipe on the recipe card and Goldwise "
+            .. "won't mention it again."
+    end
+
+    local listed = {}
+    for index = 1, math.min(#names, MAX_NAMES_LISTED) do
+        listed[index] = names[index]
+    end
+    if #names > MAX_NAMES_LISTED then
+        table.insert(listed, ("and %d more"):format(#names - MAX_NAMES_LISTED))
+    end
+    return ("Goldwise no longer mentions these:\n%s\n\nThey're still on the Recipes tab."):format(
+        table.concat(listed, "\n")
+    )
+end
+
 -- Our page, once it exists. Kept so it can be opened directly.
 local category
 
@@ -69,7 +92,8 @@ end
 -- Registered at login rather than when the addon loads, so the Options
 -- window has finished setting itself up.
 ns.OnEvent("PLAYER_LOGIN", function()
-    category = Settings.RegisterVerticalLayoutCategory("Goldwise")
+    local layout
+    category, layout = Settings.RegisterVerticalLayoutCategory("Goldwise")
 
     AddCheckbox(
         category,
@@ -92,7 +116,28 @@ ns.OnEvent("PLAYER_LOGIN", function()
         "recipePrompt",
         "Tell me when a vendor nearby sells a recipe I can use",
         "Once per zone each session, for recipes you haven't learned in the professions "
-            .. "you have, when your skill is high enough or nearly so."
+            .. "you have, when your skill is high enough or nearly so. The X beside a "
+            .. "recipe on that card stops it being mentioned again."
+    )
+
+    -- The recipes waved away with the X on the recipe card, and a way to
+    -- have them back. The tooltip lists them.
+    layout:AddInitializer(
+        CreateSettingsButtonInitializer("Recipes you've dismissed", "Bring them back", function()
+            -- The tooltip lists what's being brought back. Once it has
+            -- been, the list is out of date.
+            SettingsTooltip:Hide()
+            local count = ns.Recipes.ClearIgnored()
+            if count == 0 then
+                ns.Print("You haven't dismissed any recipes.")
+            else
+                ns.Print(
+                    "%d %s can be mentioned again.",
+                    count,
+                    count == 1 and "recipe" or "recipes"
+                )
+            end
+        end, IgnoredRecipesTooltip, true)
     )
 
     AddCheckbox(

@@ -135,14 +135,67 @@ function Recipes.Unlearned()
     return list
 end
 
+--- A recipe's name: the item's own ("Formula: Enchant Bracer - Minor
+--- Health") once the client has fetched it, and until then the name of the
+--- spell it teaches, which the client always has. The item is asked for,
+--- so whatever shows this gets told to redraw when its name arrives.
+---@param item number  the recipe's item ID
+---@param spell number|nil  the spell it teaches
+---@return string
+function Recipes.Name(item, spell)
+    return ns.ItemName(item) or (spell and C_Spell.GetSpellName(spell)) or "Recipe"
+end
+
+-- Recipes the player has dismissed from the recipe card, as item ID to the
+-- spell each teaches (kept for its name). They stay on the Recipes tab,
+-- which lists everything; they just aren't mentioned unasked any more.
+-- One list for the whole account: a recipe belongs to one profession, so
+-- it means the same to every character.
+local function Ignored()
+    if type(ns.db.ignoredRecipes) ~= "table" then
+        ns.db.ignoredRecipes = {}
+    end
+    return ns.db.ignoredRecipes
+end
+
+--- Stops a recipe being mentioned on the recipe card.
+---@param recipe table  one entry from Recipes.Unlearned
+function Recipes.Ignore(recipe)
+    Ignored()[recipe.item] = recipe.spell or true
+end
+
+--- The names of the recipes the player has dismissed.
+---@return table names  sorted list of strings
+function Recipes.IgnoredNames()
+    local names = {}
+    for item, spell in pairs(Ignored()) do
+        table.insert(names, Recipes.Name(item, type(spell) == "number" and spell or nil))
+    end
+    table.sort(names)
+    return names
+end
+
+--- Lets every dismissed recipe be mentioned again.
+---@return number count  how many there were
+function Recipes.ClearIgnored()
+    local count = 0
+    for _ in pairs(Ignored()) do
+        count = count + 1
+    end
+    ns.db.ignoredRecipes = {}
+    return count
+end
+
 --- The recipes worth mentioning unasked: on sale in the zone the player is
---- in, within reach of their skill, and not held back by reputation.
+--- in, within reach of their skill, not held back by reputation, and not
+--- dismissed.
 ---@return table recipes  as from Recipes.Unlearned
 function Recipes.ForSaleHere()
+    local ignored = Ignored()
     local forSale = {}
     for _, recipe in ipairs(Recipes.Unlearned()) do
         local withinReach = recipe.needed <= recipe.skill + WITHIN_REACH
-        if recipe.here and withinReach and not recipe.locked then
+        if recipe.here and withinReach and not recipe.locked and not ignored[recipe.item] then
             table.insert(forSale, recipe)
         end
     end
