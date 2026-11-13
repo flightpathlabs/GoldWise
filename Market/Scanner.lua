@@ -59,6 +59,13 @@ local lastSearch
 local heardFirstPage = false
 local heardEverything = false
 
+-- The pages of that search that have come in since and aren't on record
+-- yet: { marketKey, rows }. A search that runs to its end is filed whole,
+-- and these are dropped. One that's cut short, by the window closing or
+-- by another search, would otherwise leave us with its first page and
+-- nothing else, though thousands of prices went by. They're filed then.
+local unfiled
+
 -- Bumped each time the auction house opens, so a timer set on one visit
 -- can tell it has outlived it.
 local visit = 0
@@ -72,8 +79,16 @@ local function IsWholeMarket(query)
 end
 
 local function Stop(reason)
-    ns.Log("scan stopped after %d rows: %s", scan and math.max(scan.rows, 0) or 0, reason)
+    local stopped = scan
     scan = nil
+    ns.Log("scan stopped after %d rows: %s", stopped and math.max(stopped.rows, 0) or 0, reason)
+
+    -- A scan cut short has still read real prices, often thousands of
+    -- them. They go on record, just not as a picture of the whole market.
+    if stopped and stopped.heard and #stopped.heard > 0 then
+        ns.Ledger.RecordScan(stopped.marketKey, stopped.heard, false)
+    end
+
     ns.Publish("SCAN_STOPPED", reason)
 end
 
@@ -82,7 +97,22 @@ end
 -- automatic scan would wipe them out.
 local someoneSearched = false
 
+-- Puts on record whatever was heard of a search that has now ended
+-- without finishing.
+local function FileWhatWasHeard()
+    local heard = unfiled
+    unfiled = nil
+
+    if heard and #heard.rows > 0 then
+        ns.Log("overheard %d more rows of a search that stopped short", #heard.rows)
+        ns.Ledger.RecordScan(heard.marketKey, heard.rows, false)
+    end
+end
+
 local function NoteSearch(search)
+    -- Whatever was being listened to has just been replaced.
+    FileWhatWasHeard()
+
     lastSearch = search
     ns.Log(
         "search seen: %s%s%s",
@@ -204,6 +234,7 @@ local function OnOwnResults(rows, complete)
         return
     end
     scan.rows = #rows
+    scan.heard = rows
 
     -- Progress means whatever was dropped has been made good. Start the
     -- allowance afresh, so a long scan beside a chatty addon isn't ended
@@ -239,7 +270,9 @@ function Scanner.Start()
         return
     end
 
-    scan = { startedAt = GetTime(), rows = -1, retries = 0 }
+    -- The market is noted now: by the time a scan is cut short by the
+    -- window closing, there's no open auction house left to ask about.
+    scan = { startedAt = GetTime(), rows = -1, retries = 0, marketKey = ns.Market.Current() }
     ns.Log("scan started")
     ns.Publish("SCAN_STARTED")
     WatchForStall()
@@ -278,6 +311,11 @@ local function OnOverheardResults(complete)
     heardFirstPage = true
     heardEverything = complete
 
+    -- The whole list is about to go on record, the later pages with it.
+    if complete then
+        unfiled = nil
+    end
+
     -- Fetched only now that we know we want it. Another addon's scan of
     -- the whole market arrives a page at a time, and asking for the list
     -- so far on every page would mean building it dozens of times over.
@@ -311,7 +349,20 @@ local function OnBrowseResults()
 end
 
 ns.OnEvent("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", OnBrowseResults)
-ns.OnEvent("AUCTION_HOUSE_BROWSE_RESULTS_ADDED", OnBrowseResults)
+
+-- Each later page of a search comes with its own rows, so they can be
+-- kept as they arrive without asking for the whole list again.
+ns.OnEvent("AUCTION_HOUSE_BROWSE_RESULTS_ADDED", function(addedRows)
+    local overhearing = not (scan and scan.sent) and not (lastSearch and lastSearch.ours)
+    if overhearing and type(addedRows) == "table" and ns.Market.IsOpen() then
+        unfiled = unfiled or { marketKey = ns.Market.Current(), rows = {} }
+        for _, row in ipairs(addedRows) do
+            unfiled.rows[#unfiled.rows + 1] = row
+        end
+    end
+
+    OnBrowseResults()
+end)
 
 -- Looking at one item ------------------------------------------------------------------
 
@@ -476,6 +527,10 @@ ns.Subscribe("AUCTION_HOUSE_CLOSED", function()
     -- Reset here rather than on opening, so it doesn't matter whether
     -- Blizzard's window or Goldwise hears about the next opening first.
     someoneSearched = false
+
+    -- The player has walked away from a search another addon was still
+    -- running. What it had fetched by then is still worth having.
+    FileWhatWasHeard()
 
     if scan then
         Stop("The auction house closed before the scan finished.")
