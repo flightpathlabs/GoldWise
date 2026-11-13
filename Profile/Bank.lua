@@ -31,7 +31,7 @@ local function Vaults()
     return ns.db.banks
 end
 
--- Reading --------------------------------------------------------------------------------
+-- Reading ---------------------------------------------------------------------
 
 -- Goes through every tab the player has bought in one kind of bank.
 local function ReadTabs(bankType)
@@ -104,7 +104,7 @@ local function ScanSoon()
     end
 end
 
--- Reading it back --------------------------------------------------------------------
+-- Reading it back -------------------------------------------------------------
 
 -- A vault's sellable contents as a list shaped like Bags.Holdings().
 local function HoldingsOf(vault)

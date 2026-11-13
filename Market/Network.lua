@@ -88,13 +88,14 @@ local lastAnswered = -ANSWER_COOLDOWN
 local heardTimes = {}
 
 -- Answers we mean to send unless someone beats us to it, keyed by the
--- question: [marketKey|itemList] = { marketKey, wanted = { [itemID] = true } }.
+-- question: ["marketKey|itemList"] = { marketKey = ..., wanted = { [itemID] = true } },
+-- with the item IDs left as the text they arrived as.
 local pendingAnswers = {}
 
 -- Set if the channel turns us away, so we don't keep knocking.
 local turnedAway = false
 
--- Sending -------------------------------------------------------------------------
+-- Sending ---------------------------------------------------------------------
 
 local function ChannelNumber()
     local number = GetChannelName(Channel())
@@ -137,7 +138,7 @@ local function Send(text)
     return true
 end
 
--- Hearsay ---------------------------------------------------------------------------
+-- Hearsay ---------------------------------------------------------------------
 
 -- A market key off the wire could be anything. Only ones this account has
 -- actually dealt in are worth our attention, or a place in the saved file.
@@ -209,7 +210,7 @@ local function Remember(marketKey, scannedAt, entries)
     end
 end
 
--- Asking -----------------------------------------------------------------------------
+-- Asking ----------------------------------------------------------------------
 
 -- The items in the player's bags that we have no fresh price for.
 local function Wanted(marketKey)
@@ -248,7 +249,7 @@ local function Ask()
     end
 end
 
--- Answering ------------------------------------------------------------------------
+-- Answering -------------------------------------------------------------------
 
 local function Answer(marketKey, itemList)
     local now = GetServerTime()
@@ -334,7 +335,7 @@ local function StandDown(marketKey, entries)
     end
 end
 
--- Listening ---------------------------------------------------------------------------
+-- Listening -------------------------------------------------------------------
 
 local function IsOurs(sender)
     -- The sender arrives as "Name" or "Name-Realm" depending on the client.
@@ -387,7 +388,7 @@ ns.OnEvent("CHAT_MSG_ADDON", function(prefix, text, kind, sender, _, _, localID,
     end
 end)
 
--- Joining and leaving ------------------------------------------------------------------
+-- Joining and leaving ---------------------------------------------------------
 
 -- Keeps the channel out of every chat window. It carries addon messages
 -- only, so there would never be anything to read there.

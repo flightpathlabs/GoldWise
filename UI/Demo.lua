@@ -28,7 +28,7 @@ local function Wobble(seed)
     end
 end
 
--- Prices ------------------------------------------------------------------------------
+-- Prices ----------------------------------------------------------------------
 
 -- A history that ends at the item's real price, having wandered there: a
 -- slow swell and a daily jitter.
@@ -97,7 +97,7 @@ local function InventedReadings(marketKey, itemID, numDays)
     return readings
 end
 
--- The purse ---------------------------------------------------------------------------
+-- The purse -------------------------------------------------------------------
 
 -- Income and spending for someone of the player's level, over a run of
 -- stretches of time, with the odd one off.
@@ -109,6 +109,8 @@ local function InventedFlow(hoursEach, count)
 
     local flow = {}
     for at = first, last do
+        -- All three are drawn every time, so a day's figures don't depend
+        -- on which days before it were left out.
         local played = random() > 0.15
         local income = math.floor(scale * (0.4 + random() * 1.4))
         local spending = math.floor(scale * (0.15 + random() * 0.9))
@@ -129,8 +131,8 @@ local function InventedCoin(hoursEach, count, whose)
         change[stretch.at] = stretch.income - stretch.spending
     end
 
-    local coin, held =
-        {}, whose == true and ns.Characters.TotalMoney() or ns.Characters.MoneyOf(whose)
+    local held = whose == true and ns.Characters.TotalMoney() or ns.Characters.MoneyOf(whose)
+    local coin = {}
     for at = last, first, -1 do
         coin[at - first + 1] = math.max(held, 0)
         held = held - (change[at] or 0)
@@ -162,7 +164,7 @@ local function InventedAverages(numDays)
     return income / #days, spending / #days, #days, "vendor"
 end
 
--- Switching ---------------------------------------------------------------------------
+-- Switching -------------------------------------------------------------------
 
 local function Redraw()
     ns.Publish("PRICES_CHANGED", ns.Market.Current())

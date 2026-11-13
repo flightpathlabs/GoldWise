@@ -23,7 +23,7 @@ local WHERE_WIDTH = 200
 local MAP_RIGHT = 10
 local WHERE_RIGHT = 84
 
--- Rows --------------------------------------------------------------------------
+-- Rows ------------------------------------------------------------------------
 
 local function CreateRowWidgets(row)
     row.created = true
@@ -118,7 +118,7 @@ local function FillRow(row, data)
     end
 end
 
--- Gathering the rows ---------------------------------------------------------------
+-- Gathering the rows ----------------------------------------------------------
 
 local function Place(label, kind)
     local spot, yards = Directory.Nearest(kind)
@@ -173,7 +173,7 @@ local function Rows()
     return rows
 end
 
--- The tab ------------------------------------------------------------------------------
+-- The tab ---------------------------------------------------------------------
 
 --- Creates the Places tab. It starts hidden and fills its parent.
 ---@param parent table  frame to fill

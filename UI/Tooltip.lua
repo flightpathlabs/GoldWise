@@ -35,7 +35,7 @@ local CREDIT_HEIGHT = 13
 -- Short enough for a tooltip. The full name is on the item's own page.
 local FEED_CREDIT = "Blizzard API"
 
--- Looking up -------------------------------------------------------------------
+-- Looking up ------------------------------------------------------------------
 
 -- A tooltip is rebuilt several times a second while the mouse rests on an
 -- item, so remember the answer for the last item asked about.
@@ -86,7 +86,7 @@ function ns.PointedAtItem()
     return pointedAt.itemID, pointedAt.link
 end
 
--- The chart under the tooltip -------------------------------------------------------
+-- The chart under the tooltip -------------------------------------------------
 
 local panel
 
@@ -201,7 +201,7 @@ end
 GameTooltip:HookScript("OnHide", HideChart)
 GameTooltip:HookScript("OnTooltipCleared", HideChartSoon)
 
--- Who holds it ------------------------------------------------------------------------
+-- Who holds it ----------------------------------------------------------------
 
 -- Names listed before the rest are summed up as "and N more".
 local MAX_HOLDERS_NAMED = 3
@@ -236,12 +236,11 @@ local function HeldText(itemID)
     return ("%d: %s"):format(total, table.concat(parts, ", "))
 end
 
--- The price line ----------------------------------------------------------------------
+-- The price line --------------------------------------------------------------
 
 -- A price or a list of holders that another addon is already showing would
 -- only be clutter coming from us as well. Companions.lua knows who shows
 -- what. The chart is ours alone, so it's never held back.
-
 local function OnItemTooltip(tooltip, data)
     -- Saved data loads a moment after the first tooltips can appear.
     local settings = ns.settings
@@ -318,12 +317,9 @@ local function OnItemTooltip(tooltip, data)
     -- from: there's nothing else to say the tree is there.
     local treeClick = settings.tooltipTree and ns.Shortcuts.TreeClickHint()
     if treeClick and ns.CraftTree.Has(itemID) then
-        local muted = Theme.MUTED
         tooltip:AddLine(
             ("%s: %s for its crafting tree"):format(OURS, treeClick),
-            muted[1],
-            muted[2],
-            muted[3]
+            unpack(Theme.MUTED)
         )
     end
 

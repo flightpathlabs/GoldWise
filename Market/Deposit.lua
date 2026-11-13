@@ -71,7 +71,7 @@ function Deposit.Estimate(vendorValue, marketKey, duration)
     return math.max(KnownFloor(marketKey), math.floor(vendorValue * rate + 0.5))
 end
 
--- Measuring ---------------------------------------------------------------------
+-- Measuring -------------------------------------------------------------------
 
 -- What the game would ask to list some of an item, or nil if it won't say.
 local function Ask(location, itemID, isCommodity, duration, quantity)

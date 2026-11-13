@@ -35,7 +35,7 @@ local MOST_NOT_WORTH = 4
 -- Ingredients named per line before the rest are counted.
 local INGREDIENTS_NAMED = 3
 
--- The sums -------------------------------------------------------------------------
+-- The sums --------------------------------------------------------------------
 
 -- What one of an ingredient is worth to the player, and whether that's an
 -- auction price. Something with an auction price costs what it would
@@ -77,7 +77,8 @@ local function Assess(recipe, marketKey, cut)
         end
     end
 
-    -- Made entirely of vendor goods: one batch, bought in.
+    -- Made entirely of vendor goods. Nothing the player holds goes into
+    -- it, so it's weighed as something to buy the materials for.
     if batches == math.huge then
         batches = 0
     end
@@ -94,7 +95,7 @@ local function Assess(recipe, marketKey, cut)
     }
 end
 
--- Saying it ------------------------------------------------------------------------
+-- Saying it -------------------------------------------------------------------
 
 -- "20 Copper Ore, 2 Coarse Stone", for however many batches.
 local function IngredientsText(recipe, batches)
@@ -154,7 +155,7 @@ local function NotWorthStep(assessed)
     }
 end
 
--- The plan ------------------------------------------------------------------------------
+-- The plan --------------------------------------------------------------------
 
 --- Lays out what's worth making, from what the player holds and from
 --- what they could buy.

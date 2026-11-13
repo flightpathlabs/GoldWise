@@ -1,7 +1,7 @@
 local _, ns = ...
 
 -- Where things are: trainers, auction houses, repairers, banks, flight
--- masters and inns, and which of each is nearest.
+-- masters, inns and stables, and which of each is nearest.
 --
 -- There are two ways of knowing.
 --
@@ -19,7 +19,7 @@ local _, ns = ...
 local Directory = {}
 ns.Directory = Directory
 
--- Kinds of place ------------------------------------------------------------------
+-- Kinds of place --------------------------------------------------------------
 
 Directory.AUCTION = "auction"
 Directory.REPAIR = "repair"
@@ -94,7 +94,7 @@ function Directory.ClassTrainerKind()
     return "class:" .. (class or "UNKNOWN")
 end
 
--- What we know --------------------------------------------------------------------
+-- What we know ----------------------------------------------------------------
 
 -- Seconds after login before we go looking for Questie, and between tries
 -- while its database is still loading.
@@ -208,7 +208,7 @@ function Directory.On(kind, mapID, suits)
     end
 end
 
--- How far ---------------------------------------------------------------------------
+-- How far ---------------------------------------------------------------------
 
 -- Map positions are fractions of a map, and maps come in all sizes. To
 -- compare places on different maps they're turned into the world's own
@@ -306,7 +306,7 @@ function Directory.HasQuestie()
     return next(fromQuestie) ~= nil
 end
 
--- The right trainer -----------------------------------------------------------------
+-- The right trainer -----------------------------------------------------------
 
 -- A trainer's title. A visit made before titles were noted has none of
 -- its own, but Questie may know the same person.
@@ -397,7 +397,7 @@ function Directory.TrainerOn(profession, skill, mapID)
     return Directory.On(Directory.ProfessionKind(profession), mapID, suits)
 end
 
--- Learning from visits -------------------------------------------------------------
+-- Learning from visits --------------------------------------------------------
 
 ns.Subscribe("AUCTION_HOUSE_OPENED", function()
     Directory.NoteHere(Directory.AUCTION)
@@ -434,7 +434,7 @@ ns.OnEvent("TRAINER_SHOW", function()
     end
 end)
 
--- Reading Questie ----------------------------------------------------------------------
+-- Reading Questie -------------------------------------------------------------
 
 -- Questie's NPC database and its table of zones, once they've loaded.
 -- These are Questie's own modules, not an interface it promises to keep,
@@ -469,6 +469,18 @@ local function ContainsAny(text, fragments)
         end
     end
     return false
+end
+
+-- Where an NPC stands in one area of the world, from Questie's spawns,
+-- which are { [areaID] = { { x, y }, ... } } in hundredths of the zone's
+-- map. Someone who walks a route has every step of it listed; the first
+-- is as good a place to look as any.
+local function SpawnIn(zones, areaID, points)
+    local mapID = zones:GetUiMapIdByAreaId(areaID)
+    local point = points[1]
+    if mapID and point and point[1] and point[1] >= 0 then
+        return mapID, point[1] / 100, point[2] / 100
+    end
 end
 
 -- The kinds of place a trainer with this title stands for.
@@ -548,20 +560,16 @@ local function ReadQuestie(npcs, zones)
             return
         end
 
-        -- Spawns are { [areaID] = { { x, y }, ... } }, in hundredths of
-        -- the zone's map. Someone who walks a route has every step of it
-        -- listed; the first is as good a place to look as any.
         local name = npcs.QueryNPCSingle(npcID, "name")
         for areaID, points in pairs(npcs.QueryNPCSingle(npcID, "spawns") or {}) do
-            local mapID = zones:GetUiMapIdByAreaId(areaID)
-            local point = points[1]
-            if mapID and point and point[1] and point[1] >= 0 then
+            local mapID, x, y = SpawnIn(zones, areaID, points)
+            if mapID then
                 for _, kind in ipairs(kinds) do
                     read[kind] = read[kind] or {}
                     table.insert(read[kind], {
                         mapID = mapID,
-                        x = point[1] / 100,
-                        y = point[2] / 100,
+                        x = x,
+                        y = y,
                         name = name,
                         title = title,
                     })
@@ -615,10 +623,9 @@ function Directory.FindNPC(npcID)
         local ok, spot = pcall(function()
             local name = questieNPCs.QueryNPCSingle(npcID, "name")
             for areaID, points in pairs(questieNPCs.QueryNPCSingle(npcID, "spawns") or {}) do
-                local mapID = questieZones:GetUiMapIdByAreaId(areaID)
-                local point = points[1]
-                if mapID and point and point[1] and point[1] >= 0 then
-                    return { mapID = mapID, x = point[1] / 100, y = point[2] / 100, name = name }
+                local mapID, x, y = SpawnIn(questieZones, areaID, points)
+                if mapID then
+                    return { mapID = mapID, x = x, y = y, name = name }
                 end
             end
         end)

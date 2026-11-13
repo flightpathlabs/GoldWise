@@ -27,7 +27,7 @@ local FIGURES_RIGHT = 10
 local MADE_FROM_CAPTIONS = { "auction, each", "to buy", "to make" }
 local GOES_INTO_CAPTIONS = { "auction, each", "materials", "profit" }
 
--- Words --------------------------------------------------------------------------
+-- Words -----------------------------------------------------------------------
 
 -- How many of something a step takes, as words. A recipe that makes
 -- two at a time leaves the step above wanting half a batch, and so half
@@ -50,7 +50,7 @@ local function ProfitText(amount)
     return Theme.Tint(Theme.SignedCoins(amount))
 end
 
--- Rows --------------------------------------------------------------------------
+-- Rows ------------------------------------------------------------------------
 
 -- One ingredient: how many, what they cost bought and made, and which of
 -- those is the better deal.
@@ -241,7 +241,7 @@ local function Summary(tree)
     return first, table.concat(second, " ")
 end
 
--- Drawing a row --------------------------------------------------------------------
+-- Drawing a row ---------------------------------------------------------------
 
 local function CreateRowWidgets(row, onPick)
     row.created = true
@@ -347,7 +347,7 @@ local function FillRow(row, data)
     row.Note:SetText(data.note or "")
 end
 
--- The page ------------------------------------------------------------------------------
+-- The page --------------------------------------------------------------------
 
 --- Creates the crafting tree page. It starts hidden and fills its parent.
 ---@param parent table            frame to fill
@@ -399,7 +399,7 @@ function CraftTreeView.Create(parent, onBack, onHistory)
     notes:SetPoint("RIGHT", -16, 0)
     notes:SetJustifyH("LEFT")
     notes:SetJustifyV("TOP")
-    -- Up to four short sentences, which is more than one line holds.
+    -- Up to three short sentences, which is more than one line holds.
     notes:SetWordWrap(true)
     notes:SetMaxLines(2)
     notes:SetTextColor(unpack(Theme.MUTED))

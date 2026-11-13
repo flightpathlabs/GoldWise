@@ -27,8 +27,10 @@ local DISMISS_SIZE = 16
 -- a glance. The caller says where the rest can be found.
 Toast.MAX_ITEMS = 4
 
--- Seconds before an ignored card puts itself away.
+-- Seconds before an ignored card puts itself away, and to look again when
+-- it's due to go but the mouse is on it.
 local LINGER = 25
+local LINGER_MORE = 3
 
 local card
 
@@ -36,7 +38,7 @@ local card
 -- been replaced and leave the new one alone.
 local shown = 0
 
--- Building ------------------------------------------------------------------------
+-- Building --------------------------------------------------------------------
 
 -- Where the card goes. The player can drag it anywhere; it's kept by its
 -- top edge, so a taller card grows downward from where they put it.
@@ -71,6 +73,7 @@ local function StopDrag()
     SavePlace(card)
     PlaceCard(card)
 end
+
 local function ShowItemTooltip(row)
     if row.link or row.itemID then
         GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
@@ -215,9 +218,6 @@ local function Create()
     return frame
 end
 
--- Seconds to look again when a card is due to go but the mouse is on it.
-local LINGER_MORE = 3
-
 -- Puts a card away after a while, unless it's been replaced. Not while
 -- the player is pointing at it or dragging it, though: that's someone
 -- reading it, or putting it where they want it.
@@ -234,7 +234,7 @@ local function PutAwayLater(which, seconds)
     end)
 end
 
--- Filling in ------------------------------------------------------------------------
+-- Filling in ------------------------------------------------------------------
 
 local function WireButton(button, definition)
     button:SetShown(definition ~= nil)
@@ -269,12 +269,12 @@ local function FillItemRow(row, item)
     local dismissable = item.onDismiss ~= nil
     row.Dismiss:SetShown(dismissable)
     row.Dismiss.Icon:SetAlpha(0.5)
-    local edge, offset = row, 0
+    local edge, edgePoint, offset = row, "RIGHT", 0
     if dismissable then
-        edge, offset = row.Dismiss, -4
+        edge, edgePoint, offset = row.Dismiss, "LEFT", -4
     end
-    row.Name:SetPoint("RIGHT", edge, dismissable and "LEFT" or "RIGHT", offset, 0)
-    row.Detail:SetPoint("RIGHT", edge, dismissable and "LEFT" or "RIGHT", offset, 0)
+    row.Name:SetPoint("RIGHT", edge, edgePoint, offset, 0)
+    row.Detail:SetPoint("RIGHT", edge, edgePoint, offset, 0)
 end
 
 -- Puts what a card says into it, and sizes it to fit.
@@ -325,7 +325,7 @@ end
 ---              Optional.
 ---   primary    { label, onClick, keepOpen } for the main button; the card
 ---              closes when it's clicked unless keepOpen is set
----   secondary  { label, onClick } for the other button, optional
+---   secondary  the same for the other button, optional
 ---@return number|nil card  for Toast.Update; nil if nothing was shown
 function Toast.Show(options)
     -- Nothing we have to say is worth a pop-up in the middle of a fight.
@@ -342,9 +342,8 @@ function Toast.Show(options)
     end
 
     shown = shown + 1
-    local thisOne = shown
-    PutAwayLater(thisOne, LINGER)
-    return thisOne
+    PutAwayLater(shown, LINGER)
+    return shown
 end
 
 --- Shows a card that's only there to be moved, for the options page:
@@ -369,7 +368,8 @@ function Toast.ShowSample()
             end,
         },
     })
-    -- It's not one of the cards that put themselves away.
+    -- It's not one of the cards that put themselves away. Counting it
+    -- stops the timer of the card it replaces, and it's given none.
     shown = shown + 1
     card:Show()
 end

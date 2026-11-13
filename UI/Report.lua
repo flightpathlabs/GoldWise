@@ -33,7 +33,7 @@ local COMPANIONS = {
     "Details",
 }
 
--- Gathering the facts -----------------------------------------------------------------
+-- Gathering the facts ---------------------------------------------------------
 
 local function Count(list)
     local count = 0
@@ -148,7 +148,7 @@ local function ReportText()
     return table.concat(lines, "\n")
 end
 
--- The window ------------------------------------------------------------------------------
+-- The window ------------------------------------------------------------------
 
 -- How far down the header runs: two lines of instruction and the address.
 local HEADER_HEIGHT = 92

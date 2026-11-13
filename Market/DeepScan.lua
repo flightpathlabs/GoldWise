@@ -70,8 +70,8 @@ function DeepScan.IsRunning()
 end
 
 --- Whether a deep scan could start: the auction house is open, nothing
---- else is scanning, the player hasn't switched it off, and the cooldown
---- has passed.
+--- else is scanning or on its way, the player hasn't switched it off, and
+--- the cooldown has passed.
 ---@return boolean
 function DeepScan.IsAvailable()
     if not ns.settings.deepScan or not ns.Market.IsOpen() or ns.Scanner.IsScanning() then
@@ -113,7 +113,7 @@ local function GiveUp(reason)
     end
 end
 
--- Working through the list -----------------------------------------------------
+-- Working through the list ----------------------------------------------------
 
 -- Turns an item's individual lots into its few cheapest price levels.
 local function SummariseLots(lots)
@@ -282,7 +282,7 @@ ns.OnEvent("REPLICATE_ITEM_LIST_UPDATE", function()
     ExamineBatch()
 end)
 
--- Starting ---------------------------------------------------------------------------
+-- Starting --------------------------------------------------------------------
 
 --- Starts a deep scan, if one is available.
 ---@param onNoAnswer fun()|nil  called if the auction house never replies,
@@ -330,7 +330,7 @@ function DeepScan.Start(onNoAnswer)
     end)
 end
 
--- Another addon asking -----------------------------------------------------------------
+-- Another addon asking --------------------------------------------------------
 
 -- A post-hook sees the request the moment it's made, whoever made it. The
 -- answer can take a quarter of a minute, and knowing it's coming is what

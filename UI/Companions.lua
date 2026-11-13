@@ -88,9 +88,9 @@ function Companions.AuctionatorPrice(itemID)
 end
 
 --- Whether another addon is putting an auction price on item tooltips.
----@param itemID number|nil  the item in question. An addon that's there
----        but has no price for this one isn't showing one, and where it
----        can be asked, it is.
+---@param itemID number|nil  the item in question. An addon that's loaded
+---        but has no price for it isn't showing one, so Auctionator, the
+---        one that can be asked, is asked about it.
 ---@return boolean
 function Companions.ShowsTooltipPrices(itemID)
     for _, name in ipairs(PRICE_ADDONS) do

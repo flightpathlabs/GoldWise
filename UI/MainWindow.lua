@@ -212,7 +212,7 @@ local function ShowTab(index)
     Refresh()
 end
 
--- Back from an item's page to whichever list it was opened from.
+-- Back from an item's page or the crafting tree to the tab underneath.
 local function ShowCurrentTab()
     ShowTab(currentTab)
 end
@@ -290,11 +290,9 @@ end
 
 -- A small cog beside the close button that opens Goldwise's options, the
 -- one the game uses for settings on its own panels.
-local OPTIONS_SIZE = 16
-
 local function CreateOptionsButton(frame)
     local button = CreateFrame("Button", nil, frame)
-    button:SetSize(OPTIONS_SIZE, OPTIONS_SIZE)
+    button:SetSize(16, 16)
     button:SetPoint("RIGHT", frame.CloseButton, "LEFT", -2, 0)
     button:SetFrameLevel(frame.CloseButton:GetFrameLevel())
 
@@ -526,7 +524,7 @@ local function ShowPointedAtTree()
     end
 end
 
--- Keeping it current -----------------------------------------------------------------
+-- Keeping it current ----------------------------------------------------------
 
 ns.Subscribe("SCAN_STARTED", function()
     scanProgress, scanTotal = nil, nil
@@ -589,7 +587,7 @@ ns.Subscribe("PLACES_CHANGED", function()
     end
 end)
 
--- Ways in -----------------------------------------------------------------------------
+-- Ways in ---------------------------------------------------------------------
 
 -- More gold than this isn't a goal, it's a typo (or "inf", which Lua will
 -- happily read as a number).

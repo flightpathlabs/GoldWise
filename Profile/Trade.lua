@@ -94,8 +94,9 @@ local function IsRefund(sender, subject)
 end
 
 -- Coin we've been given reason to expect, oldest first:
--- { kind, amount, at, itemID, name, count, cut }. Two queues, because
--- what's on its way in can't be confused with what's on its way out.
+-- { kind, amount, at, itemID, name, count, cut, deposit }. Two queues,
+-- because what's on its way in can't be confused with what's on its way
+-- out.
 local arriving, leaving = {}, {}
 
 local function Book()
@@ -151,14 +152,15 @@ local function BookFor(whose)
     if not whose or whose == ns.Characters.CurrentKey() then
         return OwnBook()
     end
-    local theirs = Book().characters and Book().characters[whose]
+    local characters = Book().characters
+    local theirs = characters and characters[whose]
     if type(theirs) ~= "table" then
         return { days = {}, recent = {} }
     end
     return { days = theirs.days or {}, recent = theirs.recent or {} }
 end
 
--- Recording --------------------------------------------------------------------
+-- Recording -------------------------------------------------------------------
 
 -- Today's totals in a book: sold, bought, deposits, refunds and cut in
 -- copper, and how many sales.
@@ -174,9 +176,10 @@ local function TodayIn(book)
         ns.Ledger.ForgetOldDays(days, ns.settings.historyDays)
 
         local oldest = GetServerTime() - ns.settings.historyDays * ns.SECONDS_PER_DAY
-        for itemID, paid in pairs(Book().paid) do
-            if paid.at < oldest then
-                Book().paid[itemID] = nil
+        local paid = Book().paid
+        for itemID, last in pairs(paid) do
+            if last.at < oldest then
+                paid[itemID] = nil
             end
         end
     end
@@ -218,18 +221,14 @@ local function File(kind, amount, expected)
         end
     end
 
-    if kind == Trade.PURCHASE or kind == Trade.BID then
-        -- What the player paid for a thing is worth knowing the next time
-        -- they wonder whether to sell it. Only where the game said what
-        -- was bought and how many, and only once it's theirs: a bid can
-        -- still come back.
-        local bought = kind == Trade.PURCHASE
-        if bought and expected.itemID and (expected.count or 0) > 0 then
-            Book().paid[expected.itemID] = {
-                each = amount / expected.count,
-                at = GetServerTime(),
-            }
-        end
+    -- What the player paid for a thing is worth knowing the next time they
+    -- wonder whether to sell it. Only where the game said what was bought
+    -- and how many, and only once it's theirs: a bid can still come back.
+    if kind == Trade.PURCHASE and expected.itemID and (expected.count or 0) > 0 then
+        Book().paid[expected.itemID] = {
+            each = amount / expected.count,
+            at = GetServerTime(),
+        }
     end
 
     -- Deposits are left off the list: one for every listing would bury
@@ -252,7 +251,7 @@ local function File(kind, amount, expected)
     ns.Publish("TRADE_CHANGED", kind, amount)
 end
 
--- Expecting ----------------------------------------------------------------------
+-- Expecting -------------------------------------------------------------------
 
 local function Expect(queue, expected)
     expected.at = GetTime()
@@ -369,7 +368,7 @@ for name, onAsk in pairs(ASKS) do
     end
 end
 
--- Matching ------------------------------------------------------------------------
+-- Matching --------------------------------------------------------------------
 
 -- Coin has arrived at the mailbox. It's only ours to file when it's
 -- exactly what a letter was expected to hold: the sum of one letter, or
@@ -440,18 +439,18 @@ local function OnCoinSpent(amount)
     File(expected and expected.kind or Trade.PURCHASE, amount, expected)
 end
 
-ns.Subscribe("MONEY_MOVED", function(delta, context)
+ns.Subscribe("MONEY_MOVED", function(delta, category)
     -- Coin from a letter can land a moment after the mailbox is closed,
     -- so what matters is whether a letter's coin is expected, not where
     -- the player is standing. Only an exact sum is ever taken for it.
     if delta > 0 then
         OnCoinArrived(delta)
-    elseif delta < 0 and context == "auction" then
+    elseif delta < 0 and category == "auction" then
         OnCoinSpent(-delta)
     end
 end)
 
--- Reading it back -----------------------------------------------------------------
+-- Reading it back -------------------------------------------------------------
 
 -- What a day came to. Sales arrive with the cut already taken, so the
 -- things to take off are what was bought (less any bids returned) and

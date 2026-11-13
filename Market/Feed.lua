@@ -15,8 +15,8 @@ local _, ns = ...
 -- built on a feed price says where it came from. Feed.SOURCE is the
 -- wording to use.
 --
--- Goldwise works without the feed. Every function here returns nothing
--- when it isn't installed.
+-- Goldwise works without the feed. When it isn't installed, every lookup
+-- here comes back empty.
 
 local Feed = {}
 ns.Feed = Feed
@@ -38,8 +38,8 @@ local KNOWN_HOUSES = {
 -- comparing a house's prices with what they saw in game: a PvP house in
 -- America and one in Europe, and Europe's PvE Horde house. The rest of
 -- each row follows from Blizzard's numbering, which runs PvP then PvE
--- within each faction. Oceanic players are in the American region and share its
--- houses.
+-- within each faction. Oceanic players are in the American region and
+-- share its houses.
 --
 -- Being second-hand, they only stand until the player's own scan has
 -- picked a house (see Learn below), and that pick wins if it differs.
@@ -112,7 +112,7 @@ local function HouseData(marketKey)
     return GoldwisePricesData and GoldwisePricesData[houseKey]
 end
 
--- Reading one item ------------------------------------------------------------------
+-- Reading one item ------------------------------------------------------------
 
 -- An item in the feed is ",<itemID>:<price>.<price>...:<quantity>": one
 -- price slot per day from the house's firstDay to its lastDay, empty where
@@ -210,7 +210,7 @@ function Feed.UpdatedAt(marketKey)
     return data and data.updated
 end
 
--- Working out which house is ours -----------------------------------------------------
+-- Working out which house is ours ---------------------------------------------
 
 -- The feed lists every house in the region but can't say which ruleset
 -- each belongs to. We don't need it to: after a full scan we know what

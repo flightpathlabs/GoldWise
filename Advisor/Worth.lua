@@ -1,9 +1,9 @@
 local _, ns = ...
 
 -- What the player is worth, day by day: their coin, and the goods they
--- hold at what those are listed for. Kept for this character alone, and
--- for the account, which counts only the characters who trade in this
--- one's auction house, for both.
+-- hold at what those are listed for. There's a record for each character
+-- and one for the account, which counts only the characters who trade in
+-- this one's auction house.
 --
 -- Profit says how each day went. This says where it has all got to, which
 -- is the figure that tells someone whether a month of playing the market

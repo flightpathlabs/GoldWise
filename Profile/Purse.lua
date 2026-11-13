@@ -46,22 +46,11 @@ Purse.SPENDING_LABELS = {
     other = "everything else",
 }
 
-local lastMoney
-
--- Seconds after the flight map closes in which a payment is still a fare.
-local FARE_DELAY = 2
-
-local flightMapOpen = false
-
--- Whether a merchant's window is open. Tracked on its own rather than read
--- from the context above, because the two are set by different events and
--- nothing promises which arrives first.
-local atMerchant = false
-
 -- The saved record: hours = { [hour] = { income, spending, coin } }, with
 -- hours numbered from 1970 in UTC. income and spending are copper by what
 -- the money was about, and coin is what the whole account held at the
--- last moment of that hour we saw.
+-- last moment of that hour we saw. Alongside it are each character's own
+-- hours, under characters, and repairRate (see Purse.RepairCost).
 local function Book()
     if type(ns.db.purse) ~= "table" then
         ns.db.purse = {}
@@ -93,8 +82,8 @@ local function Book()
     return book
 end
 
--- This character's own record, laid out as the account's is: hours = { ...
--- }, where coin is what this character alone held.
+-- This character's own record, laid out as the account's hours are, except
+-- that coin is what this character alone held.
 local function OwnBook()
     local book = Book()
     if type(book.characters) ~= "table" then
@@ -116,17 +105,18 @@ end
 -- character's key for theirs, or nothing for the one being played.
 -- Reading another character's never makes them a record.
 local function HoursFor(whose)
+    local book = Book()
     if whose == true then
-        return Book().hours
+        return book.hours
     end
     if not whose or whose == ns.Characters.CurrentKey() then
         return OwnBook().hours
     end
-    local theirs = Book().characters and Book().characters[whose]
+    local theirs = book.characters and book.characters[whose]
     return type(theirs) == "table" and type(theirs.hours) == "table" and theirs.hours or {}
 end
 
--- Recording --------------------------------------------------------------------
+-- Recording -------------------------------------------------------------------
 
 -- This hour's record in a book's hours, made if it isn't there yet.
 local function HourIn(hours)
@@ -182,7 +172,12 @@ end
 
 local function LeaveSoon(oldContext, stillOpen)
     C_Timer.After(LATE_COIN_DELAY, function()
-        if context == oldContext and not stillOpen() then
+        -- Another of the same can have opened in the meantime (two clams in
+        -- quick succession). Then what it stepped in front of still stands.
+        if stillOpen() then
+            return
+        end
+        if context == oldContext then
             local previous = before[oldContext]
             context = previous and heldOpen[previous] and previous or OTHER
         end
@@ -254,6 +249,9 @@ local function Record(delta)
     ns.Publish("MONEY_MOVED", delta, category)
 end
 
+-- The purse as last seen, to tell how much each change was.
+local lastMoney
+
 ns.OnEvent("PLAYER_MONEY", function()
     local money = GetMoney()
     -- The first reading after login has nothing to be compared with.
@@ -267,7 +265,7 @@ end)
 ns.OnEvent("PLAYER_LOGIN", function()
     lastMoney = GetMoney()
 
-    -- A point on the line for today even if no coin moves.
+    -- A point on the line even if no coin moves this session.
     NoteCoin()
 end)
 
@@ -283,11 +281,16 @@ ns.OnEvent("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", function(window)
     local closed = CONTEXT_FOR_WINDOW[window]
     if closed then
         heldOpen[closed] = nil
-    end
-    if closed and closed == context then
-        context = OTHER
+        if context == closed then
+            context = OTHER
+        end
     end
 end)
+
+-- Seconds after the flight map closes in which a payment is still a fare.
+local FARE_DELAY = 2
+
+local flightMapOpen = false
 
 -- Flight masters don't go through the interaction manager.
 ns.OnEvent("TAXIMAP_OPENED", function()
@@ -307,7 +310,7 @@ ns.OnEvent("TAXIMAP_CLOSED", function()
     end)
 end)
 
--- Reading it back -----------------------------------------------------------------
+-- Reading it back -------------------------------------------------------------
 
 -- Time is cut into stretches of so many hours, numbered so that a stretch
 -- of 24 is a day as Ledger.Today counts them: midnight to midnight on the
@@ -467,7 +470,7 @@ function Purse.Daily(numDays, whose)
     return days, firstDay, today
 end
 
--- Repairs ------------------------------------------------------------------------------
+-- Repairs ---------------------------------------------------------------------
 
 --- How worn the player's gear is, as a whole.
 ---@return number|nil percent  100 is pristine; nil if nothing worn has durability
@@ -516,6 +519,11 @@ local function GearRepairBill()
     gearBillStale = false
     return total
 end
+
+-- Whether a merchant's window is open. Tracked on its own rather than read
+-- from the context, because the two are set by different events and
+-- nothing promises which arrives first.
+local atMerchant = false
 
 --- What a full repair would cost.
 ---

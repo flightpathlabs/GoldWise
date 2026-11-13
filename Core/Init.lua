@@ -119,7 +119,8 @@ function ns.ClockOffset()
 end
 
 --- Prints a line to chat with the addon's name in front.
---- Used for slash-command replies only. Goldwise doesn't narrate in chat.
+--- For answering the player (a slash command, a click) and the rare
+--- notice they need to act on. Goldwise doesn't narrate in chat.
 function ns.Print(text, ...)
     if select("#", ...) > 0 then
         text = text:format(...)

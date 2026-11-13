@@ -5,37 +5,35 @@ local _, ns = ...
 -- Everything works without a visit here. These are for people who want to
 -- change how it behaves.
 
--- Adds a tick box bound to one key of the saved settings.
-local function AddCheckbox(category, key, label, tooltip)
+-- Ties one key of the saved settings to the Options window, so a change
+-- made there goes straight into it and the rest of Goldwise hears.
+local function RegisterSetting(category, key, varType, label)
+    local variable = "Goldwise_" .. key
     local setting = Settings.RegisterAddOnSetting(
         category,
-        "Goldwise_" .. key,
+        variable,
         key,
         ns.settings,
-        Settings.VarType.Boolean,
+        varType,
         label,
         ns.DEFAULT_SETTINGS[key]
     )
-    Settings.CreateCheckbox(category, setting, tooltip)
-
-    Settings.SetOnValueChangedCallback("Goldwise_" .. key, function()
+    Settings.SetOnValueChangedCallback(variable, function()
         ns.Publish("SETTINGS_CHANGED")
     end)
+    return setting
+end
+
+-- Adds a tick box bound to one key of the saved settings.
+local function AddCheckbox(category, key, label, tooltip)
+    local setting = RegisterSetting(category, key, Settings.VarType.Boolean, label)
+    Settings.CreateCheckbox(category, setting, tooltip)
 end
 
 -- Adds a dropdown bound to one numeric key of the saved settings.
 -- `choices` is a list of { value, label }.
 local function AddDropdown(category, key, label, tooltip, choices)
-    local setting = Settings.RegisterAddOnSetting(
-        category,
-        "Goldwise_" .. key,
-        key,
-        ns.settings,
-        Settings.VarType.Number,
-        label,
-        ns.DEFAULT_SETTINGS[key]
-    )
-
+    local setting = RegisterSetting(category, key, Settings.VarType.Number, label)
     Settings.CreateDropdown(category, setting, function()
         local container = Settings.CreateControlTextContainer()
         for _, choice in ipairs(choices) do
@@ -43,16 +41,13 @@ local function AddDropdown(category, key, label, tooltip, choices)
         end
         return container:GetData()
     end, tooltip)
-
-    Settings.SetOnValueChangedCallback("Goldwise_" .. key, function()
-        ns.Publish("SETTINGS_CHANGED")
-    end)
 end
+
+-- Past this many, the dismissed recipes' tooltip sums up the rest.
+local MAX_NAMES_LISTED = 12
 
 -- What the dismissed-recipes button says when the mouse is on it: the
 -- recipes themselves, so the player can see what they'd be bringing back.
-local MAX_NAMES_LISTED = 12
-
 local function IgnoredRecipesTooltip()
     local names = ns.Recipes.IgnoredNames()
     if #names == 0 then
@@ -121,7 +116,7 @@ ns.OnEvent("PLAYER_LOGIN", function()
     )
 
     -- The recipes waved away with the X on the recipe card, and a way to
-    -- have them back. The tooltip lists them.
+    -- have them back.
     layout:AddInitializer(
         CreateSettingsButtonInitializer("Recipes you've dismissed", "Bring them back", function()
             -- The tooltip lists what's being brought back. Once it has

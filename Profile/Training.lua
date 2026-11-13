@@ -41,7 +41,7 @@ local scanPending = false
 -- Skills bought this session, and when: [key] = GetTime().
 local boughtAt = {}
 
--- What we've learned ---------------------------------------------------------------
+-- What we've learned ----------------------------------------------------------
 
 -- Prices for this character's class: [key] = { cost, level }.
 local function ClassBook()
@@ -89,7 +89,7 @@ local function NoteWhatLiesAhead()
     end
 end
 
--- Reading the trainer window ---------------------------------------------------------
+-- Reading the trainer window --------------------------------------------------
 
 local function IsClassTrainer()
     -- Pet trainers charge training points rather than money, and
@@ -170,7 +170,7 @@ local function OnBuy(index)
     end
 end
 
--- Asking What's Training? -----------------------------------------------------------
+-- Asking What's Training? -----------------------------------------------------
 
 -- Everything goes through that addon's public interface, WT_API. Nothing
 -- of its data is copied into Goldwise.
@@ -232,7 +232,7 @@ local function SkillsFromWhatsTraining()
     return skills
 end
 
--- The price table ---------------------------------------------------------------------
+-- The price table -------------------------------------------------------------
 
 -- The answer from the table, kept until the player's spells change. Working
 -- it out means asking the spellbook about every skill their class has.
@@ -331,7 +331,7 @@ local function SkillsFromTrainerVisits()
     return skills
 end
 
--- Reading it back -------------------------------------------------------------------
+-- Reading it back -------------------------------------------------------------
 
 --- Whether any training prices are known for this character's class.
 ---@return boolean
@@ -370,7 +370,7 @@ function Training.Outstanding(playerLevel)
     return levels
 end
 
--- Where to train ----------------------------------------------------------------------
+-- Where to train --------------------------------------------------------------
 
 -- A trainer charges less to those their people think well of. On Forever
 -- that's nothing off at Friendly and a tenth off at Honored, as measured
@@ -435,12 +435,13 @@ end
 ---                     own people (the gnomes in Ironforge, say)
 ---   standing          the player's standing with them, as the game words it
 ---   discount          as a fraction: 0.1 is 10% off
+---   capital           true for a capital city's trainers
 ---   shortBy           reputation still needed, for someone one standing
 ---                     short of a discount
 ---   discountStanding  the name of the standing that earns the discount
 ---   mapID             the map they're on, if we know it
----   spot              { x, y } of a trainer on that map, if we know of
----                     one (see Directory)
+---   spot              a trainer on that map, as Directory.On gives it,
+---                     if we know of one
 --- Empty when we don't know this class's trainers.
 function Training.Places()
     local data = ClassTable()

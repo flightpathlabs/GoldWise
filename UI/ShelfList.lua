@@ -21,7 +21,7 @@ local TREND_RIGHT = 148
 local PRICE_RIGHT = 234
 local NAME_RIGHT = 346
 
--- Rows --------------------------------------------------------------------------
+-- Rows ------------------------------------------------------------------------
 
 -- The menu behind a right-click: keep the item or sell it, and a way to
 -- its page for anyone who went looking for that here.
@@ -184,7 +184,7 @@ local function FillRow(row, data)
     end
 end
 
--- Ordering -----------------------------------------------------------------------------
+-- Ordering --------------------------------------------------------------------
 
 -- Most valuable first; things we can't price yet go to the bottom.
 local function ByProceeds(a, b)
@@ -195,7 +195,7 @@ local function ByProceeds(a, b)
     return a.name < b.name
 end
 
--- The list ---------------------------------------------------------------------------
+-- The list --------------------------------------------------------------------
 
 --- Creates the shelf list. It fills its parent.
 ---@param parent table            frame to fill

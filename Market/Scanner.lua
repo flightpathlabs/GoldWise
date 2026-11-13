@@ -40,7 +40,9 @@ local MAX_RETRIES = 3
 
 -- Our scan in progress, or nil:
 --   startedAt    when it began
+--   marketKey    the market being read
 --   rows         how many rows we had at the last page
+--   heard        the rows themselves, filed if the scan is cut short
 --   sending      true only while our own query is being sent
 --   sent         true once it has gone out
 --   lastRequest  the request we're waiting on an answer to
@@ -53,6 +55,11 @@ local scan
 --   wholeMarket  whether it had no text and no filters
 --   automatic    whether Blizzard's window sent it unprompted
 local lastSearch
+
+-- Whether anyone other than us has deliberately searched since the window
+-- opened. Once they have, the results on screen are theirs, and an
+-- automatic scan would wipe them out.
+local someoneSearched = false
 
 -- Whether we've already recorded the first page of the search we're
 -- currently overhearing, and whether we've recorded all of it.
@@ -91,11 +98,6 @@ local function Stop(reason)
 
     ns.Publish("SCAN_STOPPED", reason)
 end
-
--- Whether anyone other than us has deliberately searched since the window
--- opened. Once they have, the results on screen are theirs, and an
--- automatic scan would wipe them out.
-local someoneSearched = false
 
 -- Puts on record whatever was heard of a search that has now ended
 -- without finishing.
@@ -145,7 +147,7 @@ function Scanner.StandAside(reason)
     end
 end
 
--- Telling searches apart -------------------------------------------------------
+-- Telling searches apart ------------------------------------------------------
 
 -- A post-hook sees every search after it has been sent, whoever sent it,
 -- and can't interfere with it.
@@ -179,7 +181,7 @@ for _, name in ipairs({ "SearchForFavorites", "SearchForItemKeys" }) do
     end
 end
 
--- Our own scan -------------------------------------------------------------------
+-- Our own scan ----------------------------------------------------------------
 
 -- Gives up on a scan that has stopped making progress. Called again after
 -- every page, so a slow but steady scan is left alone.
@@ -299,7 +301,7 @@ ns.OnEvent("AUCTION_HOUSE_THROTTLED_MESSAGE_DROPPED", function()
     Send(scan.lastRequest)
 end)
 
--- Other people's searches ----------------------------------------------------------
+-- Other people's searches -----------------------------------------------------
 
 local function OnOverheardResults(complete)
     -- Record a search when its first page arrives and again when it has
@@ -368,7 +370,7 @@ ns.OnEvent("AUCTION_HOUSE_BROWSE_RESULTS_ADDED", function(addedRows)
     OnBrowseResults()
 end)
 
--- Looking at one item ------------------------------------------------------------------
+-- Looking at one item ---------------------------------------------------------
 
 -- When anyone opens a single item's listings (the player clicking a row,
 -- or another addon checking what a material costs) the game hands back
@@ -439,7 +441,7 @@ ns.OnEvent("AUCTION_HOUSE_BROWSE_FAILURE", function()
     end
 end)
 
--- Opening and closing ----------------------------------------------------------------
+-- Opening and closing ---------------------------------------------------------
 
 local function ScannedRecently(marketKey)
     local lastScan = ns.Ledger.LastScan(marketKey)

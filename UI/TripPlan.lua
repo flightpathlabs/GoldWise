@@ -30,7 +30,7 @@ local FIGURE_WIDTH = 96
 local LOADING_HEIGHT = 24
 local LOADING_LABEL_WIDTH = 230
 
--- Rows --------------------------------------------------------------------------
+-- Rows ------------------------------------------------------------------------
 
 local function CreateRowWidgets(row)
     row.created = true
@@ -154,9 +154,8 @@ local function FillRow(row, data)
     -- A step with no figure and no button has the row to itself, and its
     -- words can run the full width.
     local fullWidth = data.amount == nil and data.action == nil and figures == nil
-    for _, text in ipairs({ row.Title, row.Detail }) do
-        text:ClearAllPoints()
-    end
+    row.Title:ClearAllPoints()
+    row.Detail:ClearAllPoints()
     row.Title:SetPoint("TOPLEFT", row.Number, "TOPRIGHT", 4, 7)
     row.Detail:SetPoint("TOPLEFT", row.Title, "BOTTOMLEFT", 0, -3)
     if fullWidth then
@@ -199,7 +198,7 @@ local function FillRow(row, data)
     end
 end
 
--- The view ----------------------------------------------------------------------------
+-- The view --------------------------------------------------------------------
 
 --- Creates the plan view. It starts hidden.
 ---@param parent table  frame to sit in; the caller places it
@@ -251,7 +250,8 @@ function TripPlan.Create(parent)
     trough:SetColorTexture(0, 0, 0, 0.5)
 
     --- Shows a plan.
-    ---@param sections table      from Trip.Plan
+    ---@param sections table      list of { heading, numbered, steps }, as
+    ---        Trip.Plan and the other Advisor plans give them
     ---@param loading table|nil   { label, fraction } for a plan that's
     ---        still filling in: what to say, and how far along it is from
     ---        0 to 1

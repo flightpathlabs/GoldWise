@@ -37,7 +37,8 @@ local SKILL_LINES = {
 -- first time the game has names to give.
 local englishFor
 
--- [key] = skill level, for the gathering professions the player has.
+-- [key] = skill level, bonus included, for the gathering professions the
+-- player has.
 local skills = {}
 
 -- [English name] = skill level, for every profession they have.
@@ -81,14 +82,14 @@ local function Read(...)
             -- The eighth value is the bonus from gear and racial traits,
             -- which counts toward what the player can gather.
             local name, _, skill, _, _, _, _, bonus = GetProfessionInfo(index)
-            name = name and EnglishName(name)
             if name then
+                name = EnglishName(name)
                 byName[name] = skill or 0
-            end
 
-            local key = name and GATHERING[name]
-            if key then
-                skills[key] = (skill or 0) + (bonus or 0)
+                local key = GATHERING[name]
+                if key then
+                    skills[key] = (skill or 0) + (bonus or 0)
+                end
             end
         end
     end

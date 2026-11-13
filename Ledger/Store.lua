@@ -74,7 +74,7 @@ function Ledger.ForgetOldDays(byDay, keepDays)
     end
 end
 
--- Snapshots ----------------------------------------------------------------
+-- Snapshots -------------------------------------------------------------------
 
 -- A snapshot is one long string: ",itemID:price:quantity" for every item.
 -- The comma in front of every entry, including the first, means a single
@@ -137,7 +137,7 @@ local function LatestPrices(marketKey)
     return latest[marketKey]
 end
 
--- Tracked items --------------------------------------------------------------
+-- Tracked items ---------------------------------------------------------------
 
 local function AddReading(record, day, now, price, quantity)
     local today = record.days[day]
@@ -167,13 +167,6 @@ local function AddReading(record, day, now, price, quantity)
     end
 end
 
----@param marketKey string
----@param itemID number
----@return boolean
-function Ledger.IsTracked(marketKey, itemID)
-    return ns.MarketData(marketKey).tracked[itemID] ~= nil
-end
-
 --- Starts keeping full history for an item.
 --- Whatever the daily snapshots already know about it is copied in, so a
 --- newly tracked item doesn't start with an empty chart.
@@ -195,7 +188,7 @@ function Ledger.Track(marketKey, itemID)
     market.tracked[itemID] = record
 end
 
--- Recording ------------------------------------------------------------------
+-- Recording -------------------------------------------------------------------
 
 -- Browse results come back one row per item variant, so gear with random
 -- suffixes shows up several times under one item ID. We keep the cheapest
@@ -229,15 +222,6 @@ local function SnapshotCount(market)
     return count
 end
 
-local function DropOldSnapshots(market, today)
-    local oldest = today - ns.settings.marketDays
-    for day in pairs(market.daily) do
-        if day <= oldest then
-            market.daily[day] = nil
-        end
-    end
-end
-
 --- Files the results of an auction house browse search.
 ---@param marketKey string
 ---@param rows table  BrowseResultInfo[] from C_AuctionHouse.GetBrowseResults
@@ -266,7 +250,7 @@ function Ledger.RecordPrices(marketKey, prices, wholeMarket)
         latest[marketKey] = prices
         market.daily[today] = EncodeSnapshot(prices)
         market.lastScan = now
-        DropOldSnapshots(market, today)
+        Ledger.ForgetOldDays(market.daily, ns.settings.marketDays)
     else
         -- A reading of a few items is newer than the last whole-market
         -- scan, so each carries its own time.
@@ -286,7 +270,7 @@ function Ledger.RecordPrices(marketKey, prices, wholeMarket)
     ns.Publish("PRICES_CHANGED", marketKey)
 end
 
--- Price depth ------------------------------------------------------------------
+-- Price depth -----------------------------------------------------------------
 
 -- A deep scan sees every auction, so for tracked items it can say how many
 -- are listed at each of the cheapest prices. Only the latest is kept.
@@ -319,7 +303,7 @@ function Ledger.Depth(marketKey, itemID)
     return record and record.depth
 end
 
--- Reading ----------------------------------------------------------------------
+-- Reading ---------------------------------------------------------------------
 
 -- Where a price came from, for anything that wants to say so.
 Ledger.OWN = "own" -- the player's own game read it at the auction house
@@ -473,10 +457,12 @@ function Ledger.History(marketKey, itemID, numDays)
 
     for day = today - numDays + 1, today do
         -- The player's own readings come first: a tracked item's daily
-        -- record, or failing that a whole-market snapshot from that day.
+        -- record, or for anything else the whole-market snapshot from
+        -- that day. A tracked item was given what the snapshots knew when
+        -- it started being followed, so they'd tell it nothing new.
         local entry = record and record.days[day]
         local price, quantity
-        if not entry and not record and market.daily[day] then
+        if not record and market.daily[day] then
             price, quantity = FindInSnapshot(market.daily[day], itemID)
         end
 
@@ -535,8 +521,10 @@ end
 --- The newest price of everything seen on a market, for the few callers
 --- that need to look across all of it.
 ---@param marketKey string
----@return table prices  [itemID] = { price, quantity }. Treat it as
----        read-only: it's the ledger's own table.
+---@return table prices  [itemID] = { price, quantity, seenAt }, where
+---        seenAt is only there for a reading newer than the last
+---        whole-market scan. Treat it as read-only: it's the ledger's own
+---        table.
 function Ledger.AllPrices(marketKey)
     return LatestPrices(marketKey)
 end
@@ -557,7 +545,7 @@ function Ledger.LastScan(marketKey)
     return ns.MarketData(marketKey).lastScan
 end
 
--- Housekeeping -----------------------------------------------------------------
+-- Housekeeping ----------------------------------------------------------------
 
 -- Once per login, drop tracked history older than the player wants kept.
 -- Only at login, and not the moment the setting changes, so a slip of the

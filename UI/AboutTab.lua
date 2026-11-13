@@ -22,7 +22,7 @@ local LINE_GAP = 8
 -- Where each line of a list starts, leaving room for its marker.
 local LIST_INDENT = 20
 
--- What the page says -----------------------------------------------------------------
+-- What the page says ----------------------------------------------------------
 
 -- Each section is a heading and what goes under it: `intro` paragraphs,
 -- then a `list` of short points, each with a marker, then `text`
@@ -210,14 +210,14 @@ local function Sections()
     }
 end
 
--- Building the page ------------------------------------------------------------------
+-- Building the page -----------------------------------------------------------
 
 -- The page is a stack of pieces, each placed under the one before. Every
 -- piece is given its width outright, because its height depends on how
 -- its text wraps, and that isn't known until the width is.
 --
--- `blocks` collects them as { region, x, gap, extra }: how far in the
--- piece sits, the space above it, and anything that hangs off it.
+-- `blocks` collects them as { region, x, gap }: the piece, how far in it
+-- sits, and the space above it.
 
 local function AddText(content, blocks, font, text, x, gap)
     local line = content:CreateFontString(nil, "ARTWORK", font)
@@ -305,6 +305,8 @@ local function AddMasthead(content)
 
     return mount
 end
+
+-- The tab ---------------------------------------------------------------------
 
 --- Creates the About tab. It starts hidden and fills its parent.
 ---@param parent table  frame to fill

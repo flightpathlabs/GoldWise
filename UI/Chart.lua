@@ -13,7 +13,7 @@ ns.Chart = Chart
 
 local Theme = ns.Theme
 
--- Line pooling ---------------------------------------------------------------
+-- Line pooling ----------------------------------------------------------------
 
 -- Lines can't be destroyed, only hidden, so each chart keeps the ones it
 -- has made and reuses them on the next draw.
@@ -49,7 +49,7 @@ local function DrawPath(chart, points, thickness, color)
     end
 end
 
--- Sparkline --------------------------------------------------------------------
+-- Sparkline -------------------------------------------------------------------
 
 --- Creates a small unlabelled trend line.
 ---@param parent table  frame
@@ -91,7 +91,7 @@ function Chart.CreateSparkline(parent, width, height)
     return sparkline
 end
 
--- Full chart ---------------------------------------------------------------------
+-- Full chart ------------------------------------------------------------------
 
 -- Space around the plotted area for labels. The left margin has to hold a
 -- price as wide as "12g 34s 56c".
@@ -99,6 +99,21 @@ local MARGIN_LEFT = 72
 local MARGIN_RIGHT = 14
 local MARGIN_TOP = 14
 local MARGIN_BOTTOM = 22
+
+-- The frame every labelled chart starts from: its pool of lines, and the
+-- wash behind it.
+local function CreateChartFrame(parent, width, height)
+    local chart = CreateFrame("Frame", nil, parent)
+    chart:SetSize(width, height)
+    chart.lines = {}
+    chart.linesUsed = 0
+
+    local page = chart:CreateTexture(nil, "BACKGROUND")
+    page:SetAllPoints()
+    page:SetColorTexture(0, 0, 0, Theme.CHART_WASH)
+
+    return chart
+end
 
 local function CreateLabel(chart, justify)
     local label = chart:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -135,14 +150,7 @@ end
 ---@param height number
 ---@return table chart  with :SetHistory(history, usual)
 function Chart.Create(parent, width, height)
-    local chart = CreateFrame("Frame", nil, parent)
-    chart:SetSize(width, height)
-    chart.lines = {}
-    chart.linesUsed = 0
-
-    local page = chart:CreateTexture(nil, "BACKGROUND")
-    page:SetAllPoints()
-    page:SetColorTexture(0, 0, 0, Theme.CHART_WASH)
+    local chart = CreateChartFrame(parent, width, height)
 
     local plotWidth = width - MARGIN_LEFT - MARGIN_RIGHT
     local plotHeight = height - MARGIN_TOP - MARGIN_BOTTOM
@@ -262,7 +270,7 @@ function Chart.Create(parent, width, height)
     return chart
 end
 
--- Lines over days ------------------------------------------------------------------
+-- Lines over days -------------------------------------------------------------
 
 -- How many lines one chart can carry. Past two or three, nobody can tell
 -- them apart.
@@ -273,16 +281,10 @@ local MOST_SERIES = 3
 ---@param parent table  frame
 ---@param width number
 ---@param height number
----@return table chart  with :SetSeries(series, firstDay, lastDay, emptyText)
+---@return table chart  with :SetSeries(series, firstDay, lastDay, emptyText,
+---        look)
 function Chart.CreateLines(parent, width, height)
-    local chart = CreateFrame("Frame", nil, parent)
-    chart:SetSize(width, height)
-    chart.lines = {}
-    chart.linesUsed = 0
-
-    local page = chart:CreateTexture(nil, "BACKGROUND")
-    page:SetAllPoints()
-    page:SetColorTexture(0, 0, 0, Theme.CHART_WASH)
+    local chart = CreateChartFrame(parent, width, height)
 
     local plotWidth = width - MARGIN_LEFT - MARGIN_RIGHT
     local plotHeight = height - MARGIN_TOP - MARGIN_BOTTOM
@@ -424,7 +426,7 @@ function Chart.CreateLines(parent, width, height)
     return chart
 end
 
--- Cash flow ----------------------------------------------------------------------
+-- Cash flow -------------------------------------------------------------------
 
 -- Money coming in and money going out are drawn in Theme.INCOME and
 -- Theme.SPENDING. They differ in lightness as well as hue, and sit on
@@ -466,14 +468,8 @@ end
 ---@return table chart  with :SetBars(bars, first, last, firstLabel, lastLabel,
 ---        emptyText)
 function Chart.CreateCashFlow(parent, width, height)
-    local chart = CreateFrame("Frame", nil, parent)
-    chart:SetSize(width, height)
-    chart.lines, chart.linesUsed = {}, 0
+    local chart = CreateChartFrame(parent, width, height)
     chart.bars, chart.barsUsed = {}, 0
-
-    local page = chart:CreateTexture(nil, "BACKGROUND")
-    page:SetAllPoints()
-    page:SetColorTexture(0, 0, 0, Theme.CHART_WASH)
 
     local plotWidth = width - MARGIN_LEFT - MARGIN_RIGHT
     local plotHeight = height - MARGIN_TOP - MARGIN_BOTTOM

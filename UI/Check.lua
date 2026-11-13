@@ -78,7 +78,7 @@ local NEEDS = {
 -- How many entries a table has, whatever its keys.
 local function CountOf(list)
     local count = 0
-    for _ in pairs(type(list) == "table" and list or {}) do
+    for _ in pairs(list) do
         count = count + 1
     end
     return count
@@ -138,8 +138,7 @@ function ns.RunCheck()
         ns.Directory.VisitedTrainers()
     )
 
-    local click = ns.Shortcuts.TreeClickHint()
-    Say("  Crafting tree click: %s.", click or "off")
+    Say("  Crafting tree click: %s.", ns.Shortcuts.TreeClickHint() or "off")
 
     Say("Done. If something isn't working, send these lines with /gw report.")
 end

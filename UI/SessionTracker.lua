@@ -14,6 +14,7 @@ local WIDTH = 220
 local PADDING = 10
 local LINE_HEIGHT = 16
 local PIN_SIZE = 18
+local RESET_SIZE = 14
 
 -- How often the clock on it moves on, in seconds.
 local TICK = 5
@@ -21,7 +22,7 @@ local TICK = 5
 -- Before this long, an hourly rate is mostly noise.
 local RATE_AFTER_SECONDS = 10 * 60
 
--- The places the pin's tooltip names, nearest first within each.
+-- The places the pin's tooltip names, the nearest of each kind.
 local NEARBY = {
     { label = "Auction house", kind = "AUCTION" },
     { label = "Repairs", kind = "REPAIR" },
@@ -56,8 +57,6 @@ local SPENDING_LABELS = {
 local BREAKDOWN_SWITCH = 8.75
 local BREAKDOWN_START = 10
 
-local RESET_SIZE = 14
-
 local tracker
 
 -- When the panel was last let go of after a drag. The lines are buttons,
@@ -82,11 +81,13 @@ local function Distance(spot, yards)
     if yards then
         return ("%d yd"):format(yards)
     end
+    -- Too far off to measure, or measured from somewhere it can't be: the
+    -- zone it's in will have to do.
     local map = spot.mapID and C_Map.GetMapInfo(spot.mapID)
     return map and map.name or ""
 end
 
--- Building -----------------------------------------------------------------------------
+-- Building --------------------------------------------------------------------
 
 -- How far down the panel a line sits. Lines are counted from 1, under
 -- the title; halves leave a gap.
@@ -181,16 +182,13 @@ local function CreatePlacesPin(frame)
             if spot then
                 GameTooltip:AddDoubleLine(place.label, Distance(spot, yards), 1, 1, 1, 1, 1, 1)
             else
-                local muted = Theme.MUTED
                 GameTooltip:AddDoubleLine(
                     place.label,
                     "not found yet",
                     1,
                     1,
                     1,
-                    muted[1],
-                    muted[2],
-                    muted[3]
+                    unpack(Theme.MUTED)
                 )
             end
         end
@@ -340,10 +338,11 @@ local function OpenAssets()
     ns.ShowWindowTab("List")
 end
 
--- Lays a button over a line of the panel that opens where its figure
--- comes from. A drag still moves the panel, and a right-click still
--- brings up its menu.
-local function MakeClickable(frame, line, opens, open)
+-- Lays a button over a line of the panel that calls onClick on a left
+-- click. A drag still moves the panel, and a right-click still brings up
+-- its menu. The panel's drag handlers are looked up at the time, as
+-- they're set after the lines are made.
+local function CoverLine(frame, line, onClick)
     local button = CreateFrame("Button", nil, frame)
     button:SetPoint("TOPLEFT", line.Label, "TOPLEFT", -4, 2)
     button:SetPoint("RIGHT", frame, "RIGHT", -PADDING + 4, 0)
@@ -368,45 +367,26 @@ local function MakeClickable(frame, line, opens, open)
         if mouseButton == "RightButton" then
             OpenMenu(frame)
         else
-            open()
+            onClick()
         end
     end)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+    return button
+end
+
+-- Makes a line open where its figure comes from when clicked.
+local function MakeClickable(frame, line, opens, open)
+    local button = CoverLine(frame, line, open)
     button:SetScript("OnEnter", function()
         ShowDetails(frame, opens)
     end)
-    button:SetScript("OnLeave", GameTooltip_Hide)
 end
 
--- The breakdown ---------------------------------------------------------------------
+-- The breakdown ---------------------------------------------------------------
 
--- Lays a button over the "Coin in and out" line that opens and closes
--- the breakdown under it.
+-- Makes the "Coin in and out" line open and close the breakdown under it.
 local function CreateBreakdownSwitch(frame, line)
-    local button = CreateFrame("Button", nil, frame)
-    button:SetPoint("TOPLEFT", line.Label, "TOPLEFT", -4, 2)
-    button:SetPoint("RIGHT", frame, "RIGHT", -PADDING + 4, 0)
-    button:SetHeight(LINE_HEIGHT)
-
-    local glow = button:CreateTexture(nil, "HIGHLIGHT")
-    glow:SetAllPoints()
-    glow:SetColorTexture(1, 0.82, 0, 0.12)
-
-    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    button:RegisterForDrag("LeftButton")
-    button:SetScript("OnDragStart", function()
-        frame:GetScript("OnDragStart")(frame)
-    end)
-    button:SetScript("OnDragStop", function()
-        frame:GetScript("OnDragStop")(frame)
-    end)
-    button:SetScript("OnClick", function(_, mouseButton)
-        if JustDropped() then
-            return
-        end
-        if mouseButton == "RightButton" then
-            OpenMenu(frame)
-            return
-        end
+    local button = CoverLine(frame, line, function()
         ns.settings.sessionTrackerExpanded = not ns.settings.sessionTrackerExpanded
         frame:Refresh()
     end)
@@ -599,7 +579,8 @@ local function Create()
             OpenMenu(self)
         end
     end)
-    -- Not ShowDetails itself: OnEnter passes a flag of its own second.
+    -- Not ShowDetails itself: OnEnter's own second argument would be
+    -- taken for where a click goes.
     frame:SetScript("OnEnter", function(self)
         ShowDetails(self)
     end)
@@ -626,13 +607,16 @@ local function Create()
             return
         end
 
+        -- Until the bags have been valued, coin is all there is to go on.
+        local overall = summary.overall or summary.coin
+
         self.Clock:SetText(Duration(summary.seconds))
         SetSigned(self.Coin, summary.coin)
         SetSigned(self.Goods, summary.goods)
-        SetSigned(self.Overall, summary.overall or summary.coin)
+        SetSigned(self.Overall, overall)
 
         if summary.seconds >= RATE_AFTER_SECONDS then
-            SetSigned(self.Rate, (summary.overall or summary.coin) / summary.seconds * 3600)
+            SetSigned(self.Rate, overall / summary.seconds * 3600)
         else
             self.Rate.Figure:SetText("after 10 minutes")
             self.Rate.Figure:SetTextColor(unpack(Theme.MUTED))

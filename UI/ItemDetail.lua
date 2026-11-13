@@ -45,11 +45,20 @@ function ItemDetail.Create(parent, onBack)
     back:SetText("Back")
     back:SetScript("OnClick", onBack)
 
+    -- The item on show.
+    local shown
+
+    -- The chart's view, in the corner, where it stays put. The crafting
+    -- tree button comes and goes, so it's the one that sits beside.
+    local pick = CreateFrame("Button", nil, detail, "UIPanelButtonTemplate")
+    pick:SetSize(180, 22)
+    pick:SetPoint("TOPRIGHT", -14, -12)
+
     -- Only there for an item that's part of something the player can
     -- make. For anything else the tree would have nothing in it.
-    local shown
     local tree = CreateFrame("Button", nil, detail, "UIPanelButtonTemplate")
     tree:SetSize(TREE_BUTTON_WIDTH, 22)
+    tree:SetPoint("RIGHT", pick, "LEFT", -8, 0)
     tree:SetText("Crafting tree")
     tree:SetScript("OnClick", function()
         ns.ShowCraftTree(shown)
@@ -59,8 +68,13 @@ function ItemDetail.Create(parent, onBack)
     icon:SetSize(36, 36)
     icon:SetPoint("TOPLEFT", back, "TOPRIGHT", 14, 4)
 
+    -- A long name stops short of the buttons. Its width is set outright
+    -- each time an item is shown: pinning its right-hand edge to a button
+    -- would drag it down to the button's height as well.
     local name = detail:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -1)
+    name:SetJustifyH("LEFT")
+    name:SetWordWrap(false)
 
     local facts = detail:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     facts:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -5)
@@ -70,7 +84,6 @@ function ItemDetail.Create(parent, onBack)
     chart:SetPoint("TOPLEFT", 14, -62)
 
     -- Draws the chart for the item on show, the way the player last chose.
-    local pick
     local function DrawChart()
         local marketKey = ns.Market.Current()
         local view = VIEWS[ns.settings.historyView] or VIEWS[1]
@@ -88,19 +101,6 @@ function ItemDetail.Create(parent, onBack)
         end
     end
 
-    -- In the corner, where it stays put. The crafting tree button comes
-    -- and goes, so it's the one that sits beside.
-    pick = CreateFrame("Button", nil, detail, "UIPanelButtonTemplate")
-    pick:SetSize(180, 22)
-    pick:SetPoint("TOPRIGHT", -14, -12)
-    tree:ClearAllPoints()
-    tree:SetPoint("RIGHT", pick, "LEFT", -8, 0)
-
-    -- A long name stops short of the buttons. Its width is set outright
-    -- each time an item is shown: pinning its right-hand edge to a button
-    -- would drag it down to the button's height as well.
-    name:SetJustifyH("LEFT")
-    name:SetWordWrap(false)
     pick:SetScript("OnClick", function(self)
         MenuUtil.CreateContextMenu(self, function(_, root)
             root:CreateTitle("Chart...")

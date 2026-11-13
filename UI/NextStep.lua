@@ -66,7 +66,7 @@ local function CardItems(assets, limit, detailFor)
     return items
 end
 
--- Where auction houses are ----------------------------------------------------------
+-- Where auction houses are ----------------------------------------------------
 
 -- Nobody has to maintain a list. Wherever the player was standing when an
 -- auction house opened, there's an auction house.
@@ -84,7 +84,7 @@ ns.Subscribe("AUCTION_HOUSE_OPENED", function()
     ns.SetButtonAttention(false)
 end)
 
--- Arriving near an auction house -----------------------------------------------------
+-- Arriving near an auction house ----------------------------------------------
 
 -- Whether the player is within walking distance of a known auction house
 -- on their current map.
@@ -200,7 +200,7 @@ ns.OnEvent("ZONE_CHANGED_NEW_AREA", CheckSoon)
 ns.Subscribe("BAGS_CHANGED", CheckSoon)
 ns.Subscribe("AUCTION_HOUSE_CLOSED", CheckSoon)
 
--- At a merchant ------------------------------------------------------------------------
+-- At a merchant ---------------------------------------------------------------
 
 local function CheckBeforeVendoring()
     if not ns.settings.vendorCheck then
@@ -250,7 +250,7 @@ end
 ns.OnEvent("MERCHANT_SHOW", CheckBeforeVendoring)
 ns.OnEvent("MERCHANT_CLOSED", ns.Toast.Hide)
 
--- Recipes for sale where the player is ---------------------------------------------------
+-- Recipes for sale where the player is ----------------------------------------
 
 -- Wait this long after arriving before mentioning recipes. Longer than
 -- the auction house check takes, so that card gets to go first.
@@ -360,10 +360,13 @@ end
 -- A recipe's name can arrive after the card is up. The card shows the
 -- spell's name until then, and swaps in the recipe's own when it comes.
 ns.Subscribe("ITEM_NAMES_LOADED", function()
-    if recipeCard and not ns.Toast.IsShowing() then
-        recipeCard = nil
-    elseif recipeCard then
+    if not recipeCard then
+        return
+    end
+    if ns.Toast.IsShowing() then
         ns.Toast.Update(recipeCard.id, RecipeCardOptions())
+    else
+        recipeCard = nil
     end
 end)
 
@@ -410,7 +413,7 @@ end
 ns.OnEvent("ZONE_CHANGED_NEW_AREA", CheckRecipesSoon)
 ns.OnEvent("PLAYER_ENTERING_WORLD", CheckRecipesSoon)
 
--- What's new ----------------------------------------------------------------------------
+-- What's new ------------------------------------------------------------------
 
 -- Once after an update, a note beside the Goldwise window saying what's
 -- changed that a returning player would otherwise trip over. It waits
@@ -486,12 +489,12 @@ local function CreateNewsPanel(window)
     panel:SetWidth(NEWS_WIDTH)
     panel:SetPoint("TOPLEFT", window, "TOPRIGHT", 4, -24)
     panel:SetClampedToScreen(true)
+    panel:EnableMouse(true)
     -- It's been seen once the window has been open with it; closing the
     -- window any way at all puts it away.
     window:HookScript("OnHide", function()
         panel:Hide()
     end)
-    panel:EnableMouse(true)
 
     local textWidth = NEWS_WIDTH - 2 * NEWS_PADDING
 

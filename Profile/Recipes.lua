@@ -259,7 +259,7 @@ function Recipes.ZonesText(vendors)
     return text
 end
 
--- Buying to sell on -------------------------------------------------------------------
+-- Buying to sell on -----------------------------------------------------------
 
 -- A recipe that doesn't bind can be bought from its vendor and sold at the
 -- auction house, and plenty of players never find the vendor. Where the

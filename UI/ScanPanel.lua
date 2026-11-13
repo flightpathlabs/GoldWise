@@ -45,6 +45,7 @@ local function Create()
 
     frame.Status = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     frame.Status:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
+    -- Whatever the icon and its margins leave.
     frame.Status:SetWidth(WIDTH - 12 - 32 - 10 - 12)
     frame.Status:SetJustifyH("LEFT")
     -- Two lines: the result it exists to give doesn't fit on one.
@@ -111,7 +112,7 @@ local function Say(text, fraction, linger)
     end
 end
 
--- What to say and when ---------------------------------------------------------------
+-- What to say and when --------------------------------------------------------
 
 -- Progress is progress whoever reports it. If another addon has its own
 -- panel up counting through the same auctions, ours keeps quiet until
@@ -157,11 +158,12 @@ end)
 
 -- The result, and the one thing it means for the player right now.
 ns.Subscribe("SCAN_FINISHED", function(items, _, borrowed)
-    local text = ("%s prices read."):format(FormatLargeNumber(items or 0))
+    local count = FormatLargeNumber(items or 0)
+    local text = ("%s prices read."):format(count)
     if borrowed then
         -- Another addon did the asking and we read its answer. Worth
         -- saying, or the player may wonder why ours never seemed to run.
-        text = ("%s prices read, alongside another addon."):format(FormatLargeNumber(items or 0))
+        text = ("%s prices read, alongside another addon."):format(count)
     end
 
     local _, sellable = ns.Assets.InBags(ns.Market.Current())

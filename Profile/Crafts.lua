@@ -32,7 +32,7 @@ local function Books()
     return ns.db.crafts
 end
 
--- Reading the window -------------------------------------------------------------
+-- Reading the window ----------------------------------------------------------
 
 -- Whether the window is showing the player's own recipes. It's also used
 -- for a profession someone has linked in chat, a guild's, and a
@@ -130,7 +130,7 @@ local function ReadSoon()
     end
 end
 
--- Reading it back -------------------------------------------------------------------
+-- Reading it back -------------------------------------------------------------
 
 --- Everything the current character is known to be able to make.
 ---@return table recipes  list of { profession, item, makes, needs }, where

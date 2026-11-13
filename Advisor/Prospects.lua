@@ -74,7 +74,10 @@ local function ForEachSource(skills, visit)
     end
 
     local function VisitNodes(sources, kind, skill, how)
-        for _, source in ipairs(skill and sources or {}) do
+        if not skill then
+            return
+        end
+        for _, source in ipairs(sources) do
             if skill >= source.skill then
                 visit(source, kind, how)
             end

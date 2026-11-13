@@ -15,7 +15,7 @@ local MAP_RIGHT = 10
 local WHERE_RIGHT = 84
 local WHERE_WIDTH = 230
 
--- What a row says ---------------------------------------------------------------------
+-- What a row says -------------------------------------------------------------
 
 -- "Alchemy 60", and how the player stands against it.
 local function SkillText(recipe)
@@ -71,7 +71,7 @@ local function ShowOnMap(recipe)
     )
 end
 
--- Rows --------------------------------------------------------------------------
+-- Rows ------------------------------------------------------------------------
 
 local function CreateRowWidgets(row)
     row.created = true
@@ -149,7 +149,7 @@ local function FillRow(row, recipe)
     end
 end
 
--- The tab ------------------------------------------------------------------------------
+-- The tab ---------------------------------------------------------------------
 
 --- Creates the Recipes tab. It starts hidden and fills its parent.
 ---@param parent table  frame to fill

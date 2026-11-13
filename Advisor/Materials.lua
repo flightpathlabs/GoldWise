@@ -33,8 +33,9 @@ local MOST_KINDS = 12
 -- follows where it's found: copper is 10, mithril 40, runecloth 50.
 local LEVEL_HEADROOM = 5
 
--- The work is going through thirteen thousand prices, and it only needs
--- redoing when they change: kept by market, with the scan it came from.
+-- The work is going through thirteen thousand prices, so it's kept by
+-- market and redone only after a new scan of the whole market, which is
+-- when nearly all of them change.
 local cache = {}
 
 -- Sorts the market's trade goods into kinds. Returns a list of

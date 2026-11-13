@@ -28,10 +28,10 @@ local marks = setmetatable({}, { __mode = "k" })
 local seen = setmetatable({}, { __mode = "k" })
 
 -- Whether a stack is worth auctioning: ["itemID:count"] = true or false.
--- Thrown away whenever prices change.
+-- Thrown away whenever prices or settings change.
 local verdicts = {}
 
--- What a button holds ----------------------------------------------------------------
+-- What a button holds ---------------------------------------------------------
 
 -- Returns the item ID, stack size and whether it's soulbound for a bag or
 -- bank button, or nothing for any other kind of button (a merchant's
@@ -78,7 +78,7 @@ local function WorthAuctioning(itemID, count)
     return verdicts[key]
 end
 
--- Drawing ------------------------------------------------------------------------------
+-- Drawing ---------------------------------------------------------------------
 
 local function CreateMark(button)
     local mark = {}
@@ -131,7 +131,7 @@ local function Update(button)
     SetMarked(button, marked)
 end
 
--- Keeping up ----------------------------------------------------------------------------
+-- Keeping up ------------------------------------------------------------------
 
 -- Called for every item button whenever what it shows may have changed.
 hooksecurefunc("SetItemButtonQuality", function(button)

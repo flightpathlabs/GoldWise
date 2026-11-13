@@ -50,21 +50,21 @@ local function Rescan()
             local item = C_Container.GetContainerItemInfo(bag, slot)
             if item then
                 counts[item.itemID] = (counts[item.itemID] or 0) + item.stackCount
-            end
 
-            if item and Bags.IsWorthListing(item) then
-                local holding = holdings[item.itemID]
-                if holding then
-                    holding.count = holding.count + item.stackCount
-                else
-                    holdings[item.itemID] = {
-                        itemID = item.itemID,
-                        name = item.itemName,
-                        icon = item.iconFileID,
-                        quality = item.quality,
-                        link = item.hyperlink,
-                        count = item.stackCount,
-                    }
+                if Bags.IsWorthListing(item) then
+                    local holding = holdings[item.itemID]
+                    if holding then
+                        holding.count = holding.count + item.stackCount
+                    else
+                        holdings[item.itemID] = {
+                            itemID = item.itemID,
+                            name = item.itemName,
+                            icon = item.iconFileID,
+                            quality = item.quality,
+                            link = item.hyperlink,
+                            count = item.stackCount,
+                        }
+                    end
                 end
             end
         end
@@ -111,7 +111,7 @@ function Bags.Holding(itemID)
 end
 
 -- A neutral auction house is a different market from home, with its own
--- history to keep.
+-- history to keep. The message carries that market's key.
 ns.Subscribe("AUCTION_HOUSE_OPENED", TrackHoldings)
 
 ns.OnEvent("PLAYER_LOGIN", RescanSoon)

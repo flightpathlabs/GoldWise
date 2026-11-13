@@ -21,7 +21,14 @@ local addonName, ns = ...
 --   training   what class trainers charge, and what each character has
 --              still to learn (with unlearned; see Training)
 --   vendorPrices  what vendors were seen to ask for recipes (see Recipes)
---   places     where the visit-an-auction-house prompt has spoken up
+--   ignoredRecipes  recipes the player has dismissed from the recipe card
+--              (see Recipes)
+--   sessions   each character's current play session (see Session)
+--   places     where auction houses are, learned by opening them, by map
+--              (see NextStep)
+--   newsSeen   which what's-new notes have been shown (see NextStep)
+--   lastDeepScan  when the account's deep scan cooldown was last spent
+--              (see DeepScan)
 --   log        the last couple of hundred diagnostic lines
 --   errors     faults noted for a bug report
 --
@@ -71,7 +78,8 @@ local DEFAULT_SETTINGS = {
     -- taking to the auction house.
     markSellable = true,
 
-    -- The two unprompted cards, and whether they make a sound.
+    -- The unprompted cards (an auction house worth a visit, a recipe for
+    -- sale nearby, a word before vendoring), and whether they make a sound.
     cityPrompt = true,
     recipePrompt = true,
     vendorCheck = true,
@@ -179,7 +187,7 @@ ns.OnEvent("ADDON_LOADED", function(name)
     ns.Publish("DATABASE_READY")
 end)
 
--- Diagnostics ------------------------------------------------------------------
+-- Diagnostics -----------------------------------------------------------------
 
 -- A short running log, kept in the saved data. When a scan misbehaves on
 -- someone's machine, this is what tells us what happened without asking
@@ -226,7 +234,9 @@ function ns.NoteError(message, stack)
     local errors = EnsureTable(ns.db, "errors")
     message = tostring(message)
 
-    -- One failure can reach us twice, by the two routes below. Count it once.
+    -- One failure can reach us twice: where Events.lua catches it, and
+    -- again in the error handler below that it's passed on to. Count it
+    -- once.
     local now = GetTime()
     if message == lastNoted and now - lastNotedAt < 1 then
         return

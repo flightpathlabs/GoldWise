@@ -1,6 +1,7 @@
 local _, ns = ...
 
--- Colours and small display helpers shared by every part of the interface.
+-- Colours and small display helpers shared by every part of the interface,
+-- and the choice, shared by the money tabs, of whose money they show.
 --
 -- Wherever the game has its own answer (item quality colours, coin icons,
 -- fonts, frame art) we use that. These are only for the things it doesn't
@@ -17,10 +18,10 @@ Theme.MUTED = { 0.79, 0.73, 0.61 }
 -- the panels are: a dark wash for a background and light strokes on it,
 -- with gold for the line that matters.
 --
--- The wash is black at CHART_WASH opacity, the same as the tiles on the
--- Purse tab, so a chart reads as part of the panel it's on. The one under
--- a tooltip floats over the game world with nothing behind it, and gets
--- a solid colour instead.
+-- The wash is black at CHART_WASH opacity, the same as the tiles across
+-- the top of the money tabs, so a chart reads as part of the panel it's
+-- on. The one under a tooltip floats over the game world with nothing
+-- behind it, and gets a solid colour instead.
 Theme.CHART_WASH = 0.35
 Theme.CHART_FLOATING = { 0.05, 0.05, 0.06 }
 Theme.CHART_LINE = Theme.COIN
@@ -101,6 +102,13 @@ function Theme.Aside(text)
     return "|cffb9aa8c" .. text .. "|r"
 end
 
+--- Money with the game's own coin icons.
+---@param copper number
+---@return string
+function Theme.Coins(copper)
+    return GetMoneyString(math.floor(copper + 0.5), true)
+end
+
 --- A sum that can be below nothing, with the colour of the side it's on:
 --- what came in, or what went out.
 ---@param copper number
@@ -128,7 +136,7 @@ function Theme.CreateTile(parent, label)
 
     local background = tile:CreateTexture(nil, "BACKGROUND")
     background:SetAllPoints()
-    background:SetColorTexture(0, 0, 0, 0.35)
+    background:SetColorTexture(0, 0, 0, Theme.CHART_WASH)
 
     local caption = tile:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     caption:SetPoint("TOPLEFT", 10, -8)
@@ -233,8 +241,12 @@ end
 ---@param parent table  frame
 ---@return table button  with :Update(), to bring its text up to date
 function Theme.CreateMoneyScopeButton(parent)
+    -- It widens to fit whoever it names, realm and all, but never
+    -- narrows below MIN_WIDTH.
+    local MIN_WIDTH, PADDING = 140, 24
+
     local button = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    button:SetSize(140, 20)
+    button:SetSize(MIN_WIDTH, 20)
 
     local function Choose(accountWide, key)
         ns.settings.moneyAccountWide = accountWide
@@ -276,9 +288,6 @@ function Theme.CreateMoneyScopeButton(parent)
         end)
     end)
 
-    -- Wide enough for the longest name, realm and all.
-    local MIN_WIDTH, PADDING = 140, 24
-
     function button:Update()
         if ns.settings.moneyAccountWide then
             self:SetText("Whole account")
@@ -308,11 +317,4 @@ function Theme.CreateMoneyScopeButton(parent)
 
     button:Update()
     return button
-end
-
---- Money with the game's own coin icons.
----@param copper number
----@return string
-function Theme.Coins(copper)
-    return GetMoneyString(math.floor(copper + 0.5), true)
 end

@@ -14,7 +14,7 @@ ns.Shortcuts = Shortcuts
 
 local Theme = ns.Theme
 
--- The click ------------------------------------------------------------------------
+-- The click -------------------------------------------------------------------
 
 -- The clicks on offer for the crafting tree, by the number saved in the
 -- settings. All use the right button: a left click with a key held is
@@ -94,7 +94,7 @@ if HandleModifiedItemClick then
     end)
 end
 
--- The keys -------------------------------------------------------------------------
+-- The keys --------------------------------------------------------------------
 
 -- The two things a key can be given to. The commands are declared in
 -- Bindings.xml, so they're also in the game's own list of key bindings.
@@ -157,10 +157,13 @@ local function Assign(command, key)
     SaveBindings(GetCurrentBindingSet())
 end
 
--- The page -------------------------------------------------------------------------
+-- The page --------------------------------------------------------------------
 
 local ROW_HEIGHT = 74
 local BUTTON_WIDTH = 190
+
+-- Where the first row starts, under the title and the introduction.
+local FIRST_ROW_TOP = 86
 
 local function CreateRow(page, top, label, about)
     local row = CreateFrame("Frame", nil, page)
@@ -223,10 +226,15 @@ local function CreatePage()
 
     local Refresh
 
+    local function StopListening()
+        listening, contested = nil, nil
+        Refresh()
+    end
+
     -- The click.
     local clickRow = CreateRow(
         page,
-        86,
+        FIRST_ROW_TOP,
         "Crafting tree, with a click",
         "On an item in your bags, in chat or at the auction house."
     )
@@ -251,7 +259,12 @@ local function CreatePage()
     -- The keys.
     local keyRows = {}
     for index, key in ipairs(KEYS) do
-        local row = CreateRow(page, 86 + index * ROW_HEIGHT, key.label .. ", with a key", key.about)
+        local row = CreateRow(
+            page,
+            FIRST_ROW_TOP + index * ROW_HEIGHT,
+            key.label .. ", with a key",
+            key.about
+        )
         row.command = key.command
         keyRows[index] = row
 
@@ -283,14 +296,12 @@ local function CreatePage()
             end
 
             if pressed == "ESCAPE" then
-                listening, contested = nil, nil
-                Refresh()
+                StopListening()
                 return
             end
 
             if InCombatLockdown() then
-                listening, contested = nil, nil
-                Refresh()
+                StopListening()
                 row:Say("Keys can't be changed in combat. Try again in a moment.", true)
                 return
             end
@@ -307,13 +318,12 @@ local function CreatePage()
             end
 
             Assign(row.command, chord)
-            listening, contested = nil, nil
-            Refresh()
+            StopListening()
         end
     end
 
     local footnote = page:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    footnote:SetPoint("TOPLEFT", 16, -(86 + (#KEYS + 1) * ROW_HEIGHT + 8))
+    footnote:SetPoint("TOPLEFT", 16, -(FIRST_ROW_TOP + (#KEYS + 1) * ROW_HEIGHT + 8))
     footnote:SetPoint("RIGHT", -16, 0)
     footnote:SetJustifyH("LEFT")
     footnote:SetTextColor(unpack(Theme.MUTED))
@@ -398,20 +408,10 @@ local function CreatePage()
 
     -- The options call this each time they put the page up, including
     -- the times the page doesn't hear that it has been shown.
-    page.OnRefresh = function()
-        listening, contested = nil, nil
-        Refresh()
-    end
-
-    page:SetScript("OnShow", function()
-        listening, contested = nil, nil
-        Refresh()
-    end)
-    page:SetScript("OnHide", function()
-        -- Never leave a button swallowing keys behind a closed window.
-        listening, contested = nil, nil
-        Refresh()
-    end)
+    page.OnRefresh = StopListening
+    page:SetScript("OnShow", StopListening)
+    -- Never leave a button swallowing keys behind a closed window.
+    page:SetScript("OnHide", StopListening)
 
     -- Bindings changed somewhere else: the game's own list, or a profile.
     ns.OnEvent("UPDATE_BINDINGS", function()
@@ -424,8 +424,7 @@ local function CreatePage()
     -- ability the player reached for.
     ns.OnEvent("PLAYER_REGEN_DISABLED", function()
         if listening then
-            listening, contested = nil, nil
-            Refresh()
+            StopListening()
         end
     end)
 

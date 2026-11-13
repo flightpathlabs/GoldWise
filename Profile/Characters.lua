@@ -110,8 +110,8 @@ function Characters.All()
     return characters
 end
 
---- What a character holds: the one being played as it stands now, any
---- other as of their last login.
+--- How much gold a character has: the one being played as it stands now,
+--- any other as of their last login.
 ---@param key string|nil  their key; nothing for the one being played
 ---@return number copper
 function Characters.MoneyOf(key)
@@ -191,10 +191,13 @@ local function TrackEveryonesHoldings()
 end
 
 ns.Subscribe("BAGS_CHANGED", Remember)
+
+-- Gold can change without anything in the bags doing so.
 ns.OnEvent("PLAYER_MONEY", function()
     local record = Roster()[Characters.CurrentKey()]
     if record then
         record.money = GetMoney()
     end
 end)
+
 ns.OnEvent("PLAYER_LOGIN", TrackEveryonesHoldings)

@@ -17,7 +17,7 @@ local ZONES_WIDTH = 210
 local PRICE_RIGHT = 306
 local NAME_RIGHT = 410
 
--- Rows --------------------------------------------------------------------------
+-- Rows ------------------------------------------------------------------------
 
 local function CreateRowWidgets(row, onSelect)
     row.created = true
@@ -99,7 +99,7 @@ local function FillRow(row, data)
     row.Map:SetShown(#data.mapIDs > 0)
 end
 
--- Gathering the facts ----------------------------------------------------------------
+-- Gathering the facts ---------------------------------------------------------
 
 -- Fills in what only the game can tell us: the item's name in the
 -- player's language, its icon and quality, and how many they carry.
@@ -117,7 +117,7 @@ local function Complete(prospect)
     return prospect
 end
 
--- The list ---------------------------------------------------------------------------
+-- The list --------------------------------------------------------------------
 
 --- Creates the prospects list. It starts hidden and fills its parent.
 ---@param parent table            frame to fill
@@ -138,9 +138,9 @@ function ProspectList.Create(parent, onSelect)
 
     -- What the player has said they want to do. Nil is the plain ranked
     -- list of what's worth gathering. A zone is somewhere they've decided
-    -- to go, and the tab shows a plan for the trip. RESALE is buying from
-    -- vendors to sell at auction, which is laid out as a plan too.
-    -- MATERIALS is every trade good on the market, by kind.
+    -- to go, and the tab shows a plan for the trip. The other three are
+    -- markers for the other plans: RESALE is buying from vendors to sell
+    -- at auction, MATERIALS is every trade good on the market by kind, and
     -- CRAFTING is what's worth making from what the player holds.
     local RESALE = {}
     local MATERIALS = {}

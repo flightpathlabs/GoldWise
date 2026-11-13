@@ -54,7 +54,11 @@ local VIEWS = {
     },
 }
 
--- The list ---------------------------------------------------------------------------
+-- What the list of sales and purchases says when there's nothing in it.
+local NO_TRADE = "Nothing sold or bought on record yet. Sales are counted when you take "
+    .. "the coin out of your mailbox, and purchases as you make them."
+
+-- The list --------------------------------------------------------------------
 
 local function CreateRowWidgets(row)
     row.created = true
@@ -118,7 +122,7 @@ local function FillRow(row, entry)
     row.Amount:SetTextColor(unpack(color))
 end
 
--- The lines ----------------------------------------------------------------------------
+-- The lines -------------------------------------------------------------------
 
 -- Turns a figure for each day into a running total.
 local function RunningTotal(values)
@@ -145,7 +149,7 @@ local function OverallByDay(firstDay, lastDay)
     return values
 end
 
--- The tab ------------------------------------------------------------------------------
+-- The tab ---------------------------------------------------------------------
 
 --- Creates the Profit tab. It starts hidden and fills its parent.
 ---@param parent table  frame to fill
@@ -168,10 +172,6 @@ function ProfitTab.Create(parent)
     local pick = CreateFrame("Button", nil, tab, "UIPanelButtonTemplate")
     pick:SetSize(150, 20)
     pick:SetPoint("TOPRIGHT", -24, -6)
-
-    -- Whose money the whole tab is about, beside it.
-    local whose = Theme.CreateMoneyScopeButton(tab)
-    whose:SetPoint("RIGHT", pick, "LEFT", -6, 0)
     pick:SetScript("OnClick", function(self)
         MenuUtil.CreateContextMenu(self, function(_, root)
             root:CreateTitle("Show...")
@@ -187,6 +187,10 @@ function ProfitTab.Create(parent)
             end
         end)
     end)
+
+    -- Whose money the whole tab is about, beside it.
+    local whose = Theme.CreateMoneyScopeButton(tab)
+    whose:SetPoint("RIGHT", pick, "LEFT", -6, 0)
 
     local sold = Theme.CreateTile(tab, "Sold at auction")
     sold:SetPoint("TOPLEFT", 12, -34)
@@ -221,9 +225,6 @@ function ProfitTab.Create(parent)
         FillRow(row, entry)
     end)
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
-
-    local NO_TRADE = "Nothing sold or bought on record yet. Sales are counted when you take "
-        .. "the coin out of your mailbox, and purchases as you make them."
 
     -- What to say when there's nothing to show: the usual words across the
     -- account, and for a character, why their own record may be empty.

@@ -59,7 +59,7 @@ local function MapAction(spot)
     }
 end
 
--- The sections ------------------------------------------------------------------------
+-- The sections ----------------------------------------------------------------
 
 -- Each returns a list of steps, drawn by UI\TripPlan. A step is
 -- { title, detail } and any of:
@@ -95,23 +95,21 @@ local function BeforeLeaving(zone, level)
 
     local _, sellable = ns.Assets.InBags(ns.Market.Home())
     if sellable >= WORTH_SELLING_FIRST then
-        local auction = ns.Directory.Nearest(ns.Directory.AUCTION)
         table.insert(steps, {
             title = "Sell what's marked Sell",
             detail = "At the auction house, so you leave with coin and empty bags.",
             amount = sellable,
             amountLabel = "about",
-            action = MapAction(auction),
+            action = MapAction(ns.Directory.Nearest(ns.Directory.AUCTION)),
         })
     end
 
     local durability = ns.Purse.Durability()
     if durability and durability < REPAIR_BELOW then
-        local cost = ns.Purse.RepairCost()
         table.insert(steps, {
             title = "Repair",
             detail = ("Your gear is at %d%%."):format(math.floor(durability)),
-            amount = cost,
+            amount = ns.Purse.RepairCost(),
             amountLabel = "costs",
             action = MapAction(ns.Directory.Nearest(ns.Directory.REPAIR)),
         })
@@ -231,7 +229,7 @@ local function OnTheSpot(mapID)
     return steps
 end
 
--- The plan ------------------------------------------------------------------------------
+-- The plan --------------------------------------------------------------------
 
 --- Plans a trip to a zone.
 ---@param zone table  an entry of Gathering.ZONES

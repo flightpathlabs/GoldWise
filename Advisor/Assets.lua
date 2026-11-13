@@ -11,7 +11,8 @@ local Assets = {}
 ns.Assets = Assets
 
 --- Assesses one holding.
----@param holding table       one entry from Bags.Holdings or Characters.Others
+---@param holding table       shaped like an entry of Bags.Holdings; only
+---        itemID and count are needed
 ---@param marketKey string
 ---@param owner string|nil    the character holding it, if not the current one
 ---@return table asset  { itemID, owner, name, icon, quality, link, count,

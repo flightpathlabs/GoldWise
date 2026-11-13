@@ -49,7 +49,7 @@ ns.Subscribe("CRAFTS_CHANGED", function()
     makers, users = nil, nil
 end)
 
--- The sums -------------------------------------------------------------------------
+-- The sums --------------------------------------------------------------------
 
 -- What one of something costs to buy, and whether that's a guess at a
 -- vendor's price. The auction price if it has one; failing that, it's
@@ -109,9 +109,7 @@ function Step(itemID, quantity, marketKey, depth, path)
         -- recipe that can be priced beats one that can't.
         for _, recipe in ipairs(makers[itemID] or {}) do
             local parts, cost = Ingredients(recipe, quantity, marketKey, depth, path)
-            local better = not step.recipe
-                or (cost and not step.make)
-                or (cost and step.make and cost < step.make)
+            local better = not step.recipe or (cost and (not step.make or cost < step.make))
 
             if better then
                 step.recipe, step.parts, step.make = recipe, parts, cost
@@ -130,7 +128,7 @@ function Step(itemID, quantity, marketKey, depth, path)
     return step
 end
 
--- Reading it back -------------------------------------------------------------------
+-- Reading it back -------------------------------------------------------------
 
 --- Whether an item is part of anything the player can make: either they
 --- can make it, or it goes into something they can.

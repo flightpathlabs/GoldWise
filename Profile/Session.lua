@@ -44,10 +44,10 @@ end
 -- This character's session, once logged in.
 local current
 
--- The bags as last valued: { auction, vendor, unpriced, atStart }. unpriced counts
--- the kinds of thing with no auction price, which are taken at a
--- vendor's price if a vendor will have them. atStart is what was in
--- them when the session began, at the same prices.
+-- The bags as last valued: { auction, vendor, unpriced, atStart }.
+-- unpriced counts the kinds of thing with no auction price, which are
+-- taken at a vendor's price if a vendor will have them. atStart is what
+-- was in them when the session began, at the same prices.
 local bags
 
 -- Whether the bags have been read since login. Until they have, they look
@@ -167,7 +167,8 @@ end)
 -- Coin from the auction house that Trade.lua has just put on record and
 -- that's about to arrive here. The auction house pays by letter, so it
 -- lands in the purse as mail; this is how it's told apart from coin an
--- alt sent. Trade hears of the coin first, in the same moment.
+-- alt sent. Trade.lua loads first, so it hears of each change to the
+-- purse first, in the same moment.
 local fromAuction = 0
 
 ns.Subscribe("TRADE_CHANGED", function(kind, amount)
@@ -180,7 +181,7 @@ local function Add(side, category, amount)
     side[category] = (side[category] or 0) + amount
 end
 
-ns.Subscribe("MONEY_MOVED", function(delta, context)
+ns.Subscribe("MONEY_MOVED", function(delta, category)
     local auctionPart = 0
     if delta > 0 then
         auctionPart = math.min(fromAuction, delta)
@@ -196,11 +197,11 @@ ns.Subscribe("MONEY_MOVED", function(delta, context)
             Add(current.income, "auction", auctionPart)
         end
         if delta > auctionPart then
-            Add(current.income, context or "other", delta - auctionPart)
+            Add(current.income, category or "other", delta - auctionPart)
         end
     else
         current.spent = current.spent - delta
-        Add(current.spending, context or "other", -delta)
+        Add(current.spending, category or "other", -delta)
     end
     ns.Publish("SESSION_CHANGED")
 end)
@@ -246,13 +247,14 @@ end
 --- How the session stands.
 ---@return table|nil summary  nil before login. Otherwise { seconds, earned,
 ---        spent, income, spending, coin, bags, auction, vendor, unpriced,
----        goods, overall }, where income and spending are { [category] =
----        copper }, by Purse.lua's categories, and the rest are
----        copper. coin is what came in less what went out;
----        goods is how much more the bags are worth than what was in them
----        at the start, both at today's prices;
----        overall is the two together. bags and the fields after it are
----        nil until the bags have been valued.
+---        goods, overall }. seconds is how long the session has run, and
+---        unpriced how many kinds of thing in the bags have no auction
+---        price. income and spending are { [category] = copper }, by
+---        Purse.lua's categories, and the rest are copper. coin is what
+---        came in less what went out; goods is how much more the bags are
+---        worth than what was in them at the start, both at today's
+---        prices; overall is the two together. bags and the fields after
+---        it are nil until the bags have been valued.
 function Session.Summary()
     if not current then
         return nil

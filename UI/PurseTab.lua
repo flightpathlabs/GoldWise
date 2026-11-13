@@ -35,7 +35,7 @@ local SPANS = {
 -- How far down the tab the "Coming up" list starts.
 local ROWS_TOP = CHART_TOP + CHART_HEIGHT + 32
 
--- Building blocks ---------------------------------------------------------------
+-- Building blocks -------------------------------------------------------------
 
 -- One line of the "Coming up" list: when, what, how much.
 local function CreateRow(parent, index)
@@ -100,7 +100,7 @@ local function CreateRow(parent, index)
     return row
 end
 
--- Where to train -----------------------------------------------------------------------
+-- Where to train --------------------------------------------------------------
 
 local function Percent(fraction)
     return math.floor(fraction * 100 + 0.5)
@@ -206,7 +206,7 @@ local function ShowTrainingPlaces(row)
     GameTooltip:Show()
 end
 
--- What's coming up -------------------------------------------------------------------
+-- What's coming up ------------------------------------------------------------
 
 -- Each entry is { when, what, amount, showMore, pickPlace }. amount is in
 -- copper, or nil if unknown. showMore puts up a tooltip for the line, and
@@ -287,7 +287,7 @@ local function UpcomingCosts(level)
     return costs
 end
 
--- The sentence at the bottom: can they cover what's next?
+-- The verdict under the list: can they cover what's next?
 local function Verdict(money, income, spending, costs)
     -- "Next" is the repairs, if we can put a price on them, plus the first
     -- thing with a price that isn't the long-term goal.
@@ -364,7 +364,7 @@ local function Verdict(money, income, spending, costs)
     return table.concat(lines, "\n")
 end
 
--- The tab ------------------------------------------------------------------------------
+-- The tab ---------------------------------------------------------------------
 
 --- Creates the Purse tab. It starts hidden and fills its parent.
 ---@param parent table  frame to fill
@@ -406,10 +406,6 @@ function PurseTab.Create(parent)
     local pick = CreateFrame("Button", nil, tab, "UIPanelButtonTemplate")
     pick:SetSize(210, 20)
     pick:SetPoint("TOPRIGHT", -24, -6)
-
-    -- Whose money the whole tab is about, beside it.
-    local whose = Theme.CreateMoneyScopeButton(tab)
-    whose:SetPoint("RIGHT", pick, "LEFT", -6, 0)
     pick:SetScript("OnClick", function(self)
         MenuUtil.CreateContextMenu(self, function(_, root)
             root:CreateTitle("Show...")
@@ -438,6 +434,10 @@ function PurseTab.Create(parent)
             end
         end)
     end)
+
+    -- Whose money the whole tab is about, beside it.
+    local whose = Theme.CreateMoneyScopeButton(tab)
+    whose:SetPoint("RIGHT", pick, "LEFT", -6, 0)
 
     -- Draws whichever chart is chosen, over the stretch that's chosen.
     local function DrawChart()
