@@ -6,6 +6,13 @@ the `dev` branch.
 
 ## Unreleased
 
+- **Every visit to the auction house counts, however short.** When
+  Auctionator or Profession Atlas reads the market as you open the
+  window, Goldwise reads along. It used to keep only the first 500
+  prices unless that read ran to the end, so walking away after a few
+  seconds left most of your things on their old price. It now keeps
+  every page as it arrives. The same goes for Goldwise's own reads, and
+  for a full read of every auction cut off by closing the window.
 - **Goldwise's tooltip lines say they're Goldwise's.** With several
   addons writing on the same tooltip, there was no telling which line
   was whose, and beside Auctionator there was often nothing of
