@@ -327,17 +327,20 @@ Ledger.PLAYERS = "players" -- another Goldwise player's game did
 Ledger.FEED = "feed" -- the companion prices addon
 Ledger.AUCTIONATOR = "auctionator" -- Auctionator, asked through its own API
 
--- What Auctionator last paid attention to, for a market where it can be
--- believed: the day it saw an item and the price then. Nil if it has
--- nothing, or isn't there.
+-- What Auctionator last saw of an item: the price, and the day. Nil if it
+-- has nothing, or isn't there.
 --
--- On this client Auctionator keeps one list of prices per ruleset, not
--- one per auction house, so a price there may have come from the other
--- faction's house or the goblins'. It's only taken for the player's own
--- side, and only to fill a gap, never over a reading of Goldwise's own
--- from the same day or later.
+-- Only ever a gap-filler, for something Goldwise has no price of its own
+-- for. On this client Auctionator keeps one list of prices per ruleset,
+-- not one per auction house, so a price there may have come from the
+-- other faction's house or the goblins'. It also counts its days its own
+-- way. Set against a reading of Goldwise's, it can't be trusted to be the
+-- newer or the right one, so it never is. It's only asked about the
+-- player's own side's market.
 local function AuctionatorReading(marketKey, itemID)
-    if marketKey ~= ns.Market.Home() then
+    -- Checked first: nearly always it isn't there, and that should cost
+    -- nothing.
+    if not Auctionator or marketKey ~= ns.Market.Home() then
         return nil
     end
     local price, age = ns.Companions.AuctionatorPrice(itemID)
@@ -370,10 +373,12 @@ function Ledger.Price(marketKey, itemID)
         price, quantity, seenAt, source = heard, heardQuantity, heardAt, Ledger.PLAYERS
     end
 
-    local theirs, theirDay = AuctionatorReading(marketKey, itemID)
-    if theirs and (not price or Ledger.DayOf(seenAt or 0) < theirDay) then
-        local startOfDay = theirDay * ns.SECONDS_PER_DAY - ns.ClockOffset()
-        price, quantity, seenAt, source = theirs, nil, startOfDay, Ledger.AUCTIONATOR
+    if not price then
+        local theirs, theirDay = AuctionatorReading(marketKey, itemID)
+        if theirs then
+            local startOfDay = theirDay * ns.SECONDS_PER_DAY - ns.ClockOffset()
+            price, quantity, seenAt, source = theirs, nil, startOfDay, Ledger.AUCTIONATOR
+        end
     end
 
     -- A reading taken in the game is first-hand, so it wins a close call.
@@ -442,8 +447,14 @@ function Ledger.History(marketKey, itemID, numDays)
     local market = ns.MarketData(marketKey)
     local record = market.tracked[itemID]
     local feedDays = ns.Feed.Days(marketKey, itemID)
-    local theirs, theirDay = AuctionatorReading(marketKey, itemID)
     local today = Ledger.Today()
+
+    -- Auctionator's day goes on the chart only where Goldwise has never
+    -- read the item, as with its price.
+    local theirs, theirDay
+    if not Ledger.LocalPrice(marketKey, itemID) then
+        theirs, theirDay = AuctionatorReading(marketKey, itemID)
+    end
     local history = {}
 
     -- A day known only as a single price. `from` says whose it is, when

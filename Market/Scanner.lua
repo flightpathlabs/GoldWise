@@ -353,7 +353,11 @@ ns.OnEvent("AUCTION_HOUSE_BROWSE_RESULTS_UPDATED", OnBrowseResults)
 -- Each later page of a search comes with its own rows, so they can be
 -- kept as they arrive without asking for the whole list again.
 ns.OnEvent("AUCTION_HOUSE_BROWSE_RESULTS_ADDED", function(addedRows)
-    local overhearing = not (scan and scan.sent) and not (lastSearch and lastSearch.ours)
+    -- Once the search has been filed whole, a page that turns up after is
+    -- already on record.
+    local overhearing = not (scan and scan.sent)
+        and not (lastSearch and lastSearch.ours)
+        and not heardEverything
     if overhearing and type(addedRows) == "table" and ns.Market.IsOpen() then
         unfiled = unfiled or { marketKey = ns.Market.Current(), rows = {} }
         for _, row in ipairs(addedRows) do

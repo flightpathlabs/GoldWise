@@ -245,7 +245,7 @@ function ItemDetail.Create(parent, onBack)
             local days = ns.Ledger.Today() - ns.Ledger.DayOf(row.seenAt)
             local when = days == 0 and "today" or days == 1 and "yesterday" or (days .. " days ago")
             local credit = "Price from Auctionator, which last saw it %s. "
-                .. "Goldwise hasn't read it since."
+                .. "Goldwise hasn't read it itself yet."
             table.insert(lines, credit:format(when))
         elseif row.seenAt then
             local age = ns.Ago(GetServerTime() - row.seenAt)

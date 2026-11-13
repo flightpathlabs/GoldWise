@@ -353,20 +353,10 @@ ns.Subscribe("AUCTION_HOUSE_CLOSED", function()
     askedByAnother = nil
 
     if run then
-        -- Going through a quarter of a million auctions takes a second or
-        -- two, and players often walk off inside that. What had been
-        -- gone through by then is real and goes on record, though not as
-        -- the whole market, and with no depth: half an order book would
-        -- mislead.
-        local cut = run
+        -- What had been gone through by then is thrown away. The list
+        -- isn't in item order, so part of it gives each item the cheapest
+        -- of only some of its auctions: a price too high, with too few
+        -- listed, that would stand over a good one read earlier.
         Stop("The auction house closed before the full read finished.")
-        if cut.total and next(cut.prices) then
-            ns.Log(
-                "deep scan: kept %d of %d auctions read before closing",
-                cut.nextIndex,
-                cut.total
-            )
-            ns.Ledger.RecordPrices(cut.marketKey, cut.prices, false)
-        end
     end
 end)
