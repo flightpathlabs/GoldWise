@@ -147,6 +147,75 @@ function Theme.CreateTile(parent, label)
     return tile
 end
 
+--- Whose money the Purse and Profit tabs are showing, in words for a
+--- heading: "Alia" or "your characters".
+---@return string
+function Theme.MoneyOwner()
+    if ns.settings.moneyAccountWide then
+        return "your characters"
+    end
+    return UnitName("player") or "this character"
+end
+
+--- Creates the button the money tabs share for choosing whose money they
+--- show: this character's, which is where they start, or the whole
+--- account's. The choice is one setting, so switching on one tab switches
+--- both.
+---@param parent table  frame
+---@return table button  with :Update(), to bring its text up to date
+function Theme.CreateMoneyScopeButton(parent)
+    local button = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+    button:SetSize(140, 20)
+
+    local function Choose(accountWide)
+        ns.settings.moneyAccountWide = accountWide
+        ns.Publish("SETTINGS_CHANGED")
+    end
+
+    button:SetScript("OnClick", function(self)
+        MenuUtil.CreateContextMenu(self, function(_, root)
+            root:CreateTitle("Whose money...")
+            root:CreateRadio(("%s only"):format(UnitName("player") or "This character"), function()
+                return not ns.settings.moneyAccountWide
+            end, function()
+                Choose(false)
+            end)
+            root:CreateRadio("Whole account", function()
+                return ns.settings.moneyAccountWide
+            end, function()
+                Choose(true)
+            end)
+        end)
+    end)
+
+    function button:Update()
+        if ns.settings.moneyAccountWide then
+            self:SetText("Whole account")
+        else
+            self:SetText(("%s only"):format(UnitName("player") or "This character"))
+        end
+    end
+
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Whose money")
+        GameTooltip:AddLine(
+            "This character on their own, or every character on the account added "
+                .. "together. Each character's own figures start from when this "
+                .. "version of Goldwise first ran; the account's go back further.",
+            1,
+            1,
+            1,
+            true
+        )
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+
+    button:Update()
+    return button
+end
+
 --- Money with the game's own coin icons.
 ---@param copper number
 ---@return string

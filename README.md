@@ -167,6 +167,10 @@ A sale is counted when you take the coin out of your mailbox. Everything
 you buy at auction counts against the auction house's line, whatever you
 bought it for.
 
+Purse and Profit start on the character you're playing. The button
+beside each tab's menu switches both to the whole account, where the
+sales list says which character made each sale.
+
 ### Places: the nearest of everything
 
 The nearest trainer for your class and each profession, and the nearest

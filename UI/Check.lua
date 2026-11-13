@@ -123,7 +123,7 @@ function ns.RunCheck()
         bankSeenAt and ("seen " .. ns.Ago(GetServerTime() - bankSeenAt)) or "never opened"
     )
 
-    local totals = ns.Trade.Totals(30)
+    local totals = ns.Trade.Totals(30, true)
     Say(
         "  Auction record, 30 days: %d sales, %s sold, %s bought, %s in deposits.",
         totals.sales,

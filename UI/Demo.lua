@@ -120,8 +120,8 @@ local function InventedFlow(hoursEach, count)
 end
 
 -- What that income and spending would have left in the purse, ending at
--- what's really there now.
-local function InventedCoin(hoursEach, count)
+-- what's really there now: on this character, or across the account.
+local function InventedCoin(hoursEach, count, accountWide)
     local flow, first, last = InventedFlow(hoursEach, count)
 
     local change = {}
@@ -129,7 +129,7 @@ local function InventedCoin(hoursEach, count)
         change[stretch.at] = stretch.income - stretch.spending
     end
 
-    local coin, held = {}, ns.Characters.TotalMoney()
+    local coin, held = {}, accountWide and ns.Characters.TotalMoney() or GetMoney()
     for at = last, first, -1 do
         coin[at - first + 1] = math.max(held, 0)
         held = held - (change[at] or 0)

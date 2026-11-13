@@ -7,9 +7,13 @@ local _, ns = ...
 -- mailbox) and file each change under that. It's the same approach
 -- Blizzard's own receipt code takes.
 --
--- Totals are kept per hour for a month, across the whole account. An hour
--- is fine enough to show how an evening went, and from hours any longer
--- stretch can be added up: six of them, twelve, or a day.
+-- Totals are kept per hour for a month, twice over: once for the whole
+-- account and once for each character on their own. An hour is fine
+-- enough to show how an evening went, and from hours any longer stretch
+-- can be added up: six of them, twelve, or a day.
+--
+-- Each character's own record began with the version that brought it in,
+-- so it can be shorter than the account's.
 
 local Purse = {}
 ns.Purse = Purse
@@ -86,11 +90,32 @@ local function Book()
     return book
 end
 
+-- This character's own record, laid out as the account's is: hours = { ...
+-- }, where coin is what this character alone held.
+local function OwnBook()
+    local book = Book()
+    if type(book.characters) ~= "table" then
+        book.characters = {}
+    end
+
+    local key = ns.Characters.CurrentKey()
+    local own = book.characters[key]
+    if type(own) ~= "table" or type(own.hours) ~= "table" then
+        own = { hours = {} }
+        book.characters[key] = own
+    end
+    return own
+end
+
+-- The hours to read back: the account's, or this character's.
+local function HoursFor(accountWide)
+    return accountWide and Book().hours or OwnBook().hours
+end
+
 -- Recording --------------------------------------------------------------------
 
--- This hour's record, made if it isn't there yet.
-local function ThisHour()
-    local hours = Book().hours
+-- This hour's record in a book's hours, made if it isn't there yet.
+local function HourIn(hours)
     local now = math.floor(GetServerTime() / SECONDS_PER_HOUR)
 
     local hour = hours[now]
@@ -109,17 +134,20 @@ local function ThisHour()
     return hour
 end
 
--- Notes what the account holds at this moment, for the line of coin over
--- time. This character's purse is read now, and the others' as they were
--- when each was last played.
+-- Notes what's held at this moment, for the line of coin over time: this
+-- character's purse, and the account's, where the others' are as they
+-- were when each was last played.
 local function NoteCoin()
-    ThisHour().coin = ns.Characters.TotalMoney()
+    HourIn(Book().hours).coin = ns.Characters.TotalMoney()
+    HourIn(OwnBook().hours).coin = GetMoney()
 end
 
 local function Record(delta)
-    local hour = ThisHour()
-    local side = delta > 0 and hour.income or hour.spending
-    side[context] = (side[context] or 0) + math.abs(delta)
+    for _, hours in ipairs({ Book().hours, OwnBook().hours }) do
+        local hour = HourIn(hours)
+        local side = delta > 0 and hour.income or hour.spending
+        side[context] = (side[context] or 0) + math.abs(delta)
+    end
     NoteCoin()
 
     -- For anything that wants to look closer at one kind of money than a
@@ -186,12 +214,12 @@ end
 -- Adds the record up by stretch, over the last `count` of them.
 -- Returns [stretch] = { income, spending, byCategory, coin }, the first
 -- stretch of the window and the last, which is the one we're in.
-local function AddUp(hoursEach, count)
+local function AddUp(hoursEach, count, accountWide)
     local last = StretchOf(math.floor(GetServerTime() / SECONDS_PER_HOUR), hoursEach)
     local first = last - count + 1
     local stretches = {}
 
-    for hour, record in pairs(Book().hours) do
+    for hour, record in pairs(HoursFor(accountWide)) do
         local at = StretchOf(hour, hoursEach)
         if at >= first and at <= last then
             local stretch = stretches[at]
@@ -233,13 +261,15 @@ end
 ---@param hoursEach number  how long each stretch is: 24 for a day
 ---@param count number      how many stretches back to look, counting
 ---        the one we're in
+---@param accountWide boolean|nil  the whole account's record; this
+---        character's own when not
 ---@return table flow     list of { at, income, spending } in copper,
 ---        oldest first, where at is the stretch's number. Stretches in
 ---        which no coin moved are left out.
 ---@return number first   the first stretch of the window
 ---@return number last    the last: the one we're in
-function Purse.Flow(hoursEach, count)
-    local stretches, first, last = AddUp(hoursEach, count)
+function Purse.Flow(hoursEach, count, accountWide)
+    local stretches, first, last = AddUp(hoursEach, count, accountWide)
 
     local flow = {}
     for at = first, last do
@@ -251,19 +281,21 @@ function Purse.Flow(hoursEach, count)
     return flow, first, last
 end
 
---- What the account held at the end of each of a run of stretches.
+--- What was held at the end of each of a run of stretches: by this
+--- character, or across the account.
 ---
 --- Starts at the first stretch there's a figure for, not at the start of
 --- the window: before that nothing is known. A stretch with no figure of
 --- its own carries the last one forward.
 ---@param hoursEach number
 ---@param count number
+---@param accountWide boolean|nil
 ---@return table coin         list of copper, one for each stretch from
 ---        first to last; empty if nothing is on record in the window
 ---@return number|nil first   the stretch the list starts on
 ---@return number last        the one we're in
-function Purse.Coin(hoursEach, count)
-    local stretches, windowStart, last = AddUp(hoursEach, count)
+function Purse.Coin(hoursEach, count, accountWide)
+    local stretches, windowStart, last = AddUp(hoursEach, count, accountWide)
 
     local coin, first, held = {}, nil, nil
     for at = windowStart, last do
@@ -278,15 +310,16 @@ end
 
 --- Average income and spending over the days the player was active.
 ---@param numDays number  how far back to look, counting today
+---@param accountWide boolean|nil  the whole account's; this character's own when not
 ---@return number income       copper per active day
 ---@return number spending     copper per active day
 ---@return number activeDays   how many days in the window had any activity
 ---@return string|nil biggest  the spending category that cost the most
-function Purse.Averages(numDays)
+function Purse.Averages(numDays, accountWide)
     local income, spending, activeDays = 0, 0, 0
     local byCategory = {}
 
-    for _, day in pairs((AddUp(24, numDays))) do
+    for _, day in pairs((AddUp(24, numDays, accountWide))) do
         if day.income + day.spending > 0 then
             activeDays = activeDays + 1
             income = income + day.income
@@ -312,12 +345,13 @@ end
 
 --- Income and spending for each day the player was active.
 ---@param numDays number  how far back to look, counting today
+---@param accountWide boolean|nil  the whole account's; this character's own when not
 ---@return table days       list of { day, income, spending } in copper,
 ---        oldest first. Days with nothing recorded are left out.
 ---@return number firstDay  the first day of the window
 ---@return number lastDay   the last: today
-function Purse.Daily(numDays)
-    local flow, firstDay, today = Purse.Flow(24, numDays)
+function Purse.Daily(numDays, accountWide)
+    local flow, firstDay, today = Purse.Flow(24, numDays, accountWide)
 
     local days = {}
     for index, day in ipairs(flow) do

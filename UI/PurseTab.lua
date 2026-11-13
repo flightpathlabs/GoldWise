@@ -406,6 +406,10 @@ function PurseTab.Create(parent)
     local pick = CreateFrame("Button", nil, tab, "UIPanelButtonTemplate")
     pick:SetSize(210, 20)
     pick:SetPoint("TOPRIGHT", -24, -6)
+
+    -- Whose money the whole tab is about, beside it.
+    local whose = Theme.CreateMoneyScopeButton(tab)
+    whose:SetPoint("RIGHT", pick, "LEFT", -6, 0)
     pick:SetScript("OnClick", function(self)
         MenuUtil.CreateContextMenu(self, function(_, root)
             root:CreateTitle("Show...")
@@ -447,11 +451,19 @@ function PurseTab.Create(parent)
         flow:SetShown(not ns.settings.purseCoin)
         held:SetShown(ns.settings.purseCoin)
 
+        local accountWide = ns.settings.moneyAccountWide
+        local owner = Theme.MoneyOwner():upper()
+
         if ns.settings.purseCoin then
-            local coin, first, last = ns.Purse.Coin(span.hours, span.count)
+            local coin, first, last = ns.Purse.Coin(span.hours, span.count, accountWide)
             first = first or last
 
-            flowHeading:SetText("COIN ACROSS YOUR CHARACTERS, " .. span.heading)
+            flowHeading:SetText(
+                (accountWide and "COIN ACROSS %s, %s" or "COIN ON %s, %s"):format(
+                    owner,
+                    span.heading
+                )
+            )
             held:SetSeries(
                 -- One line, named in the heading, needs no key.
                 { { label = "", color = Theme.COIN, values = coin } },
@@ -462,9 +474,9 @@ function PurseTab.Create(parent)
                 { fitted = true, firstLabel = Label(first), lastLabel = Label(last) }
             )
         else
-            local bars, first, last = ns.Purse.Flow(span.hours, span.count)
+            local bars, first, last = ns.Purse.Flow(span.hours, span.count, accountWide)
 
-            flowHeading:SetText("CASH FLOW, " .. span.heading)
+            flowHeading:SetText(("CASH FLOW FOR %s, %s"):format(owner, span.heading))
             flow:SetBars(bars, first, last, Label(first), Label(last))
         end
     end
@@ -489,23 +501,43 @@ function PurseTab.Create(parent)
 
     --- Brings every figure on the tab up to date.
     function tab:Refresh()
-        local money = GetMoney()
+        whose:Update()
+        local accountWide = ns.settings.moneyAccountWide
         local level = UnitLevel("player")
-        local income, spending, activeDays, biggest = ns.Purse.Averages(AVERAGE_DAYS)
+        local income, spending, activeDays, biggest = ns.Purse.Averages(AVERAGE_DAYS, accountWide)
 
+        -- The other figure goes underneath, so whichever is chosen, both
+        -- can be seen.
+        local own, everyone = GetMoney(), ns.Characters.TotalMoney()
+        local money = accountWide and everyone or own
         have.Figure:SetText(Theme.Coins(money))
-        local everyone = ns.Characters.TotalMoney()
-        if everyone > money then
-            have.Note:SetText(Theme.Coins(everyone) .. " across your characters")
+        if accountWide then
+            have.Note:SetText(
+                ("across your characters, %s on %s"):format(
+                    ns.Money(own),
+                    UnitName("player") or "this one"
+                )
+            )
+        elseif everyone > own then
+            have.Note:SetText(
+                ("on %s, %s across your characters"):format(
+                    UnitName("player") or "this character",
+                    ns.Money(everyone)
+                )
+            )
         else
-            have.Note:SetText("on this character")
+            have.Note:SetText(("on %s"):format(UnitName("player") or "this character"))
         end
 
         if activeDays == 0 then
             comingIn.Figure:SetText("-")
-            comingIn.Note:SetText("Nothing recorded yet")
+            comingIn.Note:SetText(
+                accountWide and "Nothing recorded yet" or "Nothing for this character yet"
+            )
             goingOut.Figure:SetText("-")
-            goingOut.Note:SetText("Nothing recorded yet")
+            goingOut.Note:SetText(
+                accountWide and "Nothing recorded yet" or "Nothing for this character yet"
+            )
         else
             local span = activeDays == 1 and "from one day of play so far"
                 or ("over your last %d days played"):format(activeDays)
@@ -540,7 +572,14 @@ function PurseTab.Create(parent)
         end
 
         verdict:SetPoint("TOPLEFT", 14, -(ROWS_TOP + shown * ROW_HEIGHT + 16))
-        verdict:SetText(Verdict(money, income, spending, costs))
+        -- The costs are this character's own, so the verdict is too, whichever
+        -- money the tab is showing: an alt's gold can't pay for training here
+        -- until it's been sent over.
+        local ownIncome, ownSpending = income, spending
+        if accountWide then
+            ownIncome, ownSpending = ns.Purse.Averages(AVERAGE_DAYS, false)
+        end
+        verdict:SetText(Verdict(own, ownIncome, ownSpending, costs))
     end
 
     return tab

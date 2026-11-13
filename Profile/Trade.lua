@@ -17,8 +17,10 @@ local _, ns = ...
 -- deposit paid, so it's filed as a purchase even when we can't say of
 -- what.
 --
--- Kept by day for as long as price history is, across the whole account,
--- with a short list of the latest sales and purchases.
+-- Kept by day for as long as price history is, with a short list of the
+-- latest sales and purchases: once for the whole account, and once for
+-- each character on their own. What was last paid for each item is kept
+-- for the account only; it's a price, and any character can use it.
 
 local Trade = {}
 ns.Trade = Trade
@@ -113,12 +115,39 @@ local function Book()
     return book
 end
 
+-- This character's own record: days and recent, as the account's are.
+local function OwnBook()
+    local book = Book()
+    if type(book.characters) ~= "table" then
+        book.characters = {}
+    end
+
+    local key = ns.Characters.CurrentKey()
+    local own = book.characters[key]
+    if type(own) ~= "table" then
+        own = {}
+        book.characters[key] = own
+    end
+    if type(own.days) ~= "table" then
+        own.days = {}
+    end
+    if type(own.recent) ~= "table" then
+        own.recent = {}
+    end
+    return own
+end
+
+-- The record to read back: the account's, or this character's.
+local function BookFor(accountWide)
+    return accountWide and Book() or OwnBook()
+end
+
 -- Recording --------------------------------------------------------------------
 
--- Today's totals: sold, bought, deposits, refunds and cut in copper, and
--- how many sales.
-local function Today()
-    local days = Book().days
+-- Today's totals in a book: sold, bought, deposits, refunds and cut in
+-- copper, and how many sales.
+local function TodayIn(book)
+    local days = book.days
     local today = ns.Ledger.Today()
 
     if not days[today] then
@@ -138,31 +167,36 @@ local function Today()
     return days[today]
 end
 
-local function Remember(entry)
-    local recent = Book().recent
+local function RememberIn(book, entry)
+    local recent = book.recent
     table.insert(recent, entry)
     while #recent > RECENT_KEPT do
         table.remove(recent, 1)
     end
 end
 
--- Puts one movement of coin on record, now that it has happened.
+-- Puts one movement of coin on record, now that it has happened, in the
+-- account's book and this character's.
 local function File(kind, amount, expected)
-    local day = Today()
     expected = expected or {}
 
-    if kind == Trade.SALE then
-        day.sold = day.sold + amount
-        day.sales = day.sales + 1
-        day.cut = day.cut + (expected.cut or 0)
-    elseif kind == Trade.REFUND then
-        day.refunds = day.refunds + amount
-    elseif kind == Trade.DEPOSIT then
-        day.deposits = day.deposits + amount
-    else
-        -- A purchase or a bid. Either way the coin has gone.
-        day.bought = day.bought + amount
+    for _, book in ipairs({ Book(), OwnBook() }) do
+        local day = TodayIn(book)
+        if kind == Trade.SALE then
+            day.sold = day.sold + amount
+            day.sales = day.sales + 1
+            day.cut = day.cut + (expected.cut or 0)
+        elseif kind == Trade.REFUND then
+            day.refunds = day.refunds + amount
+        elseif kind == Trade.DEPOSIT then
+            day.deposits = day.deposits + amount
+        else
+            -- A purchase or a bid. Either way the coin has gone.
+            day.bought = day.bought + amount
+        end
+    end
 
+    if kind == Trade.PURCHASE or kind == Trade.BID then
         -- What the player paid for a thing is worth knowing the next time
         -- they wonder whether to sell it. Only where the game said what
         -- was bought and how many, and only once it's theirs: a bid can
@@ -177,16 +211,20 @@ local function File(kind, amount, expected)
     end
 
     -- Deposits are left off the list: one for every listing would bury
-    -- the sales it's there to show.
+    -- the sales it's there to show. Each entry says whose it was, for
+    -- the account's list.
     if kind ~= Trade.DEPOSIT then
-        Remember({
+        local entry = {
             at = GetServerTime(),
             kind = kind,
             amount = amount,
             itemID = expected.itemID,
             name = expected.name,
             count = expected.count,
-        })
+            who = UnitName("player"),
+        }
+        RememberIn(Book(), entry)
+        RememberIn(OwnBook(), CopyTable(entry))
     end
 
     ns.Publish("TRADE_CHANGED")
@@ -409,13 +447,14 @@ end
 
 --- What the auction house brought in and cost, for each day of a stretch.
 ---@param numDays number  how far back to look, counting today
+---@param accountWide boolean|nil  the whole account's; this character's own when not
 ---@return table days       list, oldest first and with every day present,
 ---        of { day, sold, bought, deposits, net } in copper. bought is
 ---        less any bids that were returned.
 ---@return number firstDay  the first day of the stretch
 ---@return number lastDay   the last: today
-function Trade.Daily(numDays)
-    local recorded = Book().days
+function Trade.Daily(numDays, accountWide)
+    local recorded = BookFor(accountWide).days
     local today = ns.Ledger.Today()
     local firstDay = today - numDays + 1
     local days = {}
@@ -435,10 +474,11 @@ end
 
 --- The same stretch, added up.
 ---@param numDays number
+---@param accountWide boolean|nil
 ---@return table totals  { sold, bought, deposits, cut, net, sales }; bought
 ---        is less any bids that were returned
-function Trade.Totals(numDays)
-    local recorded = Book().days
+function Trade.Totals(numDays, accountWide)
+    local recorded = BookFor(accountWide).days
     local today = ns.Ledger.Today()
     local totals = { sold = 0, bought = 0, deposits = 0, cut = 0, net = 0, sales = 0 }
 
@@ -476,11 +516,13 @@ function Trade.LastPaid(itemID)
 end
 
 --- The latest sales, purchases, bids and returned bids, newest first.
----@return table entries  list of { at, kind, amount, itemID, name, count }.
+---@param accountWide boolean|nil  the whole account's; this character's own when not
+---@return table entries  list of { at, kind, amount, itemID, name, count,
+---        who }. who is the character's name, on entries since it was kept.
 ---        at is server time; itemID and name are each there only when
 ---        the game gave them.
-function Trade.Recent()
-    local recent = Book().recent
+function Trade.Recent(accountWide)
+    local recent = BookFor(accountWide).recent
     local entries = {}
     for index = #recent, 1, -1 do
         table.insert(entries, recent[index])

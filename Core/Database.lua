@@ -13,7 +13,8 @@ local addonName, ns = ...
 --   banks      what's in each character's bank, and the shared one (see Bank)
 --   crafts     the recipes each character knows (see Crafts)
 --   keep       what the player has said isn't for sale (see Keep)
---   purse      money in and out, and coin held, by the hour (see Purse)
+--   purse      money in and out, and coin held, by the hour, for the
+--              account and each character (see Purse)
 --   trade      auction sales, purchases and deposits by day (see Trade)
 --   worth      coin and goods by day (see Worth)
 --   directory  trainers and services the account has visited (see Directory)
@@ -110,6 +111,10 @@ local DEFAULT_SETTINGS = {
     -- coin held in place of the bars.
     purseSpan = 1,
     purseCoin = false,
+
+    -- Whether the Purse and Profit tabs show the whole account's money or
+    -- this character's alone. One choice for both, so they can't disagree.
+    moneyAccountWide = false,
 
     -- What an item's price history page draws: a place in the list in
     -- UI\ItemDetail.lua.

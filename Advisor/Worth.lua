@@ -1,8 +1,9 @@
 local _, ns = ...
 
--- What the player is worth, day by day: the coin on their characters, and
--- the goods they hold at what those are listed for. Only the characters
--- who trade in this one's auction house are counted, for both.
+-- What the player is worth, day by day: their coin, and the goods they
+-- hold at what those are listed for. Kept for this character alone, and
+-- for the account, which counts only the characters who trade in this
+-- one's auction house, for both.
 --
 -- Profit says how each day went. This says where it has all got to, which
 -- is the figure that tells someone whether a month of playing the market
@@ -26,39 +27,60 @@ local COIN, GOODS = 1, 2
 
 local countPending = false
 
-local function Days()
+local function Book()
     if type(ns.db.worth) ~= "table" then
         ns.db.worth = {}
     end
-    if type(ns.db.worth.days) ~= "table" then
-        ns.db.worth.days = {}
+    return ns.db.worth
+end
+
+-- The days on record for the whole account, or for this character alone.
+-- Each character's own were first kept a while after the account's, so
+-- there can be fewer of them.
+local function Days(accountWide)
+    local book = Book()
+    if accountWide then
+        if type(book.days) ~= "table" then
+            book.days = {}
+        end
+        return book.days
     end
-    return ns.db.worth.days
+
+    if type(book.characters) ~= "table" then
+        book.characters = {}
+    end
+    local key = ns.Characters.CurrentKey()
+    if type(book.characters[key]) ~= "table" then
+        book.characters[key] = {}
+    end
+    return book.characters[key]
 end
 
 local function Count()
     countPending = false
 
-    local days = Days()
     local today = ns.Ledger.Today()
-
-    if not days[today] then
-        -- A new day is as good a moment as any to drop the oldest.
-        ns.Ledger.ForgetOldDays(days, ns.settings.historyDays)
+    for _, accountWide in ipairs({ true, false }) do
+        local days = Days(accountWide)
+        if not days[today] then
+            -- A new day is as good a moment as any to drop the oldest.
+            ns.Ledger.ForgetOldDays(days, ns.settings.historyDays)
+        end
     end
 
-    -- Coin and goods are counted over the same characters: this one and
-    -- the others on its market. A character on the other side trades in a
-    -- different auction house, and their goods can't be priced in this
-    -- one, so their coin is left out as well.
+    -- For the account, coin and goods are counted over the same
+    -- characters: this one and the others on its market. A character on
+    -- the other side trades in a different auction house, and their goods
+    -- can't be priced in this one, so their coin is left out as well.
     local home = ns.Market.Home()
     local coin = GetMoney()
     for _, character in ipairs(ns.Characters.Others(home)) do
         coin = coin + (character.money or 0)
     end
 
-    local _, goods = ns.Assets.WorthOfEverything(home)
-    days[today] = { coin, goods }
+    local mine, goods = ns.Assets.WorthOfEverything(home)
+    Days(true)[today] = { coin, goods }
+    Days(false)[today] = { GetMoney(), mine }
 end
 
 local function CountSoon()
@@ -79,12 +101,14 @@ ns.Subscribe("PRICES_CHANGED", CountSoon)
 --- stretch: before that nothing is known, which isn't the same as having
 --- nothing. A day with no record of its own carries the last one forward.
 ---@param numDays number  how far back to look, counting today
+---@param accountWide boolean|nil  every character on this market and the
+---        shared bank; this character's coin, bags and bank when not
 ---@return table days       list of { day, coin, goods } in copper, oldest
 ---        first; empty if nothing is on record in the stretch
 ---@return number|nil firstDay  the day the list starts on
 ---@return number lastDay       today
-function Worth.Daily(numDays)
-    local recorded = Days()
+function Worth.Daily(numDays, accountWide)
+    local recorded = Days(accountWide)
     local today = ns.Ledger.Today()
 
     local firstDay

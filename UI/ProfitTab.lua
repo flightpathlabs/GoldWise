@@ -37,17 +37,18 @@ local HOW_PROFIT_COUNTS = "Sales count when you take the coin from your mailbox.
 local VIEWS = {
     [EACH_DAY] = {
         label = "Each day",
-        about = "What you came out ahead or behind by, each day for 30 days",
+        about = "How each day went for %s, over the last 30 days",
         footer = HOW_PROFIT_COUNTS,
     },
     [RUNNING] = {
         label = "Running total",
-        about = "What you're up or down over the last 30 days, as it added up",
+        about = "How the last 30 days added up for %s",
         footer = HOW_PROFIT_COUNTS,
     },
     [WORTH] = {
         label = "What you're worth",
-        about = "Your coin and your goods, on this side's characters",
+        about = "The coin and goods held by %s",
+        aboutAccount = "The coin and goods held by your characters on this side",
         footer = "Goods are counted at their cheapest listing, as though all of them "
             .. "would sell. Take that part as the most they could fetch.",
     },
@@ -102,7 +103,14 @@ end
 local function FillRow(row, entry)
     row.Stripe:SetShown(row:GetOrderIndex() % 2 == 0)
     row.When:SetText(date("%d %b", entry.at))
-    row.What:SetText(WhatText(entry))
+
+    -- Across the account, whose sale or purchase it was, where that was
+    -- noted. Entries from before it was are left as they are.
+    local what = WhatText(entry)
+    if ns.settings.moneyAccountWide and entry.who then
+        what = ("%s  %s"):format(what, Theme.Aside(entry.who))
+    end
+    row.What:SetText(what)
 
     local spent = entry.kind == ns.Trade.PURCHASE or entry.kind == ns.Trade.BID
     local text, color = Theme.SignedCoins(spent and -entry.amount or entry.amount)
@@ -126,7 +134,7 @@ end
 -- purse leaves out days with nothing on record, and a line needs them all.
 local function OverallByDay(firstDay, lastDay)
     local byDay = {}
-    for _, day in ipairs((ns.Purse.Daily(DAYS))) do
+    for _, day in ipairs((ns.Purse.Daily(DAYS, ns.settings.moneyAccountWide))) do
         byDay[day.day] = day.income - day.spending
     end
 
@@ -160,6 +168,10 @@ function ProfitTab.Create(parent)
     local pick = CreateFrame("Button", nil, tab, "UIPanelButtonTemplate")
     pick:SetSize(150, 20)
     pick:SetPoint("TOPRIGHT", -24, -6)
+
+    -- Whose money the whole tab is about, beside it.
+    local whose = Theme.CreateMoneyScopeButton(tab)
+    whose:SetPoint("RIGHT", pick, "LEFT", -6, 0)
     pick:SetScript("OnClick", function(self)
         MenuUtil.CreateContextMenu(self, function(_, root)
             root:CreateTitle("Show...")
@@ -222,7 +234,7 @@ function ProfitTab.Create(parent)
     -- Draws what the player is worth: one line for everything, and one
     -- for the coin alone, so the gap between them is the goods.
     local function DrawWorth()
-        local days, firstDay, lastDay = ns.Worth.Daily(DAYS)
+        local days, firstDay, lastDay = ns.Worth.Daily(DAYS, ns.settings.moneyAccountWide)
 
         local everything, coin = {}, {}
         for index, day in ipairs(days) do
@@ -244,7 +256,7 @@ function ProfitTab.Create(parent)
 
     -- Draws how each day went, or how the days added up.
     local function DrawProfit(running)
-        local trade, firstDay, lastDay = ns.Trade.Daily(DAYS)
+        local trade, firstDay, lastDay = ns.Trade.Daily(DAYS, ns.settings.moneyAccountWide)
         local atAuction = {}
         for index, day in ipairs(trade) do
             atAuction[index] = day.net
@@ -273,7 +285,9 @@ function ProfitTab.Create(parent)
     --- Rebuilds the tab from what's on record.
     ---@return string footer  a line about what's on show, for the window
     function tab:Refresh()
-        local totals = ns.Trade.Totals(DAYS)
+        whose:Update()
+        local accountWide = ns.settings.moneyAccountWide
+        local totals = ns.Trade.Totals(DAYS, accountWide)
 
         sold.Figure:SetText(Theme.Coins(totals.sold))
         if totals.sales == 0 then
@@ -307,10 +321,11 @@ function ProfitTab.Create(parent)
         else
             DrawProfit(showing == RUNNING)
         end
-        about:SetText(chosen.about)
+        local words = ns.settings.moneyAccountWide and chosen.aboutAccount or chosen.about
+        about:SetText(words:format(Theme.MoneyOwner()))
         pick:SetText(chosen.label)
 
-        local recent = ns.Trade.Recent()
+        local recent = ns.Trade.Recent(accountWide)
         empty:SetShown(#recent == 0)
         scrollBox:SetDataProvider(
             CreateDataProvider(recent),

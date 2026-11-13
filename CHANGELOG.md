@@ -15,6 +15,12 @@ the `dev` branch.
   dismissed and has a button to bring them all back.
 - **A cog for the options.** The Goldwise window has a settings cog
   beside its close button.
+- **This character, or the whole account.** Purse and Profit now show
+  the character you're playing, with a button beside each tab's menu to
+  switch both to the whole account. Each character's own figures start
+  from this version, so they fill in as you play; the whole account
+  keeps everything it had. Across the account, the latest sales name the
+  character who made them.
 
 **Fixed**
 
