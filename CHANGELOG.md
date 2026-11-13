@@ -69,6 +69,15 @@ the `dev` branch.
   what sales made after the cut. The profit figure was right before and
   hasn't changed. Sales from before this version stay as they were
   recorded.
+- **"Make room" counts only your ordinary bags.** Empty slots in a
+  quiver, ammo pouch or herb bag were counted as room for loot, so the
+  reminder could stay quiet with your bags all but full.
+- **"What materials are worth" keeps up.** It changed only after a read
+  of the whole market. Prices from a search, the feed or other players
+  now show there too, within half a minute.
+- **Sharing a price over 214,000 gold**, as a joke listing might be, no
+  longer goes wrong.
+- "1 minutes ago" now reads "2 minutes ago".
 
 ## 0.4.0 (12 November 2026)
 

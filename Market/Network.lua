@@ -259,7 +259,9 @@ local function Answer(marketKey, itemList)
         -- Our own readings only. See the note at the top about the feed.
         local price, quantity, seenAt = ns.Ledger.LocalPrice(marketKey, tonumber(itemID))
         if price and seenAt and now - seenAt <= FRESH then
-            table.insert(found, ("%s:%d:%d"):format(itemID, price, quantity or 0))
+            -- %.0f rather than %d: the client's %d is limited to 32 bits, and a
+            -- joke listing can be dearer than that many copper.
+            table.insert(found, ("%s:%.0f:%.0f"):format(itemID, price, quantity or 0))
         end
     end
 

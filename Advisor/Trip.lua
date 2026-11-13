@@ -38,10 +38,15 @@ local MOST_RECIPES = 6
 local TOO_HIGH = 3
 local TOO_LOW = 8
 
+-- Free slots in the ordinary bags. A quiver, an ammo pouch or a herb bag
+-- takes only its own kind of thing, so its empty slots are no room for loot.
 local function FreeBagSlots()
     local free = 0
     for bag = BACKPACK_CONTAINER, NUM_TOTAL_EQUIPPED_BAG_SLOTS do
-        free = free + C_Container.GetContainerNumFreeSlots(bag)
+        local slots, family = C_Container.GetContainerNumFreeSlots(bag)
+        if (family or 0) == 0 then
+            free = free + (slots or 0)
+        end
     end
     return free
 end

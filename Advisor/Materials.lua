@@ -34,9 +34,28 @@ local MOST_KINDS = 12
 local LEVEL_HEADROOM = 5
 
 -- The work is going through thirteen thousand prices, so it's kept by
--- market and redone only after a new scan of the whole market, which is
--- when nearly all of them change.
+-- market. A scan of the whole market redoes it straight away, since
+-- nearly every price changes. Prices that arrive another way (a search,
+-- another player's readings, the feed) mark it out of date, and it's
+-- redone the next time it's wanted, though not more than once every so
+-- often: they can come a page at a time.
 local cache = {}
+local REDO_AT_MOST_EVERY = 30
+
+ns.Subscribe("PRICES_CHANGED", function(marketKey)
+    local cached = marketKey and cache[marketKey]
+    if cached then
+        cached.stale = true
+    end
+end)
+
+-- Whether what's kept for a market will still do.
+local function StillGood(cached, lastScan)
+    if not cached or cached.lastScan ~= lastScan then
+        return false
+    end
+    return not cached.stale or GetTime() - cached.madeAt < REDO_AT_MOST_EVERY
+end
 
 -- Sorts the market's trade goods into kinds. Returns a list of
 -- { name, worth, items }, biggest market first, where items is a list of
@@ -44,7 +63,7 @@ local cache = {}
 local function Kinds(marketKey)
     local lastScan = ns.Ledger.LastScan(marketKey) or 0
     local cached = cache[marketKey]
-    if cached and cached.lastScan == lastScan then
+    if StillGood(cached, lastScan) then
         return cached.kinds
     end
 
@@ -87,7 +106,7 @@ local function Kinds(marketKey)
         return a.name < b.name
     end)
 
-    cache[marketKey] = { lastScan = lastScan, kinds = kinds }
+    cache[marketKey] = { lastScan = lastScan, kinds = kinds, madeAt = GetTime() }
     return kinds
 end
 

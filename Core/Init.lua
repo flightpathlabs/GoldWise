@@ -72,7 +72,8 @@ function ns.Ago(seconds)
     if seconds < 90 then
         return "just now"
     elseif seconds < 3600 then
-        return ("%d minutes ago"):format(math.floor(seconds / 60))
+        -- Rounded, so a minute and a half is "2 minutes", never "1 minutes".
+        return ("%d minutes ago"):format(math.min(59, math.floor(seconds / 60 + 0.5)))
     elseif seconds < 2 * 3600 then
         return "an hour ago"
     elseif seconds < ns.SECONDS_PER_DAY then
