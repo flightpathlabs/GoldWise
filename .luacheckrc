@@ -123,6 +123,7 @@ read_globals = {
     "SettingsTooltip",
     "SettingsPanel",
     "HideUIPanel",
+    "InRepairMode",
     "TooltipDataProcessor",
 
     -- Namespaced API

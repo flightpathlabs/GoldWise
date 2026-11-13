@@ -251,6 +251,7 @@ rather than guessing.
 | `/gw tree` | Crafting tree for the item you last pointed at |
 | `/gw goal 50` | Save toward 50 gold. `/gw goal off` clears it |
 | `/gw session` | Show or hide the session tracker |
+| `/gw news` | What changed in the latest update |
 | `/gw report` | Gather what a bug report needs, ready to copy |
 | `/gw demo` | Fill the charts with sample history, for screenshots |
 

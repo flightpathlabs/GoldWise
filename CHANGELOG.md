@@ -19,11 +19,15 @@ the `dev` branch.
   earned or lost in coin, how much more or less your bags are worth than
   when it began, the two together, and the rate an hour. Below that is
   what your bags are worth, counted the way Goldwise would sell each
-  thing: at auction less the cut, or at a vendor's price. Drag it where
-  you like; right-click to lock it or start a new session. A reload, or
-  logging back in within a quarter of an hour, carries on the same
-  session. The pin in its corner opens Places, and pointing at it names
-  the nearest auction house, repairs, bank, flight master and inn.
+  thing: at auction less the cut, or at a vendor's price. "Coin in and
+  out" opens a breakdown: looted, quest rewards, sold to vendors, auction
+  sales, and on the other side repairs, vendors, training, flights and
+  the rest. The arrow in its corner starts the session again, say before
+  a run. Click a line to open your purse or this character's assets.
+  Drag it where you like; right-click to lock it. A reload, or logging
+  back in within a quarter of an hour, carries on the same session. The
+  pin in its corner opens Places, and pointing at it names the nearest
+  auction house, repairs, bank, flight master and inn.
 - **Goldwise's cards can be moved.** Drag the card that tells you about a
   recipe for sale nearby, or any other, to wherever you'd like them to
   appear, and they'll come up there from then on. Right-click one to put
@@ -40,6 +44,16 @@ the `dev` branch.
   Goldwise, what they earned, spent and sold before carries straight
   over. Across the account, the latest sales name the character who
   made them.
+
+**Better**
+
+- **Purse tells more kinds of money apart.** Coin you loot, quest
+  rewards and repairs are now kept apart from everything else, so the
+  "mostly ..." line under spending can say repairs rather than "repairs
+  and supplies". Earlier days stay as they were recorded.
+- **A note on what's new.** The first time you open Goldwise after an
+  update, a short note beside the window says what's changed, once.
+  `/gw news` brings it back.
 
 **Fixed**
 

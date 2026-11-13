@@ -170,6 +170,16 @@ function Theme.MoneyIsSomeoneElse()
     return not ns.settings.moneyAccountWide and viewing ~= nil
 end
 
+--- Puts the money tabs back on the character being played, as when
+--- something about this character's own money is asked for.
+function Theme.ShowOwnMoney()
+    if ns.settings.moneyAccountWide or viewing then
+        ns.settings.moneyAccountWide = false
+        viewing = nil
+        ns.Publish("SETTINGS_CHANGED")
+    end
+end
+
 -- A character as the menu and the headings name them: with their realm
 -- when it isn't the one being played on.
 local function CharacterLabel(character)

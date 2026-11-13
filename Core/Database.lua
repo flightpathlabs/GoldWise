@@ -121,6 +121,8 @@ local DEFAULT_SETTINGS = {
     -- it's been moved.
     sessionTracker = false,
     sessionTrackerLocked = false,
+    -- Whether its breakdown of coin in and out is open.
+    sessionTrackerExpanded = false,
 
     -- What an item's price history page draws: a place in the list in
     -- UI\ItemDetail.lua.

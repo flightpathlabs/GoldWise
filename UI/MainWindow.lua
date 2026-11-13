@@ -430,7 +430,10 @@ local function CreateWindow()
     end)
     CreateTabs(frame)
 
-    frame:SetScript("OnShow", Refresh)
+    frame:SetScript("OnShow", function(self)
+        Refresh()
+        ns.OfferNews(self)
+    end)
     return frame
 end
 
@@ -635,6 +638,9 @@ SlashCmdList.GOLDWISE = function(message)
         ns.RunCheck()
     elseif command == "report" or command == "bug" or command == "feedback" then
         ns.ShowReport()
+    elseif command == "news" or command == "new" then
+        ns.ShowWindow()
+        ns.ShowNewsBeside(window)
     elseif command == "session" or command == "tracker" then
         ns.ToggleSessionTracker()
     elseif command == "demo" then

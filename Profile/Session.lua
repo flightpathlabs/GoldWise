@@ -29,7 +29,9 @@ local HEARTBEAT_SECONDS = 60
 local SETTLE_SECONDS = 1
 
 -- The saved sessions, one per character, by character key:
--- { startedAt, seenAt, earned, spent, bagsAtStart }, where bagsAtStart
+-- { startedAt, seenAt, earned, spent, income, spending, bagsAtStart },
+-- where income and spending split the coin by what it was for, as
+-- { [category] = copper } with Purse.lua's categories, and bagsAtStart
 -- is what was in the bags then, { [itemID] = count }. Times are server
 -- time; money is copper.
 local function Sessions()
@@ -61,7 +63,7 @@ local watched = false
 
 local function Fresh()
     local now = GetServerTime()
-    return { startedAt = now, seenAt = now, earned = 0, spent = 0 }
+    return { startedAt = now, seenAt = now, earned = 0, spent = 0, income = {}, spending = {} }
 end
 
 -- What's in the bags, as { [itemID] = count }.
@@ -146,6 +148,9 @@ ns.OnEvent("PLAYER_LOGIN", function()
         Sessions()[key] = saved
     end
     saved.seenAt = now
+    -- Sessions saved before coin was kept by kind.
+    saved.income = type(saved.income) == "table" and saved.income or {}
+    saved.spending = type(saved.spending) == "table" and saved.spending or {}
     current = saved
 
     C_Timer.NewTicker(HEARTBEAT_SECONDS, function()
@@ -159,14 +164,43 @@ ns.OnEvent("PLAYER_LOGOUT", function()
     end
 end)
 
-ns.Subscribe("MONEY_MOVED", function(delta)
+-- Coin from the auction house that Trade.lua has just put on record and
+-- that's about to arrive here. The auction house pays by letter, so it
+-- lands in the purse as mail; this is how it's told apart from coin an
+-- alt sent. Trade hears of the coin first, in the same moment.
+local fromAuction = 0
+
+ns.Subscribe("TRADE_CHANGED", function(kind, amount)
+    if (kind == ns.Trade.SALE or kind == ns.Trade.REFUND) and amount then
+        fromAuction = fromAuction + amount
+    end
+end)
+
+local function Add(side, category, amount)
+    side[category] = (side[category] or 0) + amount
+end
+
+ns.Subscribe("MONEY_MOVED", function(delta, context)
+    local auctionPart = 0
+    if delta > 0 then
+        auctionPart = math.min(fromAuction, delta)
+    end
+    fromAuction = 0
+
     if not current then
         return
     end
     if delta > 0 then
         current.earned = current.earned + delta
+        if auctionPart > 0 then
+            Add(current.income, "auction", auctionPart)
+        end
+        if delta > auctionPart then
+            Add(current.income, context or "other", delta - auctionPart)
+        end
     else
         current.spent = current.spent - delta
+        Add(current.spending, context or "other", -delta)
     end
     ns.Publish("SESSION_CHANGED")
 end)
@@ -211,8 +245,10 @@ end
 
 --- How the session stands.
 ---@return table|nil summary  nil before login. Otherwise { seconds, earned,
----        spent, coin, bags, auction, vendor, unpriced, goods, overall },
----        all money in copper. coin is what came in less what went out;
+---        spent, income, spending, coin, bags, auction, vendor, unpriced,
+---        goods, overall }, where income and spending are { [category] =
+---        copper }, by Purse.lua's categories, and the rest are
+---        copper. coin is what came in less what went out;
 ---        goods is how much more the bags are worth than what was in them
 ---        at the start, both at today's prices;
 ---        overall is the two together. bags and the fields after it are
@@ -226,6 +262,8 @@ function Session.Summary()
         seconds = GetServerTime() - current.startedAt,
         earned = current.earned,
         spent = current.spent,
+        income = current.income,
+        spending = current.spending,
         coin = current.earned - current.spent,
     }
     if bags then

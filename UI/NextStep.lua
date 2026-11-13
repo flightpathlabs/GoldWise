@@ -1,6 +1,6 @@
 local _, ns = ...
 
--- The three moments Goldwise speaks up without being asked.
+-- The moments Goldwise speaks up without being asked.
 --
 --   * Arriving somewhere with an auction house, when a visit would
 --     actually pay: prices have gone stale, or the bags hold something
@@ -9,10 +9,12 @@ local _, ns = ...
 --     deal more at auction.
 --   * Entering a zone where a vendor sells a recipe the player could use
 --     and hasn't learned.
+--   * The first time the window is opened after an update with news
+--     worth telling a returning player (at the end of this file).
 --
--- Each happens at most once per visit, each can be switched off, and none
--- fires in combat. The rest of the time the only sign is a soft pulse on
--- the minimap button.
+-- Each happens at most once per visit, the first three can be switched
+-- off, and none fires in combat. The rest of the time the only sign is a
+-- soft pulse on the minimap button.
 
 local Theme = ns.Theme
 
@@ -407,3 +409,167 @@ end
 
 ns.OnEvent("ZONE_CHANGED_NEW_AREA", CheckRecipesSoon)
 ns.OnEvent("PLAYER_ENTERING_WORLD", CheckRecipesSoon)
+
+-- What's new ----------------------------------------------------------------------------
+
+-- Once after an update, a note beside the Goldwise window saying what's
+-- changed that a returning player would otherwise trip over. It waits
+-- for the window to be opened rather than interrupting play, and comes
+-- up only the once; /gw news brings it back. Someone installing Goldwise
+-- for the first time has nothing to unlearn, so they never see one.
+--
+-- Each release with something worth saying gets an entry here, under a
+-- name of its own. ns.db.newsSeen keeps the names of those already shown.
+local NEWS = {
+    {
+        id = "0.4.1",
+        title = "New in Goldwise",
+        body = function()
+            local lines = {}
+            if not ns.Characters.IsOnlyOne() then
+                table.insert(
+                    lines,
+                    "Purse and Profit now open on the character you're playing. Each "
+                        .. "character's own figures start from this version, so they'll "
+                        .. "look empty for a while. Everything from before is still there, "
+                        .. "under Whole account: the button at the top of either tab."
+                )
+            end
+            table.insert(
+                lines,
+                "There's also a session tracker to keep on screen: the Session button "
+                    .. "on this window's title bar. And Goldwise's suggestion cards can be "
+                    .. "dragged wherever you'd like them."
+            )
+            return table.concat(lines, "\n\n")
+        end,
+        -- A button that goes with what's new, if there is one.
+        action = function()
+            if ns.Characters.IsOnlyOne() then
+                return nil
+            end
+            return {
+                label = "See my history",
+                onClick = function()
+                    ns.settings.moneyAccountWide = true
+                    ns.Publish("SETTINGS_CHANGED")
+                    ns.ShowWindowTab("Purse")
+                end,
+            }
+        end,
+    },
+}
+
+local NEWS_WIDTH = 300
+local NEWS_PADDING = 14
+
+-- Whether this is someone coming from an earlier version. Decided before
+-- anything has written to the saved data this session: an earlier
+-- version will have left a purse there.
+ns.Subscribe("DATABASE_READY", function()
+    if type(ns.db.newsSeen) == "table" then
+        return
+    end
+
+    ns.db.newsSeen = {}
+    if type(ns.db.purse) ~= "table" then
+        for _, news in ipairs(NEWS) do
+            ns.db.newsSeen[news.id] = true
+        end
+    end
+end)
+
+local newsPanel
+
+local function CreateNewsPanel(window)
+    local panel = CreateFrame("Frame", nil, window, "TooltipBorderedFrameTemplate")
+    panel:SetWidth(NEWS_WIDTH)
+    panel:SetPoint("TOPLEFT", window, "TOPRIGHT", 4, -24)
+    panel:SetClampedToScreen(true)
+    -- It's been seen once the window has been open with it; closing the
+    -- window any way at all puts it away.
+    window:HookScript("OnHide", function()
+        panel:Hide()
+    end)
+    panel:EnableMouse(true)
+
+    local textWidth = NEWS_WIDTH - 2 * NEWS_PADDING
+
+    panel.Title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalMed3")
+    panel.Title:SetPoint("TOPLEFT", NEWS_PADDING, -NEWS_PADDING)
+    panel.Title:SetWidth(textWidth)
+    panel.Title:SetJustifyH("LEFT")
+    panel.Title:SetTextColor(unpack(Theme.COIN))
+
+    panel.Body = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    panel.Body:SetPoint("TOPLEFT", panel.Title, "BOTTOMLEFT", 0, -8)
+    panel.Body:SetWidth(textWidth)
+    panel.Body:SetJustifyH("LEFT")
+    panel.Body:SetSpacing(3)
+
+    panel.Action = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    panel.Action:SetSize(130, 22)
+    panel.Action:SetPoint("BOTTOMLEFT", NEWS_PADDING, NEWS_PADDING - 2)
+
+    panel.Done = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    panel.Done:SetSize(90, 22)
+    panel.Done:SetText("Got it")
+    panel.Done:SetScript("OnClick", function()
+        panel:Hide()
+    end)
+
+    return panel
+end
+
+local function ShowNewsPanel(window, news)
+    newsPanel = newsPanel or CreateNewsPanel(window)
+    newsPanel.Title:SetText(news.title)
+    newsPanel.Body:SetText(news.body())
+
+    local action = news.action()
+    newsPanel.Action:SetShown(action ~= nil)
+    newsPanel.Done:ClearAllPoints()
+    if action then
+        newsPanel.Action:SetText(action.label)
+        newsPanel.Action:SetScript("OnClick", function()
+            newsPanel:Hide()
+            action.onClick()
+        end)
+        newsPanel.Done:SetPoint("LEFT", newsPanel.Action, "RIGHT", 8, 0)
+    else
+        newsPanel.Done:SetPoint("BOTTOMLEFT", NEWS_PADDING, NEWS_PADDING - 2)
+    end
+
+    local height = NEWS_PADDING + newsPanel.Title:GetStringHeight() + 8
+    height = height + newsPanel.Body:GetStringHeight() + 14 + 22 + NEWS_PADDING
+    newsPanel:SetHeight(height)
+    newsPanel:Show()
+end
+
+--- Called as the Goldwise window opens: puts the news beside it if
+--- there's some this player hasn't seen.
+---@param window table  the main window
+function ns.OfferNews(window)
+    local news
+    for _, entry in ipairs(NEWS) do
+        if not ns.db.newsSeen[entry.id] then
+            news = entry
+        end
+    end
+    if not news then
+        return
+    end
+
+    ShowNewsPanel(window, news)
+    -- Only the newest is shown. Anything older has been overtaken.
+    for _, entry in ipairs(NEWS) do
+        ns.db.newsSeen[entry.id] = true
+    end
+end
+
+--- Shows the latest news again, whether or not it's been seen. For
+--- /gw news.
+---@param window table  the main window, open
+function ns.ShowNewsBeside(window)
+    ShowNewsPanel(window, NEWS[#NEWS])
+end

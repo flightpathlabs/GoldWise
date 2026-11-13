@@ -556,7 +556,8 @@ function PurseTab.Create(parent)
             comingIn.Note:SetText(span)
             goingOut.Figure:SetText(Theme.Coins(spending) .. " a day")
             goingOut.Note:SetText(
-                biggest and ("mostly " .. ns.Purse.SPENDING_LABELS[biggest]) or span
+                biggest and ("mostly " .. (ns.Purse.SPENDING_LABELS[biggest] or "everything else"))
+                    or span
             )
         end
 

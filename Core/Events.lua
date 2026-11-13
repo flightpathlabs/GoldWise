@@ -91,9 +91,11 @@ end
 --   PURSE_CHANGED                   money, gear wear or known costs changed
 --   MONEY_MOVED      delta, context the player's money went up or down by
 --                                   delta copper; context is what they were
---                                   doing ("auction", "mail", "vendor"...)
---   TRADE_CHANGED                   a sale, purchase or fee at the auction
---                                   house has been put on record
+--                                   doing ("auction", "mail", "vendor",
+--                                   "repair", "loot", "quest"...)
+--   TRADE_CHANGED    kind, amount   a sale, purchase or fee at the auction
+--                                   house has been put on record; kind is
+--                                   one of Trade.SALE and the rest
 --   PLACES_CHANGED                  the directory of places has learned more
 --   CRAFTS_CHANGED                  the player's known recipes have been read
 --   COURSE_CHANGED                  the player picked something else for a

@@ -30,7 +30,44 @@ local NEARBY = {
     { label = "Innkeeper", kind = "INN" },
 }
 
+-- The breakdown's names for each kind of coin, by Purse.lua's categories.
+-- Anything not here is shown as "Other".
+local INCOME_LABELS = {
+    loot = "Looted",
+    quest = "Quest rewards",
+    vendor = "Sold to vendors",
+    auction = "Auction sales",
+    mail = "Mail",
+    other = "Other",
+}
+
+local SPENDING_LABELS = {
+    repair = "Repairs",
+    vendor = "Bought from vendors",
+    training = "Training",
+    auction = "Auction house",
+    mail = "Postage",
+    travel = "Flights",
+    quest = "Quests",
+    other = "Other",
+}
+
+-- Where the breakdown's switch sits, and where its lines start when open.
+local BREAKDOWN_SWITCH = 8.75
+local BREAKDOWN_START = 10
+
+local RESET_SIZE = 14
+
 local tracker
+
+-- When the panel was last let go of after a drag. The lines are buttons,
+-- and letting go over one mustn't count as clicking it.
+local droppedAt = 0
+local DROP_GRACE = 0.3
+
+local function JustDropped()
+    return GetTime() - droppedAt < DROP_GRACE
+end
 
 local function Duration(seconds)
     local hours = math.floor(seconds / 3600)
@@ -51,9 +88,15 @@ end
 
 -- Building -----------------------------------------------------------------------------
 
+-- How far down the panel a line sits. Lines are counted from 1, under
+-- the title; halves leave a gap.
+local function TopOf(index)
+    return -(PADDING + 20 + (index - 1) * LINE_HEIGHT)
+end
+
 -- A line of the panel: what it is on the left, the figure on the right.
 local function CreateLine(parent, index, label, font)
-    local top = -(PADDING + 20 + (index - 1) * LINE_HEIGHT)
+    local top = TopOf(index)
 
     local line = {}
     line.Label = parent:CreateFontString(nil, "ARTWORK", font or "GameFontNormalSmall")
@@ -64,6 +107,16 @@ local function CreateLine(parent, index, label, font)
     line.Figure:SetPoint("TOPRIGHT", -PADDING, top)
     line.Figure:SetJustifyH("RIGHT")
     return line
+end
+
+-- Moves a line to another place down the panel, for the breakdown, whose
+-- lines come and go.
+local function MoveLine(line, index)
+    local top = TopOf(index)
+    line.Label:ClearAllPoints()
+    line.Label:SetPoint("TOPLEFT", PADDING, top)
+    line.Figure:ClearAllPoints()
+    line.Figure:SetPoint("TOPRIGHT", -PADDING, top)
 end
 
 local function SetSigned(line, copper)
@@ -82,9 +135,13 @@ local function SetSigned(line, copper)
     line.Figure:SetTextColor(unpack(color))
 end
 
+-- Kept by its top-left corner, so the panel grows downward from where
+-- it was put when the breakdown opens.
 local function SavePosition(frame)
-    local point, _, relativePoint, x, y = frame:GetPoint(1)
-    ns.settings.sessionTrackerPoint = { point, relativePoint, x, y }
+    local left, top = frame:GetLeft(), frame:GetTop()
+    if left and top then
+        ns.settings.sessionTrackerPoint = { "TOPLEFT", "BOTTOMLEFT", left, top }
+    end
 end
 
 local function PlacePanel(frame)
@@ -148,9 +205,48 @@ local function CreatePlacesPin(frame)
         GameTooltip:Show()
     end)
     pin:SetScript("OnLeave", GameTooltip_Hide)
+    return pin
 end
 
-local function ShowDetails(frame)
+-- The arrow beside the pin, to start the session again from now: before a
+-- run, say, to see what that run alone brings in.
+local function CreateResetButton(frame, beside)
+    local button = CreateFrame("Button", nil, frame)
+    button:SetSize(RESET_SIZE, RESET_SIZE)
+    button:SetPoint("RIGHT", beside, "LEFT", -6, 0)
+
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetAtlas("common-icon-undo")
+    icon:SetAllPoints()
+
+    local glow = button:CreateTexture(nil, "HIGHLIGHT")
+    glow:SetAtlas("common-icon-undo")
+    glow:SetBlendMode("ADD")
+    glow:SetAlpha(0.5)
+    glow:SetAllPoints()
+
+    button:SetScript("OnClick", function()
+        ns.Session.Restart()
+    end)
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText("Start again")
+        GameTooltip:AddLine(
+            "Sets the session back to nothing from now, with your bags as they are. "
+                .. "Handy before a run, to see what that run alone brings in.",
+            1,
+            1,
+            1,
+            true
+        )
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+end
+
+-- The panel's tooltip: the figures in full. opens is where a click on
+-- the line being pointed at goes, if it's one of those.
+local function ShowDetails(frame, opens)
     local summary = ns.Session.Summary()
     if not summary then
         return
@@ -202,6 +298,9 @@ local function ShowDetails(frame)
         )
     end
     GameTooltip:AddLine(" ")
+    if opens then
+        GameTooltip:AddLine(("Click to open %s."):format(opens), 1, 0.82, 0, true)
+    end
     GameTooltip:AddLine("Drag to move it. Right-click for more.", 0.6, 0.6, 0.6, true)
     GameTooltip:Show()
 end
@@ -226,6 +325,218 @@ local function OpenMenu(frame)
     end)
 end
 
+-- Where a click on a line of the panel goes. The session is this
+-- character's, so these open on this character's figures.
+local function OpenPurse()
+    Theme.ShowOwnMoney()
+    ns.ShowWindowTab("Purse")
+end
+
+local function OpenAssets()
+    if ns.settings.allCharacters then
+        ns.settings.allCharacters = false
+        ns.Publish("SETTINGS_CHANGED")
+    end
+    ns.ShowWindowTab("List")
+end
+
+-- Lays a button over a line of the panel that opens where its figure
+-- comes from. A drag still moves the panel, and a right-click still
+-- brings up its menu.
+local function MakeClickable(frame, line, opens, open)
+    local button = CreateFrame("Button", nil, frame)
+    button:SetPoint("TOPLEFT", line.Label, "TOPLEFT", -4, 2)
+    button:SetPoint("RIGHT", frame, "RIGHT", -PADDING + 4, 0)
+    button:SetHeight(LINE_HEIGHT)
+
+    local glow = button:CreateTexture(nil, "HIGHLIGHT")
+    glow:SetAllPoints()
+    glow:SetColorTexture(1, 0.82, 0, 0.12)
+
+    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    button:RegisterForDrag("LeftButton")
+    button:SetScript("OnDragStart", function()
+        frame:GetScript("OnDragStart")(frame)
+    end)
+    button:SetScript("OnDragStop", function()
+        frame:GetScript("OnDragStop")(frame)
+    end)
+    button:SetScript("OnClick", function(_, mouseButton)
+        if JustDropped() then
+            return
+        end
+        if mouseButton == "RightButton" then
+            OpenMenu(frame)
+        else
+            open()
+        end
+    end)
+    button:SetScript("OnEnter", function()
+        ShowDetails(frame, opens)
+    end)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+end
+
+-- The breakdown ---------------------------------------------------------------------
+
+-- Lays a button over the "Coin in and out" line that opens and closes
+-- the breakdown under it.
+local function CreateBreakdownSwitch(frame, line)
+    local button = CreateFrame("Button", nil, frame)
+    button:SetPoint("TOPLEFT", line.Label, "TOPLEFT", -4, 2)
+    button:SetPoint("RIGHT", frame, "RIGHT", -PADDING + 4, 0)
+    button:SetHeight(LINE_HEIGHT)
+
+    local glow = button:CreateTexture(nil, "HIGHLIGHT")
+    glow:SetAllPoints()
+    glow:SetColorTexture(1, 0.82, 0, 0.12)
+
+    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    button:RegisterForDrag("LeftButton")
+    button:SetScript("OnDragStart", function()
+        frame:GetScript("OnDragStart")(frame)
+    end)
+    button:SetScript("OnDragStop", function()
+        frame:GetScript("OnDragStop")(frame)
+    end)
+    button:SetScript("OnClick", function(_, mouseButton)
+        if JustDropped() then
+            return
+        end
+        if mouseButton == "RightButton" then
+            OpenMenu(frame)
+            return
+        end
+        ns.settings.sessionTrackerExpanded = not ns.settings.sessionTrackerExpanded
+        frame:Refresh()
+    end)
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText("Coin in and out")
+        GameTooltip:AddLine(
+            ns.settings.sessionTrackerExpanded and "Click to fold the breakdown away."
+                or "Click to see where this session's coin came from and went: loot, "
+                    .. "quest rewards, vendors, the auction house, repairs and the rest.",
+            1,
+            1,
+            1,
+            true
+        )
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+end
+
+-- The breakdown's nth line, made the first time it's wanted.
+local function BreakdownLine(frame, n)
+    local line = frame.breakdown[n]
+    if not line then
+        line = CreateLine(frame, BREAKDOWN_START, "", "GameFontHighlightSmall")
+        frame.breakdown[n] = line
+    end
+    line.Label:Show()
+    line.Figure:Show()
+    return line
+end
+
+-- Fills one side of the breakdown: a heading with the side's total, then
+-- a line for each kind of coin, the biggest first. Kinds without a name
+-- of their own are put together as "Other".
+---@return number index  the place down the panel after its last line
+---@return number used   how many of the breakdown's lines are now in use
+local function FillSide(frame, heading, amounts, labels, total, color, index, used)
+    MoveLine(heading, index)
+    heading.Label:Show()
+    heading.Figure:Show()
+    heading.Figure:SetText(Theme.Coins(total))
+    heading.Figure:SetTextColor(unpack(color))
+    index = index + 1
+
+    local byLabel, order = {}, {}
+    for category, amount in pairs(amounts) do
+        if amount > 0 then
+            local label = labels[category] or "Other"
+            if not byLabel[label] then
+                byLabel[label] = 0
+                table.insert(order, label)
+            end
+            byLabel[label] = byLabel[label] + amount
+        end
+    end
+    table.sort(order, function(a, b)
+        return byLabel[a] > byLabel[b]
+    end)
+
+    if #order == 0 then
+        used = used + 1
+        local line = BreakdownLine(frame, used)
+        MoveLine(line, index)
+        line.Label:SetText("Nothing yet")
+        line.Label:SetTextColor(unpack(Theme.MUTED))
+        line.Figure:SetText("")
+        return index + 1, used
+    end
+
+    for _, label in ipairs(order) do
+        used = used + 1
+        local line = BreakdownLine(frame, used)
+        MoveLine(line, index)
+        line.Label:SetText("   " .. label)
+        line.Label:SetTextColor(1, 1, 1)
+        line.Figure:SetText(Theme.Coins(byLabel[label]))
+        line.Figure:SetTextColor(unpack(color))
+        index = index + 1
+    end
+    return index, used
+end
+
+-- Shows the breakdown or folds it away, and sizes the panel to fit.
+local function DrawBreakdown(frame, summary)
+    local open = ns.settings.sessionTrackerExpanded
+    frame.Switch.Figure:SetText(
+        open and "|A:common-icon-minus:12:12|a" or "|A:common-icon-plus:12:12|a"
+    )
+
+    local last, used = BREAKDOWN_SWITCH, 0
+    if open then
+        local index
+        index, used = FillSide(
+            frame,
+            frame.InHeading,
+            summary.income or {},
+            INCOME_LABELS,
+            summary.earned,
+            Theme.INCOME,
+            BREAKDOWN_START,
+            used
+        )
+        index, used = FillSide(
+            frame,
+            frame.OutHeading,
+            summary.spending or {},
+            SPENDING_LABELS,
+            summary.spent,
+            Theme.SPENDING,
+            index + 0.5,
+            used
+        )
+        last = index - 1
+    else
+        for _, heading in ipairs({ frame.InHeading, frame.OutHeading }) do
+            heading.Label:Hide()
+            heading.Figure:Hide()
+        end
+    end
+
+    for n = used + 1, #frame.breakdown do
+        frame.breakdown[n].Label:Hide()
+        frame.breakdown[n].Figure:Hide()
+    end
+
+    -- Down to the bottom of the last line, and the padding under it.
+    frame:SetHeight(-TopOf(last) + 12 + PADDING)
+end
+
 local function Create()
     local frame =
         CreateFrame("Frame", "GoldwiseSessionTracker", UIParent, "TooltipBackdropTemplate")
@@ -243,7 +554,7 @@ local function Create()
     frame.Clock = frame:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     frame.Clock:SetPoint("LEFT", frame.Title, "RIGHT", 6, 0)
 
-    CreatePlacesPin(frame)
+    CreateResetButton(frame, CreatePlacesPin(frame))
 
     frame.Coin = CreateLine(frame, 1, "Coin")
     frame.Goods = CreateLine(frame, 2, "Change in bags")
@@ -254,7 +565,23 @@ local function Create()
     frame.Auction = CreateLine(frame, 6.5, "   at auction", "GameFontDisableSmall")
     frame.Vendor = CreateLine(frame, 7.5, "   to vendors", "GameFontDisableSmall")
 
-    frame:SetSize(WIDTH, PADDING * 2 + 20 + 7.5 * LINE_HEIGHT)
+    -- Each line opens where its figure comes from.
+    for _, line in ipairs({ frame.Coin, frame.Overall, frame.Rate }) do
+        MakeClickable(frame, line, "your purse", OpenPurse)
+    end
+    for _, line in ipairs({ frame.Goods, frame.Bags, frame.Auction, frame.Vendor }) do
+        MakeClickable(frame, line, "this character's assets", OpenAssets)
+    end
+
+    -- The switch for the breakdown, and its two headings. The lines under
+    -- them are made as they're needed.
+    frame.Switch = CreateLine(frame, BREAKDOWN_SWITCH, "Coin in and out")
+    CreateBreakdownSwitch(frame, frame.Switch)
+    frame.InHeading = CreateLine(frame, BREAKDOWN_START, "COIN IN", "GameFontDisableSmall")
+    frame.OutHeading = CreateLine(frame, BREAKDOWN_START, "COIN OUT", "GameFontDisableSmall")
+    frame.breakdown = {}
+
+    frame:SetWidth(WIDTH)
 
     frame:SetScript("OnDragStart", function(self)
         if not ns.settings.sessionTrackerLocked then
@@ -264,6 +591,7 @@ local function Create()
     end)
     frame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
+        droppedAt = GetTime()
         SavePosition(self)
     end)
     frame:SetScript("OnMouseUp", function(self, button)
@@ -271,7 +599,10 @@ local function Create()
             OpenMenu(self)
         end
     end)
-    frame:SetScript("OnEnter", ShowDetails)
+    -- Not ShowDetails itself: OnEnter passes a flag of its own second.
+    frame:SetScript("OnEnter", function(self)
+        ShowDetails(self)
+    end)
     frame:SetScript("OnLeave", GameTooltip_Hide)
 
     frame:SetScript("OnShow", function(self)
@@ -316,6 +647,8 @@ local function Create()
             self.Auction.Figure:SetText("-")
             self.Vendor.Figure:SetText("-")
         end
+
+        DrawBreakdown(self, summary)
     end
 
     ns.Subscribe("SESSION_CHANGED", function()

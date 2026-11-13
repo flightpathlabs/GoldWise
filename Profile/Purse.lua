@@ -35,7 +35,10 @@ local CONTEXT_FOR_WINDOW = {
 
 -- How each kind of spending reads in a sentence: "mostly ...".
 Purse.SPENDING_LABELS = {
-    vendor = "repairs and supplies",
+    vendor = "vendors",
+    repair = "repairs",
+    quest = "quests",
+    loot = "loot",
     training = "training",
     auction = "the auction house",
     mail = "postage",
@@ -153,17 +156,102 @@ local function NoteCoin()
     HourIn(OwnBook().hours).coin = GetMoney()
 end
 
+-- Looting and handing in quests have windows of their own, outside the
+-- interaction manager. The coin can land just after the window shuts,
+-- as a fare does after the flight map closes, so the context outlasts
+-- each by a moment.
+local LATE_COIN_DELAY = 1
+
+local lootOpen, questOpen = false, false
+
+-- The contexts held by windows that are open now: a merchant's, the
+-- auction house's. Loot or a quest reward can come up in front of one
+-- (a clam opened at the auction house), and when it goes the context
+-- should go back to the window still open, not to "other".
+local heldOpen = {}
+
+-- What each of loot and quest stepped in front of.
+local before = {}
+
+local function Enter(newContext)
+    if context ~= newContext then
+        before[newContext] = context
+    end
+    context = newContext
+end
+
+local function LeaveSoon(oldContext, stillOpen)
+    C_Timer.After(LATE_COIN_DELAY, function()
+        if context == oldContext and not stillOpen() then
+            local previous = before[oldContext]
+            context = previous and heldOpen[previous] and previous or OTHER
+        end
+        before[oldContext] = nil
+    end)
+end
+
+ns.OnEvent("LOOT_OPENED", function()
+    lootOpen = true
+    Enter("loot")
+end)
+
+ns.OnEvent("LOOT_CLOSED", function()
+    lootOpen = false
+    LeaveSoon("loot", function()
+        return lootOpen
+    end)
+end)
+
+-- The reward page of a quest, where its coin is handed over.
+ns.OnEvent("QUEST_COMPLETE", function()
+    questOpen = true
+    Enter("quest")
+end)
+
+ns.OnEvent("QUEST_FINISHED", function()
+    questOpen = false
+    LeaveSoon("quest", function()
+        return questOpen
+    end)
+end)
+
+-- Repairs are paid at a merchant like anything else bought there. Mending
+-- one thing at a time is done in the game's repair mode, which it tells
+-- us about; mending everything goes through RepairAllItems, which is
+-- watched for. Repairs from the guild bank don't touch the purse.
+local repairingAll = false
+
+hooksecurefunc("RepairAllItems", function(fromGuild)
+    if fromGuild then
+        return
+    end
+    repairingAll = true
+    C_Timer.After(LATE_COIN_DELAY + 1, function()
+        repairingAll = false
+    end)
+end)
+
+-- What a change in the purse is filed under: the context, but with
+-- repairs told apart from the rest of what a merchant is paid.
+local function CategoryOf(delta)
+    if delta < 0 and context == "vendor" and (repairingAll or InRepairMode()) then
+        return "repair"
+    end
+    return context
+end
+
 local function Record(delta)
+    local category = CategoryOf(delta)
     for _, hours in ipairs({ Book().hours, OwnBook().hours }) do
         local hour = HourIn(hours)
         local side = delta > 0 and hour.income or hour.spending
-        side[context] = (side[context] or 0) + math.abs(delta)
+        side[category] = (side[category] or 0) + math.abs(delta)
     end
     NoteCoin()
 
     -- For anything that wants to look closer at one kind of money than a
     -- total (see Trade.lua).
-    ns.Publish("MONEY_MOVED", delta, context)
+    ns.Publish("MONEY_MOVED", delta, category)
 end
 
 ns.OnEvent("PLAYER_MONEY", function()
@@ -184,11 +272,19 @@ ns.OnEvent("PLAYER_LOGIN", function()
 end)
 
 ns.OnEvent("PLAYER_INTERACTION_MANAGER_FRAME_SHOW", function(window)
-    context = CONTEXT_FOR_WINDOW[window] or context
+    local opened = CONTEXT_FOR_WINDOW[window]
+    if opened then
+        heldOpen[opened] = true
+        context = opened
+    end
 end)
 
 ns.OnEvent("PLAYER_INTERACTION_MANAGER_FRAME_HIDE", function(window)
-    if CONTEXT_FOR_WINDOW[window] == context then
+    local closed = CONTEXT_FOR_WINDOW[window]
+    if closed then
+        heldOpen[closed] = nil
+    end
+    if closed and closed == context then
         context = OTHER
     end
 end)

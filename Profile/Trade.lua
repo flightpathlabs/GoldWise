@@ -249,7 +249,7 @@ local function File(kind, amount, expected)
         RememberIn(OwnBook(), CopyTable(entry))
     end
 
-    ns.Publish("TRADE_CHANGED")
+    ns.Publish("TRADE_CHANGED", kind, amount)
 end
 
 -- Expecting ----------------------------------------------------------------------
