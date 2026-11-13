@@ -183,7 +183,13 @@ local function File(kind, amount, expected)
     for _, book in ipairs({ Book(), OwnBook() }) do
         local day = TodayIn(book)
         if kind == Trade.SALE then
-            day.sold = day.sold + amount
+            -- A sale's letter holds the price less the auction house's
+            -- cut, and the deposit handed back. That deposit was never
+            -- spent, so it comes off what deposits cost rather than
+            -- counting as something sold.
+            local returned = math.min(expected.deposit or 0, amount)
+            day.sold = day.sold + amount - returned
+            day.returned = (day.returned or 0) + returned
             day.sales = day.sales + 1
             day.cut = day.cut + (expected.cut or 0)
         elseif kind == Trade.REFUND then
@@ -254,7 +260,7 @@ local function OnMoneyAskedFor(index)
         return
     end
 
-    local invoice, itemName, _, _, _, _, cut, _, _, _, count = GetInboxInvoiceInfo(index)
+    local invoice, itemName, _, _, _, deposit, cut, _, _, _, count = GetInboxInvoiceInfo(index)
     if invoice == "seller" then
         Expect(arriving, {
             kind = Trade.SALE,
@@ -262,6 +268,7 @@ local function OnMoneyAskedFor(index)
             name = itemName,
             count = count,
             cut = cut,
+            deposit = deposit,
         })
     elseif IsRefund(sender, subject) then
         -- No invoice, but money, from the auction house: a bid handed
@@ -430,11 +437,14 @@ end)
 
 -- Reading it back -----------------------------------------------------------------
 
--- What a day came to. Sales arrive with the cut already taken and the
--- deposit handed back, so the only things to take off are what was bought
--- (less any bids returned) and what was paid in deposits.
+-- What a day came to. Sales arrive with the cut already taken, so the
+-- things to take off are what was bought (less any bids returned) and
+-- what was paid in deposits (less any handed back with a sale).
+--
+-- Days from before handed-back deposits were kept apart have none on
+-- record: their sales still include them, which comes to the same net.
 local function Net(day)
-    return day.sold - (day.bought - day.refunds) - day.deposits
+    return day.sold + (day.returned or 0) - (day.bought - day.refunds) - day.deposits
 end
 
 -- What buying came to, less the bids that came back. A bid placed
@@ -445,12 +455,20 @@ local function Bought(bought, refunds)
     return math.max(0, bought - refunds)
 end
 
+-- What deposits came to, less the ones handed back with a sale. Kept
+-- from going below nothing for the same reason: a listing posted before
+-- the stretch and sold within it.
+local function Deposits(paid, returned)
+    return math.max(0, paid - (returned or 0))
+end
+
 --- What the auction house brought in and cost, for each day of a stretch.
 ---@param numDays number  how far back to look, counting today
 ---@param accountWide boolean|nil  the whole account's; this character's own when not
 ---@return table days       list, oldest first and with every day present,
----        of { day, sold, bought, deposits, net } in copper. bought is
----        less any bids that were returned.
+---        of { day, sold, bought, deposits, net } in copper. sold is what
+---        sales brought in after the cut; bought is less any bids that
+---        were returned, and deposits less any handed back with a sale.
 ---@return number firstDay  the first day of the stretch
 ---@return number lastDay   the last: today
 function Trade.Daily(numDays, accountWide)
@@ -465,7 +483,7 @@ function Trade.Daily(numDays, accountWide)
             day = day,
             sold = record and record.sold or 0,
             bought = record and Bought(record.bought, record.refunds) or 0,
-            deposits = record and record.deposits or 0,
+            deposits = record and Deposits(record.deposits, record.returned) or 0,
             net = record and Net(record) or 0,
         })
     end
@@ -475,8 +493,8 @@ end
 --- The same stretch, added up.
 ---@param numDays number
 ---@param accountWide boolean|nil
----@return table totals  { sold, bought, deposits, cut, net, sales }; bought
----        is less any bids that were returned
+---@return table totals  { sold, bought, deposits, cut, net, sales }, with
+---        bought and deposits less what came back of them, as for Daily
 function Trade.Totals(numDays, accountWide)
     local recorded = BookFor(accountWide).days
     local today = ns.Ledger.Today()
@@ -484,15 +502,17 @@ function Trade.Totals(numDays, accountWide)
 
     -- Bids and what came back of them are added up over the whole
     -- stretch before one is taken from the other: a bid on Monday that
-    -- comes back on Tuesday was never spent.
+    -- comes back on Tuesday was never spent. Likewise a deposit paid on
+    -- Monday for something that sold on Tuesday.
     local bought, refunds = 0, 0
+    local paid, returned = 0, 0
 
     for day = today - numDays + 1, today do
         local record = recorded[day]
         if record then
             totals.sold = totals.sold + record.sold
             bought, refunds = bought + record.bought, refunds + record.refunds
-            totals.deposits = totals.deposits + record.deposits
+            paid, returned = paid + record.deposits, returned + (record.returned or 0)
             totals.cut = totals.cut + record.cut
             totals.net = totals.net + Net(record)
             totals.sales = totals.sales + record.sales
@@ -500,6 +520,7 @@ function Trade.Totals(numDays, accountWide)
     end
 
     totals.bought = Bought(bought, refunds)
+    totals.deposits = Deposits(paid, returned)
     return totals
 end
 

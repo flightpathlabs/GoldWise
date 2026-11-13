@@ -28,6 +28,14 @@ the `dev` branch.
   fetched yet showed as "Recipe". It now shows the name of what it
   teaches straight away, and the recipe's own name once the game has it.
   The Recipes tab does the same.
+- **Deposits that come back no longer count as spent.** When something
+  sells, the auction house hands its deposit back in the sale's letter.
+  Goldwise counted that letter as sold and kept the deposit as spending,
+  so the Profit tab showed deposits as a cost after they'd been repaid.
+  Now a sale's deposit comes off the deposits, and "Sold at auction" is
+  what sales made after the cut. The profit figure was right before and
+  hasn't changed. Sales from before this version stay as they were
+  recorded.
 
 ## 0.4.0 (12 November 2026)
 

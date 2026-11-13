@@ -304,7 +304,7 @@ function ProfitTab.Create(parent)
 
         bought.Figure:SetText(Theme.Coins(totals.bought + totals.deposits))
         bought.Note:SetText(
-            ("%s on purchases, %s in deposits."):format(
+            ("%s on purchases, %s in deposits not handed back."):format(
                 ns.Money(totals.bought),
                 ns.Money(totals.deposits)
             )
