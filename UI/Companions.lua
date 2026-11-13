@@ -43,12 +43,30 @@ local PRICE_ADDONS = {
     "Auc-Advanced", -- Auctioneer
 }
 
+-- Whether Auctionator has a price of its own for an item. It offers other
+-- addons a way to ask. If that way isn't there, or doesn't answer, take
+-- it that it has one: saying nothing is better than saying it twice.
+local function AuctionatorKnows(itemID)
+    local api = Auctionator and Auctionator.API and Auctionator.API.v1
+    if type(api) ~= "table" or type(api.GetAuctionPriceByItemID) ~= "function" then
+        return true
+    end
+
+    local ok, price = pcall(api.GetAuctionPriceByItemID, ns.name, itemID)
+    return not ok or price ~= nil
+end
+
 --- Whether another addon is putting an auction price on item tooltips.
+---@param itemID number|nil  the item in question. An addon that's there
+---        but has no price for this one isn't showing one, and where it
+---        can be asked, it is.
 ---@return boolean
-function Companions.ShowsTooltipPrices()
+function Companions.ShowsTooltipPrices(itemID)
     for _, name in ipairs(PRICE_ADDONS) do
         if IsLoaded(name) then
-            return true
+            if name ~= "Auctionator" or not itemID or AuctionatorKnows(itemID) then
+                return true
+            end
         end
     end
     return AtlasTooltipsOn()

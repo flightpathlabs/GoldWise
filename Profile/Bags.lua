@@ -102,6 +102,14 @@ function Bags.Holdings()
     return list
 end
 
+--- One sellable item in the player's bags.
+---@param itemID number
+---@return table|nil holding  { itemID, name, icon, quality, link, count },
+---        or nil if they carry none that could be sold. Read-only.
+function Bags.Holding(itemID)
+    return holdings[itemID]
+end
+
 -- A neutral auction house is a different market from home, with its own
 -- history to keep.
 ns.Subscribe("AUCTION_HOUSE_OPENED", TrackHoldings)

@@ -2,20 +2,29 @@ local _, ns = ...
 
 -- Prices on item tooltips.
 --
--- Two things, each with its own switch in the options:
+-- Two things, each with its own switches in the options:
 --
---   * One line giving the auction price. Tooltips are crowded, so one line
---     is all we take, and if Auctionator is installed we leave pricing to
---     it rather than say the same thing twice.
+--   * One line, under Goldwise's name, giving the verdict on something
+--     the player carries and its auction price. Tooltips are crowded, so
+--     one line is all it takes, and the price is left off when another
+--     addon is already showing one for that item.
 --
 --   * A small price chart tucked under the tooltip, once the item has
 --     enough history to draw. It hangs outside the tooltip rather than
 --     adding to it, so it can't disturb what other addons put there.
+--
+-- Everything put on a tooltip says it's from Goldwise. A tooltip can
+-- carry lines from half a dozen addons, and nobody should have to guess
+-- which are whose.
 
 local Theme = ns.Theme
 
--- Days of history an item needs before the chart is worth showing.
-local MIN_DAYS_FOR_CHART = 3
+-- The name our lines go under.
+local OURS = "Goldwise"
+
+-- Days of history an item needs before the chart is worth showing. Two
+-- make a line.
+local MIN_DAYS_FOR_CHART = 2
 
 local CHART_WIDTH, CHART_HEIGHT = 220, 66
 local PADDING = 8
@@ -45,13 +54,25 @@ local function Lookup(itemID)
         for _, day in ipairs(cache.history) do
             cache.chartUsesFeed = cache.chartUsesFeed or day.fromFeed == true
         end
+
+        -- The verdict, for something in the player's own bags that could
+        -- be sold. It's the same one the Assets list gives, from the same
+        -- place, so the two can't disagree.
+        local holding = ns.Bags.Holding(itemID)
+        local asset = holding and ns.Assets.Describe(holding, marketKey)
+        cache.verb = asset and asset.advice.verb or nil
     end
     return cache
 end
 
-ns.Subscribe("PRICES_CHANGED", function()
+local function ForgetLookup()
     cache.itemID = nil
-end)
+end
+
+-- The price, what's carried and what's being kept all change the answer.
+ns.Subscribe("PRICES_CHANGED", ForgetLookup)
+ns.Subscribe("BAGS_CHANGED", ForgetLookup)
+ns.Subscribe("SETTINGS_CHANGED", ForgetLookup)
 
 -- The item the player last pointed at, so a key press or "/gw history"
 -- can open its full price history. Kept after the tooltip goes, since the
@@ -123,7 +144,9 @@ local function ShowChart(tooltip, history, usesFeed)
     end
 
     local low, high = ns.Stats.Range(history)
-    panel.Caption:SetText(("%d days: %s to %s"):format(#history, ns.Money(low), ns.Money(high)))
+    panel.Caption:SetText(
+        ("%s, %d days: %s to %s"):format(OURS, #history, ns.Money(low), ns.Money(high))
+    )
     panel.Trend:SetValues(values, Theme.CHART_LINE)
 
     -- Blizzard's terms ask that its data is credited where it's shown.
@@ -247,11 +270,34 @@ local function OnItemTooltip(tooltip, data)
     local coin = Theme.COIN
     local found = Lookup(itemID)
 
-    if found.price and settings.tooltipPrice and not ns.Companions.ShowsTooltipPrices() then
-        local fromFeed = found.source == ns.Ledger.FEED
+    -- Our line: the verdict, the price, or both. The verdict is only for
+    -- what the player carries and only once there's a price to judge by;
+    -- "no price" is said by the line not being there.
+    local verdict = settings.tooltipVerdict and found.verb
+    if verdict == ns.Advice.UNKNOWN then
+        verdict = nil
+    end
+
+    local showPrice = found.price
+        and settings.tooltipPrice
+        and not ns.Companions.ShowsTooltipPrices(itemID)
+
+    if verdict or showPrice then
+        local parts = {}
+        if verdict then
+            table.insert(parts, Theme.Tint(Theme.VERB_LABELS[verdict], Theme.VERB_COLORS[verdict]))
+        end
+        if showPrice then
+            table.insert(
+                parts,
+                ("%s  (%s)"):format(Theme.Coins(found.price), Theme.Listed(found.listed))
+            )
+        end
+
+        local fromFeed = showPrice and found.source == ns.Ledger.FEED
         tooltip:AddDoubleLine(
-            fromFeed and ("Auction (" .. FEED_CREDIT .. ")") or "Auction",
-            ("%s  (%s)"):format(Theme.Coins(found.price), Theme.Listed(found.listed)),
+            fromFeed and ("%s (%s)"):format(OURS, FEED_CREDIT) or OURS,
+            table.concat(parts, "  "),
             coin[1],
             coin[2],
             coin[3],
@@ -264,7 +310,7 @@ local function OnItemTooltip(tooltip, data)
     if settings.tooltipHeld and not ns.Companions.ShowsHoldings() then
         local text = HeldText(itemID)
         if text then
-            tooltip:AddDoubleLine("Held", text, coin[1], coin[2], coin[3], 1, 1, 1)
+            tooltip:AddDoubleLine(OURS .. ", held", text, coin[1], coin[2], coin[3], 1, 1, 1)
         end
     end
 
@@ -273,7 +319,12 @@ local function OnItemTooltip(tooltip, data)
     local treeClick = settings.tooltipTree and ns.Shortcuts.TreeClickHint()
     if treeClick and ns.CraftTree.Has(itemID) then
         local muted = Theme.MUTED
-        tooltip:AddLine(treeClick .. " for its crafting tree", muted[1], muted[2], muted[3])
+        tooltip:AddLine(
+            ("%s: %s for its crafting tree"):format(OURS, treeClick),
+            muted[1],
+            muted[2],
+            muted[3]
+        )
     end
 
     if settings.tooltipChart and tooltip == GameTooltip then

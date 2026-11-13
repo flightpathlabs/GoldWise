@@ -76,9 +76,13 @@ local DEFAULT_SETTINGS = {
     vendorCheck = true,
     promptSound = false,
 
-    -- An auction price line on item tooltips. Skipped when another addon
-    -- already shows one, whatever this says.
+    -- An auction price on item tooltips. Skipped when another addon is
+    -- already showing one for the item, whatever this says.
     tooltipPrice = true,
+
+    -- The verdict (sell, hold, vendor, keep) on the tooltip of anything
+    -- in the player's bags.
+    tooltipVerdict = true,
 
     -- A small price chart under item tooltips, for items with history.
     tooltipChart = true,

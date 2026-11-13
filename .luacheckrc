@@ -107,6 +107,7 @@ read_globals = {
     "WT_API", -- What's Training?
     "QuestieLoader", -- Questie
     "ForeverProfessionsDB", -- Profession Atlas's saved settings
+    "Auctionator", -- only its published API, Auctionator.API.v1
 
     -- Blizzard's auction house window, once its addon has loaded
     "AuctionHouseFrame",

@@ -168,15 +168,25 @@ ns.OnEvent("PLAYER_LOGIN", function()
         category,
         "tooltipPrice",
         "Show auction prices on item tooltips",
-        "One line with the lowest price and how many are listed. Skipped when "
-            .. "another addon, such as Auctionator, already shows a price there."
+        "The lowest price and how many are listed, on a line marked Goldwise. Left "
+            .. "off when another addon, such as Auctionator, is already showing a "
+            .. "price for that item."
+    )
+
+    AddCheckbox(
+        category,
+        "tooltipVerdict",
+        "Show the verdict on things in your bags",
+        "Sell, Hold, Vendor or Keep, on the same line: what the Assets tab says "
+            .. "about it, where you're looking."
     )
 
     AddCheckbox(
         category,
         "tooltipChart",
         "Show a price chart under item tooltips",
-        "A small two-week trend. Appears once an item has a few days of history."
+        "A small two-week trend, marked Goldwise. Appears once an item has two days "
+            .. "of history."
     )
 
     AddCheckbox(

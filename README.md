@@ -83,7 +83,9 @@ and Goldwise stops suggesting you sell it. Fishing poles and profession
 tools are kept from the start.
 
 Point at any item, anywhere in the game, and a small price chart appears
-under its tooltip.
+under its tooltip. For something in your bags, the tooltip also carries
+the verdict. Everything Goldwise adds to a tooltip is marked with its
+name, so you can tell its lines from another addon's.
 
 ![The Assets tab, with an item's tooltip and price chart beside it](docs/images/assets.png)
 
@@ -240,8 +242,10 @@ Right-click the minimap button for the options.
 
 Goldwise checks what your other addons are already showing and doesn't say
 it twice. If something else puts an auction price or a list of who holds
-an item on your tooltips, Goldwise leaves those to it and adds only the
-chart. Turn the other addon's version off and Goldwise's comes back.
+an item on your tooltips, Goldwise leaves those to it and adds only its
+verdict and the chart. Turn the other addon's version off and Goldwise's
+comes back. Where the other addon has no price for an item and Goldwise
+does, Goldwise shows its own.
 
 It also reads along when another addon scans the auction house first, so
 nobody's scan is wasted, and the auction house isn't asked for the same

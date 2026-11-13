@@ -6,6 +6,20 @@ the `dev` branch.
 
 ## Unreleased
 
+- **Goldwise's tooltip lines say they're Goldwise's.** With several
+  addons writing on the same tooltip, there was no telling which line
+  was whose, and beside Auctionator there was often nothing of
+  Goldwise's there at all. Its line, the count your other characters
+  hold, the crafting tree hint and the chart are now all marked with its
+  name.
+- **The verdict is on the tooltip.** Point at anything in your bags and
+  Goldwise's line says Sell, Hold, Vendor or Keep, as the Assets tab
+  would. It has a switch of its own in the options.
+- **A price where the other addon has none.** Goldwise left tooltip
+  prices to Auctionator whenever Auctionator was installed. It now asks
+  whether Auctionator has a price for the item, and shows its own when
+  it hasn't.
+- **The tooltip chart appears after two days of prices**, not three.
 - **A day is now your day.** Goldwise counted days by the game's clock,
   which turns over in the middle of the afternoon in America and the
   middle of the morning in Australia. An evening's play and the next
