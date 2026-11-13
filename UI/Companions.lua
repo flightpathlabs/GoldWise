@@ -56,6 +56,37 @@ local function AuctionatorKnows(itemID)
     return not ok or price ~= nil
 end
 
+--- Auctionator's last price for an item, and how many days ago it saw it,
+--- asked through the interface Auctionator publishes for other addons.
+--- Nothing else of Auctionator's is read.
+---@param itemID number
+---@return number|nil price  copper; nil when it has none, or isn't there
+---@return number|nil age    whole days: 0 is today
+function Companions.AuctionatorPrice(itemID)
+    local api = Auctionator and Auctionator.API and Auctionator.API.v1
+    if type(api) ~= "table" then
+        return nil
+    end
+    local askPrice, askAge = api.GetAuctionPriceByItemID, api.GetAuctionAgeByItemID
+    if type(askPrice) ~= "function" or type(askAge) ~= "function" then
+        return nil
+    end
+
+    -- Either can fail outright on an item Auctionator has never met, or
+    -- after an update changes what they expect.
+    local gotPrice, price = pcall(askPrice, ns.name, itemID)
+    local gotAge, age = pcall(askAge, ns.name, itemID)
+    local usable = gotPrice
+        and gotAge
+        and type(price) == "number"
+        and price > 0
+        and type(age) == "number"
+        and age >= 0
+    if usable then
+        return price, math.floor(age)
+    end
+end
+
 --- Whether another addon is putting an auction price on item tooltips.
 ---@param itemID number|nil  the item in question. An addon that's there
 ---        but has no price for this one isn't showing one, and where it

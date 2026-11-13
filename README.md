@@ -257,7 +257,7 @@ notices what you have:
 
 | With this installed | Goldwise |
 |---|---|
-| Auctionator | Reads the results of its scan instead of sending a search of its own, and leaves the price on item tooltips to it |
+| Auctionator | Reads the results of its scan instead of sending a search of its own, fills in prices Goldwise hasn't read yet from Auctionator's, and leaves the price on item tooltips to it |
 | Profession Atlas | Waits for its read of every auction and uses that list, and leaves its tooltip lines and its progress panel alone |
 | Questie | Knows where every trainer and recipe vendor stands from the start, not only the ones you've visited |
 | Bagnon and other bag addons | Draws its gold rim in their bags and bank, and leaves the list of which characters hold an item to them |

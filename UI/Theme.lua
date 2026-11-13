@@ -71,7 +71,10 @@ end
 ---@param quantity number|nil
 ---@return string  e.g. "8,853 listed", "none listed"
 function Theme.Listed(quantity)
-    if not quantity or quantity == 0 then
+    -- A price from somewhere that doesn't say how many were up.
+    if quantity == nil then
+        return "listings not counted"
+    elseif quantity == 0 then
         return "none listed"
     end
     return FormatLargeNumber(quantity) .. " listed"

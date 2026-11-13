@@ -6,6 +6,15 @@ the `dev` branch.
 
 ## Unreleased
 
+- **Auctionator's prices fill the gaps.** If you have Auctionator, Goldwise
+  asks it, through the interface Auctionator offers other addons, for the
+  last price of anything Goldwise hasn't priced since. That covers what
+  Auctionator saw before Goldwise was installed, and visits Goldwise
+  missed. It's one price per item, so charts still fill in from your own
+  visits, and the item's page says when a price is Auctionator's.
+  Auctionator keeps one list for both factions, so its prices are only
+  used for your own side's auction house, and they're never passed on to
+  other Goldwise players.
 - **Every visit to the auction house counts, however short.** When
   Auctionator or Profession Atlas reads the market as you open the
   window, Goldwise reads along. It used to keep only the first 500

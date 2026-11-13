@@ -240,12 +240,30 @@ function ItemDetail.Create(parent, onBack)
             table.insert(lines, line)
         end
 
-        if row.seenAt then
+        if row.source == ns.Ledger.AUCTIONATOR then
+            -- Auctionator only says which day, so that's all this says.
+            local days = ns.Ledger.Today() - ns.Ledger.DayOf(row.seenAt)
+            local when = days == 0 and "today" or days == 1 and "yesterday" or (days .. " days ago")
+            local credit = "Price from Auctionator, which last saw it %s. "
+                .. "Goldwise hasn't read it since."
+            table.insert(lines, credit:format(when))
+        elseif row.seenAt then
             local age = ns.Ago(GetServerTime() - row.seenAt)
             if row.source == ns.Ledger.PLAYERS then
                 table.insert(lines, "Price shared by another Goldwise player, read " .. age .. ".")
             else
                 table.insert(lines, "Price read " .. age .. ".")
+            end
+        end
+
+        -- A day on the chart that only Auctionator saw is worth a word, so
+        -- the point isn't taken for one of Goldwise's own.
+        if row.source ~= ns.Ledger.AUCTIONATOR then
+            for _, day in ipairs(history) do
+                if day.fromAuctionator then
+                    table.insert(lines, "One day on the chart is Auctionator's price.")
+                    break
+                end
             end
         end
 

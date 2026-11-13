@@ -325,18 +325,42 @@ end
 Ledger.OWN = "own" -- the player's own game read it at the auction house
 Ledger.PLAYERS = "players" -- another Goldwise player's game did
 Ledger.FEED = "feed" -- the companion prices addon
+Ledger.AUCTIONATOR = "auctionator" -- Auctionator, asked through its own API
+
+-- What Auctionator last paid attention to, for a market where it can be
+-- believed: the day it saw an item and the price then. Nil if it has
+-- nothing, or isn't there.
+--
+-- On this client Auctionator keeps one list of prices per ruleset, not
+-- one per auction house, so a price there may have come from the other
+-- faction's house or the goblins'. It's only taken for the player's own
+-- side, and only to fill a gap, never over a reading of Goldwise's own
+-- from the same day or later.
+local function AuctionatorReading(marketKey, itemID)
+    if marketKey ~= ns.Market.Home() then
+        return nil
+    end
+    local price, age = ns.Companions.AuctionatorPrice(itemID)
+    if price then
+        return price, Ledger.Today() - age
+    end
+end
 
 --- The newest price we have for an item, from whichever source has one.
 ---
 --- The player's own readings come first, unless another player has told us
---- something more recent. The feed answers when nobody has anything, or
+--- something more recent. Auctionator fills in where Goldwise has nothing
+--- from that day or since. The feed answers when nobody has anything, or
 --- when what we have is more than a day staler than what it has.
 ---@param marketKey string
 ---@param itemID number
 ---@return number|nil price     lowest buyout per unit, in copper
----@return number|nil quantity  how many were listed
----@return number|nil seenAt    server time of the reading
----@return string|nil source    Ledger.OWN, Ledger.PLAYERS or Ledger.FEED
+---@return number|nil quantity  how many were listed; nil when the
+---        source doesn't say
+---@return number|nil seenAt    server time of the reading. For
+---        Auctionator, which only says which day, the start of that day.
+---@return string|nil source    Ledger.OWN, Ledger.PLAYERS,
+---        Ledger.AUCTIONATOR or Ledger.FEED
 function Ledger.Price(marketKey, itemID)
     local price, quantity, seenAt = Ledger.LocalPrice(marketKey, itemID)
     local source = price and Ledger.OWN
@@ -344,6 +368,12 @@ function Ledger.Price(marketKey, itemID)
     local heard, heardQuantity, heardAt = ns.Network.Price(marketKey, itemID)
     if heard and (not price or heardAt > (seenAt or 0)) then
         price, quantity, seenAt, source = heard, heardQuantity, heardAt, Ledger.PLAYERS
+    end
+
+    local theirs, theirDay = AuctionatorReading(marketKey, itemID)
+    if theirs and (not price or Ledger.DayOf(seenAt or 0) < theirDay) then
+        local startOfDay = theirDay * ns.SECONDS_PER_DAY - ns.ClockOffset()
+        price, quantity, seenAt, source = theirs, nil, startOfDay, Ledger.AUCTIONATOR
     end
 
     -- A reading taken in the game is first-hand, so it wins a close call.
@@ -412,18 +442,21 @@ function Ledger.History(marketKey, itemID, numDays)
     local market = ns.MarketData(marketKey)
     local record = market.tracked[itemID]
     local feedDays = ns.Feed.Days(marketKey, itemID)
+    local theirs, theirDay = AuctionatorReading(marketKey, itemID)
     local today = Ledger.Today()
     local history = {}
 
-    -- A day known only as a single price.
-    local function AddFlatDay(day, price, quantity, fromFeed)
+    -- A day known only as a single price. `from` says whose it is, when
+    -- it isn't Goldwise's own.
+    local function AddFlatDay(day, price, quantity, from)
         table.insert(history, {
             day = day,
             low = price,
             high = price,
             last = price,
             quantity = quantity,
-            fromFeed = fromFeed,
+            fromFeed = from == Ledger.FEED,
+            fromAuctionator = from == Ledger.AUCTIONATOR,
         })
     end
 
@@ -446,9 +479,12 @@ function Ledger.History(marketKey, itemID, numDays)
             })
         elseif price then
             AddFlatDay(day, price, quantity)
+        elseif theirs and day == theirDay then
+            -- A day Goldwise didn't see the item and Auctionator did.
+            AddFlatDay(day, theirs, 0, Ledger.AUCTIONATOR)
         elseif feedDays and feedDays[day] then
             -- A day they weren't at the auction house. The feed was.
-            AddFlatDay(day, feedDays[day], 0, true)
+            AddFlatDay(day, feedDays[day], 0, Ledger.FEED)
         end
     end
 
