@@ -4,45 +4,10 @@ What changed in each release of Goldwise, newest first. Work that hasn't
 been released yet is listed under "Unreleased" in the copy of this file on
 the `dev` branch.
 
-## Unreleased
+## 0.4.0 (12 November 2026)
 
-- **Auctionator's prices fill the gaps.** If you have Auctionator, Goldwise
-  asks it, through the interface Auctionator offers other addons, for the
-  last price of anything Goldwise hasn't priced since. That covers what
-  Auctionator saw before Goldwise was installed, and visits Goldwise
-  missed. It's one price per item, so charts still fill in from your own
-  visits, and the item's page says when a price is Auctionator's.
-  Auctionator keeps one list for both factions, so its prices are only
-  used for your own side's auction house, and they're never passed on to
-  other Goldwise players.
-- **Every visit to the auction house counts, however short.** When
-  Auctionator or Profession Atlas reads the market as you open the
-  window, Goldwise reads along. It used to keep only the first 500
-  prices unless that read ran to the end, so walking away after a few
-  seconds left most of your things on their old price. It now keeps
-  every page as it arrives. The same goes for Goldwise's own reads, and
-  for a full read of every auction cut off by closing the window.
-- **Goldwise's tooltip lines say they're Goldwise's.** With several
-  addons writing on the same tooltip, there was no telling which line
-  was whose, and beside Auctionator there was often nothing of
-  Goldwise's there at all. Its line, the count your other characters
-  hold, the crafting tree hint and the chart are now all marked with its
-  name.
-- **The verdict is on the tooltip.** Point at anything in your bags and
-  Goldwise's line says Sell, Hold, Vendor or Keep, as the Assets tab
-  would. It has a switch of its own in the options.
-- **A price where the other addon has none.** Goldwise left tooltip
-  prices to Auctionator whenever Auctionator was installed. It now asks
-  whether Auctionator has a price for the item, and shows its own when
-  it hasn't.
-- **The tooltip chart appears after two days of prices**, not three.
-- **A day is now your day.** Goldwise counted days by the game's clock,
-  which turns over in the middle of the afternoon in America and the
-  middle of the morning in Australia. An evening's play and the next
-  morning's landed on the same day, and the charts didn't move on. Days
-  now run from midnight to midnight on your own clock, on every chart.
-  Records from before the change sit a few hours out of place on their
-  last day.
+**New**
+
 - **The Purse chart can be cut finer.** A menu at the top of the tab
   sets how long a stretch each bar covers: a day, twelve hours, six, or
   one. Your choice is remembered.
@@ -54,6 +19,38 @@ the `dev` branch.
   the last week or the last two days. Prices that swing between morning
   and evening show up there. Goldwise keeps three times as many readings
   of each thing you hold as it did.
+- **The verdict is on the tooltip.** Point at anything in your bags and
+  Goldwise's line says Sell, Hold, Vendor or Keep, as the Assets tab
+  would. It has a switch of its own in the options.
+- **Auctionator's prices fill the gaps.** If you have Auctionator,
+  Goldwise asks it, through the interface Auctionator offers other
+  addons, for the last price of anything Goldwise has never priced
+  itself: things Auctionator saw before Goldwise was installed, say.
+  It's one price per item, so charts still fill in from your own visits,
+  and the item's page says when a price is Auctionator's. Auctionator
+  keeps one list for both factions, so its prices are only used for your
+  own side's auction house, never over a price of Goldwise's own, and
+  never passed on to other Goldwise players.
+- **About lists the addons Goldwise works with**, and what it does
+  differently beside each.
+- **Point at the goblin in the corner of the window** and a tooltip says
+  what Goldwise is, and which version you have.
+
+**Better**
+
+- **A day is now your day.** Goldwise counted days by the game's clock,
+  which turns over in the middle of the afternoon in America and the
+  middle of the morning in Australia. An evening's play and the next
+  morning's landed on the same day, and the charts didn't move on. Days
+  now run from midnight to midnight on your own clock, on every chart.
+  Records from before the change sit a few hours out of place on their
+  last day.
+- **Every visit to the auction house counts, however short.** When
+  Auctionator or Profession Atlas reads the market as you open the
+  window, Goldwise reads along. It used to keep only the first 500
+  prices unless that read ran to the end, so walking away after a few
+  seconds left most of your things on their old price. It now keeps
+  every page as it arrives. The same goes for Goldwise's own reads.
 - **Fewer requests to the auction house when other addons are reading
   it.** When another addon asks for every auction, as Profession Atlas
   does, Goldwise now waits for that answer and uses it instead of reading
@@ -61,22 +58,30 @@ the `dev` branch.
   way when the list arrives, it stops. With Auctionator or Profession
   Atlas installed it also gives them a few seconds' head start on
   opening, so one read serves both.
-- **About lists the addons Goldwise works with**, and what it does
-  differently beside each.
-- **Point at the goblin in the corner of the window** and a tooltip says
-  what Goldwise is, and which version you have.
+- **Goldwise's tooltip lines say they're Goldwise's.** With several
+  addons writing on the same tooltip, there was no telling which line
+  was whose. Its line, the count your other characters hold, the
+  crafting tree hint and the chart are now all marked with its name.
+- **A price where the other addon has none.** Goldwise left tooltip
+  prices to Auctionator whenever Auctionator was installed, so beside it
+  there was often nothing of Goldwise's at all. It now asks whether
+  Auctionator has a price for the item, and shows its own when it
+  hasn't.
+- **The tooltip chart appears after two days of prices**, not three.
 - **Professions are recognised in any language.** They were matched by
   their English names, so on a German or French client Goldwise thought
   you had none. The rest of Goldwise is still in English.
 - **A bid handed back is recognised in any language**, from the wording
   of the letter's subject, not only from the sender's English name.
+- New releases reach Wago Addons as well as CurseForge.
+
+**Fixed**
+
 - **Roleplay-PvP worlds get a market of their own.** Their realm name
   ends in two words, and Goldwise read only the last, which filed their
   prices with the PvP worlds' and had the two swapping prices between
   players. If you play on one, your price history starts afresh under
   the right market.
-- Carries its Wago Addons project ID, so new releases reach Wago as well
-  as CurseForge.
 
 ## 0.3.3 (12 November 2026)
 
