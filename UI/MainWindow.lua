@@ -330,10 +330,13 @@ end
 -- showing, so it says which way it'll go.
 local function CreateSessionButton(frame, beside)
     local button = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    button:SetSize(74, 18)
+    button:SetHeight(18)
     button:SetPoint("RIGHT", beside, "LEFT", -6, 0)
     button:SetFrameLevel(frame.CloseButton:GetFrameLevel())
-    button:SetText("Session")
+    -- Named in full, with a coin in front: "Session" alone didn't say it
+    -- opened anything.
+    button:SetText("|TInterface\\MoneyFrame\\UI-GoldIcon:12:12|t Session tracker")
+    button:SetWidth(button:GetFontString():GetStringWidth() + 20)
 
     local function Update()
         if ns.SessionTrackerShown() then

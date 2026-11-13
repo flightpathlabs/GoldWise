@@ -14,8 +14,8 @@ the `dev` branch.
   recipe stays on the Recipes tab. The options page lists what you've
   dismissed and has a button to bring them all back.
 - **A session tracker.** A small panel to keep on screen while you play,
-  put there with the new Session button on the Goldwise window's title
-  bar, `/gw session`, or the options. It shows what this session has
+  put there with the new Session tracker button on the Goldwise window's
+  title bar, `/gw session`, or the options. It shows what this session has
   earned or lost in coin, how much more or less your bags are worth than
   when it began, the two together, and the rate an hour. Below that is
   what your bags are worth, counted the way Goldwise would sell each

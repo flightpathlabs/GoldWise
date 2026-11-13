@@ -196,7 +196,7 @@ and where to buy each.
 ### The session tracker: how this sitting is going
 
 A small panel to keep on screen while you farm or trade. Turn it on with
-the **Session** button on the window's title bar, or `/gw session`. It
+the **Session tracker** button on the window's title bar, or `/gw session`. It
 shows what this session has made or lost in coin, how much more your bags
 are worth than when you started, the two together, and the rate an hour.
 Underneath is what your bags are worth, each thing counted the way

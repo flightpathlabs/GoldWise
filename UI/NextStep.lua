@@ -440,7 +440,7 @@ local NEWS = {
             end
             table.insert(
                 lines,
-                "There's also a session tracker to keep on screen: the Session button "
+                "There's also a session tracker to keep on screen: the Session tracker button "
                     .. "on this window's title bar. And Goldwise's suggestion cards can be "
                     .. "dragged wherever you'd like them."
             )
