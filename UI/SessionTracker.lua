@@ -15,6 +15,11 @@ local PADDING = 10
 local LINE_HEIGHT = 16
 local PIN_SIZE = 18
 local RESET_SIZE = 14
+local FOLD_SIZE = 16
+
+-- Folded to its title line: the padding above and below, and a line of
+-- text between.
+local FOLDED_HEIGHT = 2 * PADDING + 14
 
 -- How often the clock on it moves on, in seconds.
 local TICK = 5
@@ -136,6 +141,15 @@ local function SetSigned(line, copper)
     line.Figure:SetTextColor(unpack(color))
 end
 
+-- The folded total has a narrow space to fit in, so once it's into gold
+-- the copper is left off.
+local function Rounded(copper)
+    if math.abs(copper) >= 10000 then
+        return math.floor(copper / 100 + 0.5) * 100
+    end
+    return copper
+end
+
 -- Kept by its top-left corner, so the panel grows downward from where
 -- it was put when the breakdown opens.
 local function SavePosition(frame)
@@ -240,6 +254,44 @@ local function CreateResetButton(frame, beside)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", GameTooltip_Hide)
+    return button
+end
+
+-- The button beside the reset arrow that folds the panel down to its
+-- title line, with the session's total in it, and opens it out again.
+local function CreateFoldButton(frame, beside)
+    local button = CreateFrame("Button", nil, frame)
+    button:SetSize(FOLD_SIZE, FOLD_SIZE)
+    button:SetPoint("RIGHT", beside, "LEFT", -4, 0)
+
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
+    local glow = button:CreateTexture(nil, "HIGHLIGHT")
+    glow:SetBlendMode("ADD")
+    glow:SetAlpha(0.5)
+    glow:SetAllPoints()
+
+    function button:Update()
+        local atlas = ns.settings.sessionTrackerFolded and "ui-questtrackerbutton-secondary-expand"
+            or "ui-questtrackerbutton-secondary-collapse"
+        icon:SetAtlas(atlas)
+        glow:SetAtlas(atlas)
+    end
+
+    button:SetScript("OnClick", function()
+        ns.settings.sessionTrackerFolded = not ns.settings.sessionTrackerFolded
+        GameTooltip_Hide()
+        frame:Refresh()
+    end)
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText(ns.settings.sessionTrackerFolded and "Open out" or "Fold to one line")
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+
+    button:Update()
+    return button
 end
 
 -- The panel's tooltip: the figures in full. opens is where a click on
@@ -251,7 +303,7 @@ local function ShowDetails(frame, opens)
     end
 
     GameTooltip:SetOwner(frame, "ANCHOR_LEFT")
-    GameTooltip:SetText("This session")
+    GameTooltip:SetText(("This session, %s"):format(Duration(summary.seconds)))
     GameTooltip:AddDoubleLine("Coin in", Theme.Coins(summary.earned), 1, 1, 1, 1, 1, 1)
     GameTooltip:AddDoubleLine("Coin out", Theme.Coins(summary.spent), 1, 1, 1, 1, 1, 1)
     if summary.bags then
@@ -343,7 +395,8 @@ end
 -- its menu. The panel's drag handlers are looked up at the time, as
 -- they're set after the lines are made.
 local function CoverLine(frame, line, onClick)
-    local button = CreateFrame("Button", nil, frame)
+    -- On the body with the line, so it folds away with it.
+    local button = CreateFrame("Button", nil, line.Label:GetParent())
     button:SetPoint("TOPLEFT", line.Label, "TOPLEFT", -4, 2)
     button:SetPoint("RIGHT", frame, "RIGHT", -PADDING + 4, 0)
     button:SetHeight(LINE_HEIGHT)
@@ -411,7 +464,7 @@ end
 local function BreakdownLine(frame, n)
     local line = frame.breakdown[n]
     if not line then
-        line = CreateLine(frame, BREAKDOWN_START, "", "GameFontHighlightSmall")
+        line = CreateLine(frame.Body, BREAKDOWN_START, "", "GameFontHighlightSmall")
         frame.breakdown[n] = line
     end
     line.Label:Show()
@@ -534,16 +587,29 @@ local function Create()
     frame.Clock = frame:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     frame.Clock:SetPoint("LEFT", frame.Title, "RIGHT", 6, 0)
 
-    CreateResetButton(frame, CreatePlacesPin(frame))
+    frame.Fold = CreateFoldButton(frame, CreateResetButton(frame, CreatePlacesPin(frame)))
 
-    frame.Coin = CreateLine(frame, 1, "Coin")
-    frame.Goods = CreateLine(frame, 2, "Change in bags")
-    frame.Overall = CreateLine(frame, 3, "Altogether", "GameFontNormal")
+    -- Folded, the title line carries the session's total in place of the
+    -- clock, between the title and the buttons.
+    frame.Total = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    frame.Total:SetPoint("LEFT", frame.Title, "RIGHT", 8, 0)
+    frame.Total:SetPoint("RIGHT", frame.Fold, "LEFT", -6, 0)
+    frame.Total:SetJustifyH("LEFT")
+    frame.Total:SetWordWrap(false)
+
+    -- Everything under the title line, so folding can put it all away at once.
+    frame.Body = CreateFrame("Frame", nil, frame)
+    frame.Body:SetAllPoints()
+
+    local body = frame.Body
+    frame.Coin = CreateLine(body, 1, "Coin")
+    frame.Goods = CreateLine(body, 2, "Change in bags")
+    frame.Overall = CreateLine(body, 3, "Altogether", "GameFontNormal")
     frame.Overall.Figure:SetFontObject("GameFontHighlight")
-    frame.Rate = CreateLine(frame, 4, "An hour")
-    frame.Bags = CreateLine(frame, 5.5, "Bags worth")
-    frame.Auction = CreateLine(frame, 6.5, "   at auction", "GameFontDisableSmall")
-    frame.Vendor = CreateLine(frame, 7.5, "   to vendors", "GameFontDisableSmall")
+    frame.Rate = CreateLine(body, 4, "An hour")
+    frame.Bags = CreateLine(body, 5.5, "Bags worth")
+    frame.Auction = CreateLine(body, 6.5, "   at auction", "GameFontDisableSmall")
+    frame.Vendor = CreateLine(body, 7.5, "   to vendors", "GameFontDisableSmall")
 
     -- Each line opens where its figure comes from.
     for _, line in ipairs({ frame.Coin, frame.Overall, frame.Rate }) do
@@ -555,10 +621,10 @@ local function Create()
 
     -- The switch for the breakdown, and its two headings. The lines under
     -- them are made as they're needed.
-    frame.Switch = CreateLine(frame, BREAKDOWN_SWITCH, "Coin in and out")
+    frame.Switch = CreateLine(body, BREAKDOWN_SWITCH, "Coin in and out")
     CreateBreakdownSwitch(frame, frame.Switch)
-    frame.InHeading = CreateLine(frame, BREAKDOWN_START, "COIN IN", "GameFontDisableSmall")
-    frame.OutHeading = CreateLine(frame, BREAKDOWN_START, "COIN OUT", "GameFontDisableSmall")
+    frame.InHeading = CreateLine(body, BREAKDOWN_START, "COIN IN", "GameFontDisableSmall")
+    frame.OutHeading = CreateLine(body, BREAKDOWN_START, "COIN OUT", "GameFontDisableSmall")
     frame.breakdown = {}
 
     frame:SetWidth(WIDTH)
@@ -609,6 +675,17 @@ local function Create()
 
         -- Until the bags have been valued, coin is all there is to go on.
         local overall = summary.overall or summary.coin
+
+        local folded = ns.settings.sessionTrackerFolded
+        self.Fold:Update()
+        self.Body:SetShown(not folded)
+        self.Clock:SetShown(not folded)
+        self.Total:SetShown(folded)
+        if folded then
+            SetSigned({ Figure = self.Total }, Rounded(overall))
+            self:SetHeight(FOLDED_HEIGHT)
+            return
+        end
 
         self.Clock:SetText(Duration(summary.seconds))
         SetSigned(self.Coin, summary.coin)

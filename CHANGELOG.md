@@ -23,11 +23,12 @@ the `dev` branch.
   out" opens a breakdown: looted, quest rewards, sold to vendors, auction
   sales, and on the other side repairs, vendors, training, flights and
   the rest. The arrow in its corner starts the session again, say before
-  a run. Click a line to open your purse or this character's assets.
-  Drag it where you like; right-click to lock it. A reload, or logging
-  back in within a quarter of an hour, carries on the same session. The
-  pin in its corner opens Places, and pointing at it names the nearest
-  auction house, repairs, bank, flight master and inn.
+  a run, and the one beside it folds the panel to a single line with the
+  session's total. Click a line to open your purse or this character's
+  assets. Drag it where you like; right-click to lock it. A reload, or
+  logging back in within a quarter of an hour, carries on the same
+  session. The pin in its corner opens Places, and pointing at it names
+  the nearest auction house, repairs, bank, flight master and inn.
 - **Goldwise's cards can be moved.** Drag the card that tells you about a
   recipe for sale nearby, or any other, to wherever you'd like them to
   appear, and they'll come up there from then on. Right-click one to put
