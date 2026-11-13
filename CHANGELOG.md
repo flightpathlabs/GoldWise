@@ -33,6 +33,8 @@ the `dev` branch.
   opening, so one read serves both.
 - **About lists the addons Goldwise works with**, and what it does
   differently beside each.
+- **Point at the goblin in the corner of the window** and a tooltip says
+  what Goldwise is, and which version you have.
 - **Professions are recognised in any language.** They were matched by
   their English names, so on a German or French client Goldwise thought
   you had none. The rest of Goldwise is still in English.

@@ -10,6 +10,11 @@ local Theme = ns.Theme
 -- chart, the list of what's coming and the verdict under it.
 local WIDTH, HEIGHT = 780, 570
 
+-- What the portrait says when pointed at. The About tab has the long
+-- version.
+local ABOUT = "A clear guide to buying and selling. It tracks prices for what you carry "
+    .. "and tells you what's worth doing with it."
+
 -- The tabs along the bottom edge, in order. Each names the page it shows
 -- (a field on the window) and how to bring that page up to date. Whatever
 -- refresh returns goes in the footer.
@@ -257,12 +262,39 @@ local function CreateTabs(frame)
     PanelTemplates_SetTab(frame, currentTab)
 end
 
+-- Tells anyone who points at the goblin what Goldwise is.
+local function CreatePortraitTooltip(frame)
+    local hover = CreateFrame("Frame", nil, frame)
+    hover:SetAllPoints(frame:GetPortrait())
+    hover:SetFrameLevel(frame.CloseButton:GetFrameLevel())
+
+    -- It only wants to know the mouse is there. Clicks go through to the
+    -- window, so it can still be dragged by this corner.
+    hover:SetMouseClickEnabled(false)
+    hover:SetMouseMotionEnabled(true)
+
+    hover:SetScript("OnEnter", function(self)
+        local muted = Theme.MUTED
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Goldwise", unpack(Theme.COIN))
+        GameTooltip:AddLine(ABOUT, 1, 1, 1, true)
+
+        local version = C_AddOns.GetAddOnMetadata(ns.name, "Version")
+        if version then
+            GameTooltip:AddLine("Version " .. version, muted[1], muted[2], muted[3])
+        end
+        GameTooltip:Show()
+    end)
+    hover:SetScript("OnLeave", GameTooltip_Hide)
+end
+
 local function CreateWindow()
     local frame = CreateFrame("Frame", "GoldwiseWindow", UIParent, "ButtonFrameTemplate")
     frame:SetSize(WIDTH, HEIGHT)
     frame:SetPoint("CENTER")
     frame:SetTitle("Goldwise")
     frame:SetPortraitTextureRaw(Theme.PORTRAIT)
+    CreatePortraitTooltip(frame)
     frame:Hide()
 
     frame:SetToplevel(true)
