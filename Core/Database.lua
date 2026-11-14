@@ -16,6 +16,8 @@ local addonName, ns = ...
 --              by npcID: kills, skinnings, coin and items (see Drops)
 --   dropsCorpses  the corpses looted just before a logout or reload, kept
 --              for a few minutes so one isn't counted twice (see Drops)
+--   dropsVersion  which way of keeping drops records made them; older
+--              ones are let go (see Drops)
 --   keep       what the player has said isn't for sale (see Keep)
 --   purse      money in and out, and coin held, by the hour, for the
 --              account and each character (see Purse)

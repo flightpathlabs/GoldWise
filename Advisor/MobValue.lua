@@ -221,6 +221,16 @@ local function Estimate(pool, own, guess)
     local value = copper + dropWorth + skinWorth * skinShare
     local vendorOnly = copper + dropVendor + skinVendor * skinShare
 
+    -- What's listed is only ever the creature's own. Similar creatures
+    -- can lend a rough worth, but not their drops: a zebra doesn't drop a
+    -- plainstrider's beak because the two are beasts of a level.
+    if guess then
+        local kills, skins = own and own.kills or 0, own and own.skins or 0
+        drops = List(own and own.items or {}, kills)
+        skinned = List(own and own.skinned or {}, skins)
+        copper = kills > 0 and own.copper / kills or 0
+    end
+
     -- The low end is everything sold to a vendor; the high end is the
     -- estimate itself. Both are widened by how unsure a handful of kills
     -- leaves us, which falls away with the square root of the kills, as
@@ -267,8 +277,9 @@ end
 ---        earners first: chance runs from 0 to 1, quantity is how many
 ---        when it drops, and each is what one is worth. skinned is per
 ---        corpse skinned. kills and skins are this creature's own, even
----        when guess is true and the figures are borrowed. Nil when
----        there's nothing to go on.
+---        when guess is true and value, low and high are borrowed; copper,
+---        drops and skinned are always its own, and empty for a creature
+---        never looted. Nil when there's nothing to go on.
 function MobValue.For(npcID, level, creatureType)
     if not npcID or not ns.db then
         return nil

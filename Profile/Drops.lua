@@ -48,6 +48,10 @@ local GATHER_WINDOW = 3
 -- it, so the client has heard from the server.
 local LOOT_CHECK_DELAY = 1
 
+-- How many times that's put off while a loot window is open: as long as
+-- any window stays open, within reason.
+local KILL_CHECK_WAITS = 120
+
 -- How a corpse is being opened this time.
 local KILL = "kill"
 local SKIN = "skin"
@@ -220,6 +224,32 @@ local function HasLoot(guid)
         return nil
     end
     return hasLoot
+end
+
+-- The player's own kills of the last minute or so that haven't been
+-- looted yet: [guid] = when it died. While there's more than one, a
+-- window with no word on which corpse each thing came from could be any
+-- of them, since area loot gathers from every corpse near the player.
+local unlooted = {}
+local UNLOOTED_FOR = 60
+
+-- How many kills other than this one could have been looted along with
+-- it: still waiting, not known to be empty, and not seen to be out of
+-- reach. A corpse already emptied, or one left behind out of reach, is
+-- no part of the window.
+local function OthersUnlooted(guid)
+    local now, others = GetTime(), 0
+    for other, diedAt in pairs(unlooted) do
+        if now - diedAt > UNLOOTED_FOR or HasLoot(other) == false then
+            unlooted[other] = nil
+        elseif other ~= guid then
+            local unit = UnitOf(other)
+            if not unit or not UnitIsInInteractRange or UnitIsInInteractRange(unit) then
+                others = others + 1
+            end
+        end
+    end
+    return others
 end
 
 -- The corpse the player is most likely looting, when the client won't
@@ -409,6 +439,14 @@ local function Gather()
     local fallback = CorpseInView(from)
     local loot = { from = from, found = {}, coinSlots = {}, unplaced = false }
 
+    -- Area loot could have gathered from other corpses too, and without
+    -- the client saying which slot is whose, the one in view can't be
+    -- given the lot. Skinning and gathering take from one corpse only.
+    if fallback and from ~= FROM_CORPSE and OthersUnlooted(fallback) > 0 then
+        fallback = nil
+        loot.ambiguous = true
+    end
+
     for slot = 1, GetNumLootItems() do
         local _, _, quantity, currencyID, _, _, isQuestItem, _, _, isCoin = GetLootSlotInfo(slot)
         local slotType = SlotType(slot, currencyID, isCoin)
@@ -498,6 +536,7 @@ local function Open(guid, from)
     end
 
     pendingKills[guid] = nil
+    unlooted[guid] = nil
 
     local corpse = Corpse(guid)
     local how
@@ -655,8 +694,11 @@ local function Commit(loot, ignore)
 
     -- Some of this window could be a kill waiting to hear whether it left
     -- anything. Better none of them counted than one counted as empty.
+    -- The same goes for telling later windows apart: those corpses may
+    -- well have been emptied by this one.
     if loot.unplaced and not loot.from then
         wipe(pendingKills)
+        wipe(unlooted)
     end
 
     for _, slotFound in ipairs(loot.found) do
@@ -688,7 +730,7 @@ local function Commit(loot, ignore)
         "drops: %d slots, %s%s%s",
         #loot.found,
         #hows > 0 and table.concat(hows, ", ") or "no source",
-        loot.unplaced and ", some unplaced" or "",
+        loot.unplaced and (loot.ambiguous and ", several corpses near" or ", some unplaced") or "",
         loot.from and (", by a " .. loot.from .. " spell") or ""
     )
 
@@ -698,10 +740,6 @@ local function Commit(loot, ignore)
     wipe(changed)
 end
 
--- LOOT_READY comes first, sometimes twice, and is when fast looting
--- addons take everything. So the slots are read then. LOOT_OPENED says
--- whether the window is a bag or a box being opened, so only then is
--- anything put on record.
 -- Whether a reading of the window found anything in it. The first
 -- LOOT_READY can come before the server has filled the window, and an
 -- empty reading then isn't to be kept over a later, full one.
@@ -709,12 +747,41 @@ local function Found(loot)
     return loot ~= nil and (#loot.found > 0 or loot.unplaced or next(loot.coinSlots) ~= nil)
 end
 
-ns.OnEvent("LOOT_READY", function()
-    if committed or Found(gathered) or not ns.db then
+-- When the window was put on record empty, why it wasn't to be recorded
+-- (false if it was). Its contents can still arrive, and are recorded
+-- then, as the same window. Nil once it's been recorded with something
+-- in it.
+local emptyIgnore = nil
+
+-- LOOT_READY comes first, sometimes twice, and is when fast looting
+-- addons take everything. So the slots are read then. LOOT_OPENED says
+-- whether the window is a bag or a box being opened, so only then is
+-- anything put on record. Looting a creature the moment it dies can open
+-- the window before the server has filled it, and then what's on the
+-- corpse comes after, with LOOT_READY again or a slot changing.
+local function ReadAgain()
+    if not ns.db then
         return
     end
-    gathered = Gather()
-end)
+    if not committed then
+        if not Found(gathered) then
+            gathered = Gather()
+        end
+        return
+    end
+    if emptyIgnore == nil then
+        return
+    end
+    local loot = Gather()
+    if Found(loot) then
+        local ignore = emptyIgnore or nil
+        emptyIgnore = nil
+        Commit(loot, ignore)
+    end
+end
+
+ns.OnEvent("LOOT_READY", ReadAgain)
+ns.OnEvent("LOOT_SLOT_CHANGED", ReadAgain)
 
 ns.OnEvent("LOOT_OPENED", function(_, isFromItem)
     if committed or not ns.db then
@@ -732,6 +799,11 @@ ns.OnEvent("LOOT_OPENED", function(_, isFromItem)
         or InGroup() and "in a group"
         or nil
     Commit(loot, ignore)
+    if Found(loot) then
+        emptyIgnore = nil
+    else
+        emptyIgnore = ignore or false
+    end
 end)
 
 -- Without this event there's no telling a corpse left half looted from
@@ -768,6 +840,7 @@ ns.OnEvent("LOOT_CLOSED", function()
 
     committed = false
     gathered = nil
+    emptyIgnore = nil
     windowCast, castTaken = nil, false
     wipe(cleared)
 end)
@@ -785,6 +858,16 @@ end)
 -- Only for a creature in view that was the player's to loot.
 local function CheckKill(guid, kill)
     if pendingKills[guid] ~= kill then
+        return
+    end
+
+    -- While a loot window is open the corpse can look empty, since it's
+    -- being looted. Ask again once it's had time to close.
+    if committed and (kill.waits or 0) < KILL_CHECK_WAITS then
+        kill.waits = (kill.waits or 0) + 1
+        C_Timer.After(LOOT_CHECK_DELAY, function()
+            CheckKill(guid, kill)
+        end)
         return
     end
     pendingKills[guid] = nil
@@ -806,6 +889,7 @@ local function CheckKill(guid, kill)
 
     -- Remembered as emptied, so skinning it later counts as a skin.
     Remember(guid, { how = KILL, left = false })
+    unlooted[guid] = nil
 
     local entry = Entry(kill.npcID)
     AddKill(entry)
@@ -828,9 +912,21 @@ ns.OnEvent("PARTY_KILL", function(attackerGUID, targetGUID)
     end
 
     local npcID = Drops.NpcID(targetGUID)
-    local unit = npcID and not Corpse(targetGUID) and UnitOf(targetGUID)
-    if not unit or UnitIsTapDenied(unit) then
-        ns.Log("drops: a kill out of view or not yours")
+    if not npcID or Corpse(targetGUID) then
+        return
+    end
+    local unit = UnitOf(targetGUID)
+
+    -- Even a kill out of view can be gathered up by area loot along with
+    -- one in view, so it's noted whatever happens next. Only a corpse
+    -- known to be someone else's is left out.
+    if unit and UnitIsTapDenied(unit) then
+        ns.Log("drops: a kill that wasn't yours")
+        return
+    end
+    unlooted[targetGUID] = GetTime()
+    if not unit then
+        ns.Log("drops: a kill out of view")
         return
     end
 
@@ -928,7 +1024,16 @@ end
 
 -- Once as the saved data loads and once on the way out, so what's saved
 -- is in trim. Never in the middle of a fight.
+-- Records made before area loot was checked for other corpses can have
+-- one creature's drops put down to another. They were only ever made by
+-- test builds, and are let go once.
+local RECORDS_VERSION = 2
+
 ns.Subscribe("DATABASE_READY", function()
+    if ns.db.dropsVersion ~= RECORDS_VERSION then
+        ns.db.drops = {}
+        ns.db.dropsVersion = RECORDS_VERSION
+    end
     Prune()
     RestoreCorpses()
 end)
