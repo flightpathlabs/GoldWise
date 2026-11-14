@@ -267,6 +267,23 @@ ns.OnEvent("PLAYER_LOGIN", function()
 
     AddCheckbox(
         category,
+        "mobValueTooltip",
+        "Show what an enemy is worth on its tooltip",
+        "About how much a kill brings in, with its best drops and skins, their chances "
+            .. "and its coin. Worked out from what you've looted yourself. Creatures you haven't "
+            .. "killed yet get a guess from similar ones, marked with a ~."
+    )
+
+    AddCheckbox(
+        category,
+        "mobValuePlates",
+        "Show it above enemies' nameplates too",
+        "A small coin and the same figure over each enemy's nameplate, so you can pick "
+            .. "out the ones worth your time. Needs the game's nameplates switched on."
+    )
+
+    AddCheckbox(
+        category,
         "auditorMode",
         "Auditor mode",
         "The goblin delivers the same advice at full volume. The facts don't change."

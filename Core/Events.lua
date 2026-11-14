@@ -98,6 +98,8 @@ end
 --                                   one of Trade.SALE and the rest
 --   PLACES_CHANGED                  the directory of places has learned more
 --   CRAFTS_CHANGED                  the player's known recipes have been read
+--   DROPS_CHANGED    npcID          what a kind of creature drops has been
+--                                   added to: a kill, a skinning or its coin
 --   COURSE_CHANGED                  the player picked something else for a
 --                                   tab to show: what to do on Prospects,
 --                                   which chart on Profit

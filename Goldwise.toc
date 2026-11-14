@@ -61,6 +61,7 @@ Profile\Training.lua
 Profile\Recipes.lua
 Profile\Keep.lua
 Profile\Crafts.lua
+Profile\Drops.lua
 
 Advisor\Advice.lua
 Advisor\Assets.lua
@@ -71,6 +72,7 @@ Advisor\Resale.lua
 Advisor\Materials.lua
 Advisor\Conversions.lua
 Advisor\CraftTree.lua
+Advisor\MobValue.lua
 Advisor\API.lua
 
 UI\Theme.lua
@@ -96,6 +98,7 @@ UI\Toast.lua
 UI\SessionTracker.lua
 UI\NextStep.lua
 UI\Tooltip.lua
+UI\MobPlates.lua
 UI\ItemMarks.lua
 UI\Check.lua
 UI\Report.lua

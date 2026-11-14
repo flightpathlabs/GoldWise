@@ -12,6 +12,10 @@ local addonName, ns = ...
 --   characters what each character held when last played (see Characters)
 --   banks      what's in each character's bank, and the shared one (see Bank)
 --   crafts     the recipes each character knows (see Crafts)
+--   drops      what each kind of creature the account has looted dropped,
+--              by npcID: kills, skinnings, coin and items (see Drops)
+--   dropsCorpses  the corpses looted just before a logout or reload, kept
+--              for a few minutes so one isn't counted twice (see Drops)
 --   keep       what the player has said isn't for sale (see Keep)
 --   purse      money in and out, and coin held, by the hour, for the
 --              account and each character (see Purse)
@@ -105,6 +109,12 @@ local DEFAULT_SETTINGS = {
     -- A tooltip line, on things the player can make or make something
     -- from, saying how to open their crafting tree.
     tooltipTree = true,
+
+    -- What an enemy is worth a kill, from the player's own loot: on its
+    -- tooltip, and as a small coin over its nameplate. The coin is off to
+    -- begin with, since nameplates are crowded enough.
+    mobValueTooltip = true,
+    mobValuePlates = false,
 
     -- Which click on an item opens its crafting tree: a place in the
     -- list in UI\Shortcuts.lua, or 0 for none.

@@ -24,6 +24,14 @@ the `dev` branch.
   history, or to link it in chat. It works on Assets, Profit's latest
   sales, Recipes, the plans on Prospects, the crafting tree's own rows
   and an item's page.
+- **What an enemy is worth.** Point at a creature and its tooltip says
+  roughly what one is worth to kill: its coin, its common drops with how
+  often each falls and what it sells for, and what skinning it gives.
+  Goldwise learns this from your own looting while you play alone, so
+  it starts empty and fills in as you go. Until you've looted a few of
+  something, it guesses from similar creatures and says so. An option
+  puts a small coin and the figure above enemies' nameplates too; it
+  starts switched off.
 
 **Better**
 
