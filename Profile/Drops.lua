@@ -352,6 +352,18 @@ local function TakeCast()
     return from
 end
 
+-- The window may be read more than once before it's put on record, so
+-- the cast that opened it is taken once and kept until it closes.
+local windowCast, castTaken = nil, false
+
+local function WindowCast()
+    if not castTaken then
+        castTaken = true
+        windowCast = TakeCast()
+    end
+    return windowCast
+end
+
 -- Reading the window -----------------------------------------------------------
 
 -- Packs a function's answers into a list that keeps any nils in place.
@@ -393,7 +405,7 @@ end
 -- when some slot's source couldn't be told. Nothing is put on record
 -- yet, since the window may turn out to be a bag being opened.
 local function Gather()
-    local from = TakeCast()
+    local from = WindowCast()
     local fallback = CorpseInView(from)
     local loot = { from = from, found = {}, coinSlots = {}, unplaced = false }
 
@@ -690,8 +702,15 @@ end
 -- addons take everything. So the slots are read then. LOOT_OPENED says
 -- whether the window is a bag or a box being opened, so only then is
 -- anything put on record.
+-- Whether a reading of the window found anything in it. The first
+-- LOOT_READY can come before the server has filled the window, and an
+-- empty reading then isn't to be kept over a later, full one.
+local function Found(loot)
+    return loot ~= nil and (#loot.found > 0 or loot.unplaced or next(loot.coinSlots) ~= nil)
+end
+
 ns.OnEvent("LOOT_READY", function()
-    if committed or gathered or not ns.db then
+    if committed or Found(gathered) or not ns.db then
         return
     end
     gathered = Gather()
@@ -703,7 +722,7 @@ ns.OnEvent("LOOT_OPENED", function(_, isFromItem)
     end
     committed = true
 
-    local loot = gathered or Gather()
+    local loot = Found(gathered) and gathered or Gather()
     gathered = nil
 
     -- A fish, or a bag or box opened from the bags, isn't a creature's
@@ -749,6 +768,7 @@ ns.OnEvent("LOOT_CLOSED", function()
 
     committed = false
     gathered = nil
+    windowCast, castTaken = nil, false
     wipe(cleared)
 end)
 
