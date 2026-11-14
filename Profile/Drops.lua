@@ -518,6 +518,9 @@ local function Open(guid, from)
         AddKill(entry)
     elseif how == SKIN then
         entry.skins = (entry.skins or 0) + 1
+        -- A creature only ever skinned has no kill to date it, and
+        -- undated records are let go as stale on the way out.
+        entry.seen = GetServerTime()
     end
     if how ~= AGAIN then
         if unit then
@@ -634,6 +637,7 @@ local function Commit(loot, ignore)
     table.insert(owing, window)
 
     if ignore then
+        ns.Log("drops: window not recorded (%s)", ignore)
         return
     end
 
@@ -663,6 +667,19 @@ local function Commit(loot, ignore)
         window.slots[slotFound.slot] = guids
     end
 
+    -- One line per window, so a report can say why a kill went unrecorded.
+    local hows = {}
+    for _, source in pairs(window.sources) do
+        table.insert(hows, source and (source.how .. " " .. source.npcID) or "not a creature")
+    end
+    ns.Log(
+        "drops: %d slots, %s%s%s",
+        #loot.found,
+        #hows > 0 and table.concat(hows, ", ") or "no source",
+        loot.unplaced and ", some unplaced" or "",
+        loot.from and (", by a " .. loot.from .. " spell") or ""
+    )
+
     for npcID in pairs(changed) do
         ns.Publish("DROPS_CHANGED", npcID)
     end
@@ -691,7 +708,10 @@ ns.OnEvent("LOOT_OPENED", function(_, isFromItem)
 
     -- A fish, or a bag or box opened from the bags, isn't a creature's
     -- drop. Nor is anything looted in a group put down, as above.
-    local ignore = isFromItem or (IsFishingLoot and IsFishingLoot()) or InGroup()
+    local ignore = isFromItem and "opened from the bags"
+        or (IsFishingLoot and IsFishingLoot()) and "fishing"
+        or InGroup() and "in a group"
+        or nil
     Commit(loot, ignore)
 end)
 
@@ -753,9 +773,16 @@ local function CheckKill(guid, kill)
     if Corpse(guid) or not ns.db or InGroup() then
         return
     end
-    if HasLoot(guid) ~= false then
+    local hasLoot = HasLoot(guid)
+    if hasLoot ~= false then
+        ns.Log(
+            "drops: kill %d, %s",
+            kill.npcID,
+            hasLoot and "waiting to be looted" or "can't tell if it has loot"
+        )
         return
     end
+    ns.Log("drops: kill %d, nothing on it", kill.npcID)
 
     -- Remembered as emptied, so skinning it later counts as a skin.
     Remember(guid, { how = KILL, left = false })
@@ -783,6 +810,7 @@ ns.OnEvent("PARTY_KILL", function(attackerGUID, targetGUID)
     local npcID = Drops.NpcID(targetGUID)
     local unit = npcID and not Corpse(targetGUID) and UnitOf(targetGUID)
     if not unit or UnitIsTapDenied(unit) then
+        ns.Log("drops: a kill out of view or not yours")
         return
     end
 
