@@ -11,7 +11,8 @@ the `dev` branch.
 - **Prices for other addons.** A small read-only `GoldwiseAPI` gives
   other addons the auction price Goldwise would show for an item, so
   Creel, the fishing log, can value catches without scanning the
-  auction house itself.
+  auction house itself. Other addons can also open Goldwise on an
+  item's crafting tree or price history.
 
 ## 0.4.1 (13 November 2026)
 

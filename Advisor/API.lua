@@ -34,4 +34,27 @@ function API.Price(itemID)
     return price, seenAt, source
 end
 
+--- Opens Goldwise's window on an item's crafting tree: what it's made from
+--- and what it goes into, with prices.
+---@param itemID number
+---@return boolean opened
+function API.ShowCraftTree(itemID)
+    if type(itemID) ~= "number" or not ns.db or not ns.ShowCraftTree then
+        return false
+    end
+    ns.ShowCraftTree(itemID)
+    return true
+end
+
+--- Opens Goldwise's window on an item's price history.
+---@param itemID number
+---@return boolean opened
+function API.ShowItemHistory(itemID)
+    if type(itemID) ~= "number" or not ns.db or not ns.ShowItemHistory then
+        return false
+    end
+    ns.ShowItemHistory(itemID)
+    return true
+end
+
 GoldwiseAPI = API
