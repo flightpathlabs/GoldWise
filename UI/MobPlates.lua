@@ -34,7 +34,10 @@ local MAX_SKINS = 2
 -- loot). One redraw of the plates for each burst is plenty.
 local REFRESH_DELAY = 0.5
 
-local COIN_SIZE = 10
+-- The nameplate figure is kept small and a little see-through, so a
+-- field of creatures doesn't turn into a field of numbers.
+local COIN_SIZE = 8
+local PLATE_ALPHA = 0.8
 
 local function CanSeeSecret(value)
     return value ~= nil and not (issecretvalue and issecretvalue(value))
@@ -95,24 +98,25 @@ local function Rough(copper)
 end
 
 -- For a nameplate, where every letter covers a bit more of the world:
--- one coin only. "4c", "38s", "2.4g", "12g".
+-- one coin only, as a number and the coin it's counted in, the way the
+-- game shows money. "4" and copper, "38" and silver, "2.4" and gold.
 local function Short(copper)
     copper = math.floor(copper + 0.5)
     if copper < 100 then
-        return copper .. "c"
+        return tostring(copper), "coin-copper"
     end
 
     local silver = math.floor(copper / 100 + 0.5)
     if silver < 100 then
-        return silver .. "s"
+        return tostring(silver), "coin-silver"
     end
 
     local gold = copper / 10000
     if gold < 10 then
-        -- "2.4g", but "2g" rather than "2.0g".
-        return (("%.1f"):format(gold):gsub("%.0$", "")) .. "g"
+        -- "2.4", but "2" rather than "2.0".
+        return (("%.1f"):format(gold):gsub("%.0$", "")), "coin-gold"
     end
-    return math.floor(gold + 0.5) .. "g"
+    return tostring(math.floor(gold + 0.5)), "coin-gold"
 end
 
 -- "42%", or "<1%" for the rare drop that would otherwise read as never.
@@ -264,17 +268,18 @@ local function CreateCoin()
     -- Parented to nothing for now. It goes onto a plate when it's used.
     local frame = CreateFrame("Frame")
     frame:SetSize(COIN_SIZE, COIN_SIZE)
+    frame:SetAlpha(PLATE_ALPHA)
     frame:Hide()
-
-    frame.Icon = frame:CreateTexture(nil, "ARTWORK")
-    frame.Icon:SetAtlas("coin-gold")
-    frame.Icon:SetSize(COIN_SIZE, COIN_SIZE)
-    frame.Icon:SetPoint("LEFT")
 
     -- Small, with a shadow: it has to read against grass and snow alike
     -- without growing big enough to cover the name below it.
     frame.Text = frame:CreateFontString(nil, "ARTWORK", "SystemFont_Shadow_Small")
-    frame.Text:SetPoint("LEFT", frame.Icon, "RIGHT", 2, 0)
+    frame.Text:SetPoint("LEFT")
+
+    -- The coin after the number, as in the game's own money.
+    frame.Icon = frame:CreateTexture(nil, "ARTWORK")
+    frame.Icon:SetSize(COIN_SIZE, COIN_SIZE)
+    frame.Icon:SetPoint("LEFT", frame.Text, "RIGHT", 1, 0)
 
     return frame
 end
@@ -335,11 +340,13 @@ local function UpdatePlate(unit)
 
     local frame = AcquireCoin(unit, plate)
     local rough = IsRough(estimate)
-    frame.Text:SetText((rough and "~" or "") .. Short(estimate.value))
-    -- Gold for a figure from the creature's own kills, quieter for one
-    -- that's only a guess.
-    frame.Text:SetTextColor(unpack(rough and Theme.MUTED or Theme.COIN))
-    frame:SetWidth(COIN_SIZE + 2 + frame.Text:GetStringWidth())
+    local amount, coin = Short(estimate.value)
+    frame.Text:SetText((rough and "~" or "") .. amount)
+    frame.Icon:SetAtlas(coin)
+    -- Plain white for a figure from the creature's own kills, quieter
+    -- for one that's only a guess. The coin says what it's counted in.
+    frame.Text:SetTextColor(unpack(rough and Theme.MUTED or { 0.9, 0.9, 0.9 }))
+    frame:SetWidth(frame.Text:GetStringWidth() + 1 + COIN_SIZE)
     frame:Show()
 end
 
