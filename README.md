@@ -87,7 +87,7 @@ under its tooltip. For something in your bags, the tooltip also carries
 the verdict. Everything Goldwise adds to a tooltip is marked with its
 name, so you can tell its lines from another addon's.
 
-![The Assets tab, with an item's tooltip and price chart beside it](docs/images/assets.png)
+![The Assets tab: a verdict on everything you hold, and where its price has been heading](docs/images/assets.png)
 
 ### Price history for anything
 
@@ -172,6 +172,8 @@ beside each tab's menu switches both to any of your other characters,
 or to the whole account, where the sales list says which character made
 each sale.
 
+![The Profit tab: a running total across the account, and the latest sales](docs/images/profit.png)
+
 ### Places: the nearest of everything
 
 The nearest trainer for your class and each profession, and the nearest
@@ -205,6 +207,8 @@ The cog switches sections on and off, the arrow starts afresh before a
 run, and another button folds it to a single line. Drag it anywhere, and
 click the pin in its corner for Places.
 
+![The session tracker, with what came in and went out, and what your bags would fetch](docs/images/session.png)
+
 ### It speaks up when it matters
 
 A few quiet cards, each once per visit and each with a switch in the
@@ -216,7 +220,7 @@ wherever you'd like them to appear.
 Or turn on **Auditor mode**, and the goblin delivers the same advice at
 full volume.
 
-![A card listing recipes for sale nearby, in Auditor mode](docs/images/card.png)
+![A card saying a vendor nearby sells a recipe you haven't learned, in Auditor mode](docs/images/card.png)
 
 Screenshots with long price histories use sample data. Yours
 fill in as you play.
