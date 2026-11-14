@@ -96,6 +96,8 @@ UI\Tooltip.lua
 UI\ItemMarks.lua
 UI\Check.lua
 UI\Report.lua
+#@debug@
 UI\Demo.lua
+#@end-debug@
 UI\Shortcuts.lua
 UI\Settings.lua

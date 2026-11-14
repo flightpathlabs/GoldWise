@@ -644,7 +644,8 @@ SlashCmdList.GOLDWISE = function(message)
         ns.ShowNewsBeside(window)
     elseif command == "session" or command == "tracker" then
         ns.ToggleSessionTracker()
-    elseif command == "demo" then
+    elseif command == "demo" and ns.ToggleDemo then
+        -- Only on dev: release builds leave the demo out (see .pkgmeta).
         ns.ToggleDemo()
     else
         ns.ToggleWindow()

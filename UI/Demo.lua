@@ -164,11 +164,169 @@ local function InventedAverages(numDays)
     return income / #days, spending / #days, #days, "vendor"
 end
 
+-- The auction house ---------------------------------------------------------
+
+-- Things anyone levelling might trade, for the latest sales and purchases.
+-- Real items, so the names are the game's own: linen, wool and silk cloth,
+-- light and medium leather, copper and tin ore, and five common herbs.
+local TRADE_GOODS = { 2589, 2592, 4306, 2318, 2319, 2770, 2771, 2447, 765, 785, 2449, 3820 }
+
+-- What a stack of something might fetch, when there's no real price for it.
+local FALLBACK_EACH = 60
+
+-- Selling and buying at auction for each day of a stretch, every day
+-- present. Some days see no trading, as real ones do.
+local function InventedTradeDays(numDays)
+    local today = ns.Ledger.Today()
+    local first = today - numDays + 1
+    local scale = math.max(UnitLevel("player"), 5) * 600
+    local random = Wobble(numDays * 7349 + 3)
+
+    local days = {}
+    for day = first, today do
+        -- All four are drawn every time, as for the purse.
+        local traded = random() > 0.35
+        local sold = math.floor(scale * (0.5 + random() * 2))
+        local bought = math.floor(scale * random() * 0.8)
+        local deposits = math.floor(scale * 0.05 * random())
+        if not traded then
+            sold, bought, deposits = 0, 0, 0
+        end
+        table.insert(days, {
+            day = day,
+            sold = sold,
+            bought = bought,
+            deposits = deposits,
+            net = sold - bought - deposits,
+        })
+    end
+    return days, first, today
+end
+
+local function InventedTradeTotals(numDays)
+    local totals = { sold = 0, bought = 0, deposits = 0, cut = 0, net = 0, sales = 0 }
+    for _, day in ipairs((InventedTradeDays(numDays))) do
+        totals.sold = totals.sold + day.sold
+        totals.bought = totals.bought + day.bought
+        totals.deposits = totals.deposits + day.deposits
+        totals.net = totals.net + day.net
+        if day.sold > 0 then
+            totals.sales = totals.sales + 3
+        end
+    end
+    -- Sales arrive with the cut already taken: 5% of the full price.
+    totals.cut = math.floor(totals.sold / 0.95 * 0.05)
+    return totals
+end
+
+-- The latest sales and purchases: mostly sales, newest first as the real
+-- list is, over the last few days.
+local RECENT_SHOWN = 14
+
+local function InventedRecent()
+    local random = Wobble(RECENT_SHOWN * 31337)
+    local market = ns.Market.Home()
+    local now = GetServerTime()
+
+    local entries = {}
+    local at = now
+    for _ = 1, RECENT_SHOWN do
+        at = at - math.floor(1800 + random() * 6 * 3600)
+        local itemID = TRADE_GOODS[1 + math.floor(random() * #TRADE_GOODS)]
+        local count = 5 * (1 + math.floor(random() * 4))
+        local each = ns.Ledger.Price(market, itemID) or FALLBACK_EACH
+        local sold = random() > 0.3
+        table.insert(entries, {
+            at = at,
+            kind = sold and ns.Trade.SALE or ns.Trade.PURCHASE,
+            amount = math.floor(each * count * (sold and 0.95 or 1)),
+            itemID = itemID,
+            name = C_Item.GetItemNameByID(itemID),
+            count = count,
+            who = UnitName("player"),
+        })
+    end
+    return entries
+end
+
+-- What the player was worth, day by day, ending at what they really hold:
+-- coin and goods climbing unevenly over the month.
+local function InventedWorth(numDays, whose)
+    local today = ns.Ledger.Today()
+    local first = today - numDays + 1
+    local random = Wobble(numDays * 9973 + 7)
+
+    local mine, everything = ns.Assets.WorthOfEverything(ns.Market.Home())
+    local coin = whose == true and ns.Characters.TotalMoney() or ns.Characters.MoneyOf(whose)
+    local goods = whose == true and everything or mine
+    local step = math.max(UnitLevel("player"), 5) * 450
+
+    local days = {}
+    for day = today, first, -1 do
+        days[day - first + 1] = { day = day, coin = math.max(coin, 0), goods = math.max(goods, 0) }
+        coin = coin - math.floor(step * (random() * 1.6 - 0.3))
+        goods = goods - math.floor(step * (random() * 1.2 - 0.4))
+    end
+    return days, first, today
+end
+
+-- The session ---------------------------------------------------------------
+
+-- An hour and a half of farming and trading, for the session panel. The
+-- figures are scaled to the player's level and given odd ends, so they
+-- read like real ones.
+local function InventedSession()
+    local scale = math.max(UnitLevel("player"), 5) * 400
+    local function Some(share, odd)
+        return math.floor(scale * share) + odd
+    end
+
+    local income = {
+        loot = Some(1.6, 37),
+        auction = Some(1.2, 85),
+        vendor = Some(0.9, 12),
+        quest = Some(0.7, 40),
+    }
+    local spending = {
+        repair = Some(0.35, 63),
+        vendor = Some(0.25, 9),
+        travel = Some(0.08, 0),
+    }
+
+    local earned, spent = 0, 0
+    for _, amount in pairs(income) do
+        earned = earned + amount
+    end
+    for _, amount in pairs(spending) do
+        spent = spent + amount
+    end
+
+    local summary = {
+        seconds = 84 * 60,
+        earned = earned,
+        spent = spent,
+        income = income,
+        spending = spending,
+        coin = earned - spent,
+        auction = Some(9, 74),
+        vendor = Some(2.4, 31),
+        auctionChange = Some(1.8, 52),
+        vendorChange = Some(0.4, 18),
+        unpriced = 0,
+    }
+    summary.bags = summary.auction + summary.vendor
+    summary.goods = summary.auctionChange + summary.vendorChange
+    summary.overall = summary.coin + summary.goods
+    return summary
+end
+
 -- Switching -------------------------------------------------------------------
 
 local function Redraw()
     ns.Publish("PRICES_CHANGED", ns.Market.Current())
     ns.Publish("PURSE_CHANGED")
+    ns.Publish("TRADE_CHANGED")
+    ns.Publish("SESSION_CHANGED")
 end
 
 --- Switches the invented history on or off.
@@ -183,6 +341,11 @@ function ns.ToggleDemo()
         real.Averages = ns.Purse.Averages
         real.Flow = ns.Purse.Flow
         real.Coin = ns.Purse.Coin
+        real.TradeDaily = ns.Trade.Daily
+        real.TradeTotals = ns.Trade.Totals
+        real.TradeRecent = ns.Trade.Recent
+        real.WorthDaily = ns.Worth.Daily
+        real.Summary = ns.Session.Summary
 
         ns.Ledger.History = InventedHistory
         ns.Ledger.Readings = InventedReadings
@@ -194,9 +357,18 @@ function ns.ToggleDemo()
         ns.Purse.Averages = InventedAverages
         ns.Purse.Flow = InventedFlow
         ns.Purse.Coin = InventedCoin
+        ns.Trade.Daily = InventedTradeDays
+        ns.Trade.Totals = InventedTradeTotals
+        ns.Trade.Recent = InventedRecent
+        ns.Worth.Daily = InventedWorth
+        ns.Session.Summary = InventedSession
+        for _, itemID in ipairs(TRADE_GOODS) do
+            ns.LoadItem(itemID)
+        end
 
         ns.Print(
-            "Demo data is on: charts are drawn from invented history, for screenshots. "
+            "Demo data is on: charts, the Profit tab and the session tracker show invented "
+                .. "figures, for screenshots. "
                 .. "Nothing is saved. Type /gw demo again, or reload, to switch it off."
         )
     else
@@ -207,6 +379,11 @@ function ns.ToggleDemo()
         ns.Purse.Averages = real.Averages
         ns.Purse.Flow = real.Flow
         ns.Purse.Coin = real.Coin
+        ns.Trade.Daily = real.TradeDaily
+        ns.Trade.Totals = real.TradeTotals
+        ns.Trade.Recent = real.TradeRecent
+        ns.Worth.Daily = real.WorthDaily
+        ns.Session.Summary = real.Summary
 
         ns.Print("Demo data is off. Charts are back to your real history.")
     end

@@ -12,3 +12,4 @@ ignore:
   - .github
   - .editorconfig
   - .luacheckrc
+  - UI/Demo.lua

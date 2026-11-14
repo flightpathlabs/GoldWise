@@ -218,7 +218,7 @@ full volume.
 
 ![A card listing recipes for sale nearby, in Auditor mode](docs/images/card.png)
 
-Screenshots with long price histories use sample data (`/gw demo`). Yours
+Screenshots with long price histories use sample data. Yours
 fill in as you play.
 
 ## How it decides
@@ -254,7 +254,6 @@ rather than guessing.
 | `/gw session` | Show or hide the session tracker |
 | `/gw news` | What changed in the latest update |
 | `/gw report` | Gather what a bug report needs, ready to copy |
-| `/gw demo` | Fill the charts with sample history, for screenshots |
 
 Right-click the minimap button for the options.
 
@@ -338,6 +337,10 @@ Files load in the order listed in `Goldwise.toc`, and each group only uses
 what the groups above it define. Modules talk to each other through the
 small message bus in `Core/Events.lua`; the list of messages is at the
 bottom of that file.
+
+On `dev`, `/gw demo` fills the charts, the Profit tab and the session tracker
+with invented figures, for screenshots. Release builds leave it out: the
+packager skips `UI/Demo.lua` and comments out its line in the TOC.
 
 Formatting is StyLua and linting is luacheck, both configured at the
 repository root.
