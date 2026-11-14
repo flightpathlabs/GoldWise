@@ -233,6 +233,16 @@ end
 local unlooted = {}
 local UNLOOTED_FOR = 60
 
+-- Whether this character's loot windows can gather from several corpses
+-- at once. Where the game says they can't, every window is one corpse's.
+local function AreaLoot()
+    if not (C_PlayerInfo and C_PlayerInfo.CanPlayerUseAreaLoot) then
+        return true
+    end
+    local ok, canUse = pcall(C_PlayerInfo.CanPlayerUseAreaLoot)
+    return not ok or Readable(canUse) ~= false
+end
+
 -- How many kills other than this one could have been looted along with
 -- it: still waiting, not known to be empty, and not seen to be out of
 -- reach. A corpse already emptied, or one left behind out of reach, is
@@ -442,7 +452,7 @@ local function Gather()
     -- Area loot could have gathered from other corpses too, and without
     -- the client saying which slot is whose, the one in view can't be
     -- given the lot. Skinning and gathering take from one corpse only.
-    if fallback and from ~= FROM_CORPSE and OthersUnlooted(fallback) > 0 then
+    if fallback and from ~= FROM_CORPSE and AreaLoot() and OthersUnlooted(fallback) > 0 then
         fallback = nil
         loot.ambiguous = true
     end
@@ -1030,6 +1040,11 @@ end
 local RECORDS_VERSION = 2
 
 ns.Subscribe("DATABASE_READY", function()
+    ns.Log(
+        "drops: corpse of each slot %s, area loot %s",
+        type(GetLootSourceInfo) == "function" and "told" or "not told",
+        AreaLoot() and "possible" or "off"
+    )
     if ns.db.dropsVersion ~= RECORDS_VERSION then
         ns.db.drops = {}
         ns.db.dropsVersion = RECORDS_VERSION

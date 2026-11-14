@@ -137,6 +137,7 @@ read_globals = {
     "C_AuctionHouse",
     "C_Item",
     "C_Timer",
+    "C_PlayerInfo",
     "C_TradeSkillUI",
     "C_ChatInfo",
     "C_Map",
