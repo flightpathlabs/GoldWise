@@ -45,10 +45,11 @@ the `dev` branch.
   follow only the recipes of the character you're on, so a cloth
   robe your tailor alt makes had no tree on your main. Now each step
   says which of your characters can make it.
-- **The session tracker counts your bank.** What you hold, if sold,
-  now takes in your bank and the account bank as they were when you
-  last had them open, so putting things in the bank no longer shows as
-  a loss. A session that was already running starts that count afresh.
+- **The session tracker can count your bank.** Tick Bank beside "Your
+  bags, if sold" and it takes in your bank and the account bank as they
+  were when you last had them open, so putting things in the bank no
+  longer shows as a loss. It's off to begin with, and switching it
+  doesn't restart the session.
 - **Alt-right-click always answers.** On an item none of your
   characters can make or use, it used to do nothing at all. It now
   opens the crafting tree page, which says so, and how Goldwise learns

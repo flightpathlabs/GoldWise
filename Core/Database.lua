@@ -150,6 +150,8 @@ local DEFAULT_SETTINGS = {
     sessionTrackerCoin = true,
     sessionTrackerBags = true,
     sessionTrackerCountBags = false,
+    -- Whether what the bags would fetch takes in the bank as well.
+    sessionTrackerBank = false,
     -- Whether it's folded down to one line.
     sessionTrackerFolded = false,
 

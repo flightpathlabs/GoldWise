@@ -25,6 +25,7 @@ local OPTIONS_SIZE = 14
 -- Where the body starts, under the title line.
 local BODY_TOP = PADDING + 20
 local ROW_HEIGHT = 16
+local BANK_TICK_SIZE = 18
 -- A rule between sections, with the space around it.
 local RULE_SPACE = 9
 -- Room on the right of a bag line for how much it has changed.
@@ -309,7 +310,7 @@ local function CreateOptionsButton(frame, beside)
         MenuUtil.CreateContextMenu(self, function(_, root)
             root:CreateTitle("Show on the panel")
             root:CreateCheckbox("Coin in and out", Switch("sessionTrackerCoin"))
-            root:CreateCheckbox("Your bags and bank, if sold", Switch("sessionTrackerBags"))
+            root:CreateCheckbox("Your bags, if sold", Switch("sessionTrackerBags"))
             root:CreateDivider()
             root:CreateCheckbox("Count bag gains in the total", Switch("sessionTrackerCountBags"))
         end)
@@ -363,7 +364,8 @@ local function ShowDetails(frame, opens)
     if summary.bags then
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine(
-            "Your bags and bank are counted the way Goldwise would sell each thing: at "
+            (summary.withBank and "Your bags and bank are" or "Your bags are")
+                .. " counted the way Goldwise would sell each thing: at "
                 .. "auction, less the cut, if it says sell or hold, and at a vendor's "
                 .. "price if it says vendor. What you keep isn't counted. None of it is "
                 .. "in the total unless you ask for it with the cog.",
@@ -388,21 +390,29 @@ local function ShowDetails(frame, opens)
                 true
             )
         end
+        local withBankNote = "Moving things between your bags and bank changes nothing; "
+            .. "posting them to another character counts as them leaving."
+        local bagsOnlyNote = "Putting things in the bank or posting them to another "
+            .. "character counts as them leaving. Tick Bank to count your bank too."
+        local leaving = summary.withBank and withBankNote or bagsOnlyNote
         GameTooltip:AddLine(
             "The figure beside each compares what you hold now with what you "
-                .. "started with, both at today's prices. Moving things between your "
-                .. "bags and bank changes nothing; posting them to another character "
-                .. "counts as them leaving.",
+                .. "started with, both at today's prices. "
+                .. leaving,
             0.6,
             0.6,
             0.6,
             true
         )
-        -- The bank can only be read while it's open, so say how old it is.
-        local bankNote = summary.bankSeenAt
-                and ("Your bank as it was %s."):format(ns.Ago(GetServerTime() - summary.bankSeenAt))
-            or "Your bank isn't counted until you next open it."
-        GameTooltip:AddLine(bankNote, 0.6, 0.6, 0.6, true)
+        if summary.withBank then
+            -- The bank can only be read while it's open, so say how old it is.
+            local bankNote = summary.bankSeenAt
+                    and ("Your bank as it was %s."):format(
+                        ns.Ago(GetServerTime() - summary.bankSeenAt)
+                    )
+                or "Your bank isn't counted until you next open it."
+            GameTooltip:AddLine(bankNote, 0.6, 0.6, 0.6, true)
+        end
     end
     GameTooltip:AddLine(" ")
     if opens then
@@ -445,6 +455,47 @@ local function OpenAssets()
         ns.Publish("SETTINGS_CHANGED")
     end
     ns.ShowWindowTab("List")
+end
+
+-- A small tick box, with "Bank" before it, that has the bags' figures
+-- take in the bank too.
+local function CreateBankToggle(frame)
+    local toggle = CreateFrame("CheckButton", nil, frame.Body, "UICheckButtonTemplate")
+    toggle:SetSize(BANK_TICK_SIZE, BANK_TICK_SIZE)
+    toggle:SetHitRectInsets(-30, 0, 0, 0)
+
+    toggle.Label = toggle:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    toggle.Label:SetPoint("RIGHT", toggle, "LEFT", 0, 0)
+    toggle.Label:SetText("Bank")
+
+    toggle:SetScript("OnClick", function(self)
+        ns.settings.sessionTrackerBank = self:GetChecked() and true or false
+        PlaySound(
+            self:GetChecked() and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON
+                or SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF
+        )
+        -- The heading changes now; the figures follow once they've been
+        -- worked out again.
+        ns.Publish("SETTINGS_CHANGED")
+        frame:Refresh()
+    end)
+    toggle:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Count your bank too")
+        GameTooltip:AddLine(
+            "Adds what's in your bank and the account bank, as they were when you last "
+                .. "had them open. Then putting things in the bank isn't counted as them leaving.",
+            1,
+            1,
+            1,
+            true
+        )
+        GameTooltip:Show()
+    end)
+    toggle:SetScript("OnLeave", GameTooltip_Hide)
+
+    toggle:Hide()
+    frame.BankToggle = toggle
 end
 
 -- Laying out the body ---------------------------------------------------------
@@ -603,6 +654,7 @@ local function FinishLayout(layout)
     for n = layout.rules + 1, #frame.ruleLines do
         frame.ruleLines[n]:Hide()
     end
+    frame.BankToggle:SetShown(layout.bankToggle == true)
     -- The last row's text sits in the top of its slot.
     frame:SetHeight(layout.y + PADDING - 2)
 end
@@ -651,10 +703,21 @@ local function AddSide(layout, heading, amounts, labels, total, sign, color)
     end
 end
 
--- What the bags and bank would fetch each way, and how far that has moved
--- since the session began.
+-- What the bags would fetch each way, the bank too if it's ticked, and
+-- how far that has moved since the session began. The tick sits at the
+-- right of the heading.
 local function AddBags(layout, summary)
-    AddRow(layout, { kind = "heading", label = "YOUR BAGS AND BANK, IF SOLD" })
+    local toggle = layout.frame.BankToggle
+    toggle:ClearAllPoints()
+    toggle:SetPoint("RIGHT", layout.frame.Body, "TOPRIGHT", -PADDING + 4, -layout.y - 6)
+    toggle:SetChecked(ns.settings.sessionTrackerBank)
+    layout.bankToggle = true
+
+    AddRow(layout, {
+        kind = "heading",
+        label = ns.settings.sessionTrackerBank and "YOUR BAGS AND BANK, IF SOLD"
+            or "YOUR BAGS, IF SOLD",
+    })
     if not summary.bags then
         AddRow(layout, { kind = "note", label = "   Valuing what you carry..." })
         return
@@ -716,6 +779,7 @@ local function Create()
     frame.Body = CreateFrame("Frame", nil, frame)
     frame.Body:SetAllPoints()
     frame.rows, frame.ruleLines = {}, {}
+    CreateBankToggle(frame)
 
     frame:SetScript("OnDragStart", function(self)
         if not ns.settings.sessionTrackerLocked then

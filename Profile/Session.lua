@@ -29,11 +29,13 @@ local HEARTBEAT_SECONDS = 60
 local SETTLE_SECONDS = 1
 
 -- The saved sessions, one per character, by character key:
--- { startedAt, seenAt, earned, spent, income, spending, bagsAtStart },
--- where income and spending split the coin by what it was for, as
--- { [category] = copper } with Purse.lua's categories, and bagsAtStart
--- is what was in the bags then, { [itemID] = count }. Times are server
--- time; money is copper.
+-- { startedAt, seenAt, earned, spent, income, spending, bagsAtStart,
+-- carriedAtStart, banksSeen }, where income and spending split the coin
+-- by what it was for, as { [category] = copper } with Purse.lua's
+-- categories. bagsAtStart is what was in the bags and bank then, and
+-- carriedAtStart the bags alone, each { [itemID] = count }; banksSeen
+-- says which banks had been read by then (see AddNewlySeenBanks). Times
+-- are server time; money is copper.
 local function Sessions()
     if type(ns.db.sessions) ~= "table" then
         ns.db.sessions = {}
@@ -67,11 +69,12 @@ local function Fresh()
     return { startedAt = now, seenAt = now, earned = 0, spent = 0, income = {}, spending = {} }
 end
 
--- What's in the bags and the bank, as { [itemID] = count }. The bank is
--- counted as it was at the last visit, this character's own and the one
--- the account shares. Counting it means putting something in the bank is
--- neither a gain nor a loss, which it isn't.
-local function Contents()
+-- What's in the bags, and the bank too if withBank, as { [itemID] =
+-- count }. The bank is counted as it was at the last visit, this
+-- character's own and the one the account shares. Counting it means
+-- putting something in the bank is neither a gain nor a loss, which it
+-- isn't; leaving it out means that's counted as things leaving.
+local function Contents(withBank)
     local counts = {}
     local function Add(holdings)
         for _, holding in ipairs(holdings) do
@@ -79,9 +82,16 @@ local function Contents()
         end
     end
     Add(ns.Bags.Holdings())
-    Add((ns.Bank.Holdings()))
-    Add((ns.Bank.AccountHoldings()))
+    if withBank then
+        Add((ns.Bank.Holdings()))
+        Add((ns.Bank.AccountHoldings()))
+    end
     return counts
+end
+
+-- Whether the player wants the bank counted along with the bags.
+local function WithBank()
+    return ns.settings and ns.settings.sessionTrackerBank or false
 end
 
 -- A list of holdings, as Assets.SaleValue wants them, from counts.
@@ -106,9 +116,12 @@ end
 -- otherwise, and working it out means assessing everything held.
 local startValue
 
--- Takes what's held now as the start.
+-- Takes what's held now as the start: the bags and bank together in
+-- bagsAtStart, and the bags alone in carriedAtStart, so the bank can be
+-- switched in and out without starting again.
 local function SetStart()
-    current.bagsAtStart = Contents()
+    current.bagsAtStart = Contents(true)
+    current.carriedAtStart = Contents(false)
     local own, account = BanksSeen()
     current.banksSeen = { own = own, account = account }
     startValue = nil
@@ -156,15 +169,20 @@ local function Value()
     -- A session begun before the bank was counted started from the bags
     -- alone. Counting the bank against that would show all of it as
     -- gained, so it starts again from what's held now.
-    if type(current.bagsAtStart) ~= "table" or type(current.banksSeen) ~= "table" then
+    if
+        type(current.bagsAtStart) ~= "table"
+        or type(current.carriedAtStart) ~= "table"
+        or type(current.banksSeen) ~= "table"
+    then
         SetStart()
     end
 
+    local withBank = WithBank()
+    local start = withBank and current.bagsAtStart or current.carriedAtStart
     local market = ns.Market.Home()
-    local auction, vendor, unpriced = ns.Assets.SaleValue(AsHoldings(Contents()), market)
+    local auction, vendor, unpriced = ns.Assets.SaleValue(AsHoldings(Contents(withBank)), market)
     if not startValue then
-        local auctionBefore, vendorBefore =
-            ns.Assets.SaleValue(AsHoldings(current.bagsAtStart), market)
+        local auctionBefore, vendorBefore = ns.Assets.SaleValue(AsHoldings(start), market)
         startValue = { auction = auctionBefore, vendor = vendorBefore }
     end
     local auctionBefore, vendorBefore = startValue.auction, startValue.vendor
@@ -294,6 +312,7 @@ function Session.Restart()
         current[field] = value
     end
     current.bagsAtStart = nil
+    current.carriedAtStart = nil
     current.banksSeen = nil
     startValue = nil
     if bagsRead then
@@ -309,17 +328,18 @@ end
 --- How the session stands.
 ---@return table|nil summary  nil before login. Otherwise { seconds, earned,
 ---        spent, income, spending, coin, bags, auction, vendor, unpriced,
----        auctionChange, vendorChange, goods, overall, bankSeenAt }. seconds
+---        auctionChange, vendorChange, goods, overall, withBank,
+---        bankSeenAt }. seconds
 ---        is how long the session has run, and unpriced how many kinds of
 ---        thing held have no auction price. income and spending are
 ---        { [category] = copper }, by Purse.lua's categories, and the rest
 ---        are copper. coin is what came in less what went out. "Held" is
----        the bags and the bank, the bank as of bankSeenAt, the last visit
----        (nil if never). auctionChange and vendorChange are how much more
----        what's held would fetch each way than what was held at the start,
----        both at today's prices; goods is the two together, and overall
----        is coin and goods together. bags and the fields after it are nil
----        until the bags have been valued.
+---        the bags, and the bank too when withBank, the bank as of
+---        bankSeenAt, the last visit (nil if never). auctionChange and
+---        vendorChange are how much more what's held would fetch each way
+---        than what was held at the start, both at today's prices; goods is
+---        the two together, and overall is coin and goods together. bags
+---        and the fields after it are nil until the bags have been valued.
 function Session.Summary()
     if not current then
         return nil
@@ -342,8 +362,12 @@ function Session.Summary()
         summary.vendorChange = bags.vendor - bags.vendorAtStart
         summary.goods = summary.auctionChange + summary.vendorChange
         summary.overall = summary.coin + summary.goods
-        -- The bank is counted as it was last seen, which the tracker says.
-        summary.bankSeenAt = select(2, ns.Bank.Holdings())
+        -- The bank, when it's counted, is as it was last seen, which the
+        -- tracker says.
+        summary.withBank = WithBank()
+        if summary.withBank then
+            summary.bankSeenAt = select(2, ns.Bank.Holdings())
+        end
     end
     return summary
 end
