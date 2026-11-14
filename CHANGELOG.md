@@ -4,7 +4,7 @@ What changed in each release of Goldwise, newest first. Work that hasn't
 been released yet is listed under "Unreleased" in the copy of this file on
 the `dev` branch.
 
-## Unreleased
+## 0.4.1 (13 November 2026)
 
 **New**
 
