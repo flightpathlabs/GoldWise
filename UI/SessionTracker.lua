@@ -4,18 +4,31 @@ local _, ns = ...
 -- brought in or cost, and what's in the bags at the prices Goldwise would
 -- sell it for. The figures are worked out in Profile\Session.lua.
 --
+-- The total is coin alone: what was actually made. What the bags would
+-- fetch is kept to a section of its own and called that, so a purchase
+-- that sells for more at auction doesn't look like a gain. The cog on the
+-- panel switches its sections on and off.
+--
 -- It's off until the player asks for it, from the button on the Goldwise
 -- window's title bar or with /gw session. Drag it anywhere; right-click
 -- for the rest.
 
 local Theme = ns.Theme
 
-local WIDTH = 220
+local WIDTH = 240
 local PADDING = 10
-local LINE_HEIGHT = 16
 local PIN_SIZE = 18
 local RESET_SIZE = 14
 local FOLD_SIZE = 16
+local OPTIONS_SIZE = 14
+
+-- Where the body starts, under the title line.
+local BODY_TOP = PADDING + 20
+local ROW_HEIGHT = 16
+-- A rule between sections, with the space around it.
+local RULE_SPACE = 9
+-- Room on the right of a bag line for how much it has changed.
+local ASIDE_WIDTH = 80
 
 -- Folded to its title line: the padding above and below, and a line of
 -- text between.
@@ -37,8 +50,8 @@ local NEARBY = {
     { label = "Innkeeper", kind = "INN" },
 }
 
--- The breakdown's names for each kind of coin, by Purse.lua's categories.
--- Anything not here is shown as "Other".
+-- The names for each kind of coin, by Purse.lua's categories. Anything not
+-- here is shown as "Other".
 local INCOME_LABELS = {
     loot = "Looted",
     quest = "Quest rewards",
@@ -59,13 +72,9 @@ local SPENDING_LABELS = {
     other = "Other",
 }
 
--- Where the breakdown's switch sits, and where its lines start when open.
-local BREAKDOWN_SWITCH = 7.75
-local BREAKDOWN_START = 9
-
 local tracker
 
--- When the panel was last let go of after a drag. The lines are buttons,
+-- When the panel was last let go of after a drag. Most lines are buttons,
 -- and letting go over one mustn't count as clicking it.
 local droppedAt = 0
 local DROP_GRACE = 0.3
@@ -93,56 +102,19 @@ local function Distance(spot, yards)
     return map and map.name or ""
 end
 
--- Building --------------------------------------------------------------------
-
--- How far down the panel a line sits. Lines are counted from 1, under
--- the title; halves leave a gap.
-local function TopOf(index)
-    return -(PADDING + 20 + (index - 1) * LINE_HEIGHT)
-end
-
--- A line of the panel: what it is on the left, the figure on the right.
-local function CreateLine(parent, index, label, font)
-    local top = TopOf(index)
-
-    local line = {}
-    line.Label = parent:CreateFontString(nil, "ARTWORK", font or "GameFontNormalSmall")
-    line.Label:SetPoint("TOPLEFT", PADDING, top)
-    line.Label:SetText(label)
-
-    line.Figure = parent:CreateFontString(nil, "ARTWORK", font or "GameFontHighlightSmall")
-    line.Figure:SetPoint("TOPRIGHT", -PADDING, top)
-    line.Figure:SetJustifyH("RIGHT")
-    return line
-end
-
--- Moves a line to another place down the panel, for the breakdown, whose
--- lines come and go.
-local function MoveLine(line, index)
-    local top = TopOf(index)
-    line.Label:ClearAllPoints()
-    line.Label:SetPoint("TOPLEFT", PADDING, top)
-    line.Figure:ClearAllPoints()
-    line.Figure:SetPoint("TOPRIGHT", -PADDING, top)
-end
-
-local function SetSigned(line, copper)
-    if not copper then
-        line.Figure:SetText("-")
-        line.Figure:SetTextColor(1, 1, 1)
-        return
-    end
+-- Money that can go either way, with a plus in front of a gain and the
+-- colour of its side.
+local function Signed(copper)
     -- Rounded first, so a fraction of a copper isn't shown as a gain of none.
     copper = math.floor(copper + 0.5)
     local text, color = Theme.SignedCoins(copper)
     if copper > 0 then
         text = "+" .. text
     end
-    line.Figure:SetText(text)
-    line.Figure:SetTextColor(unpack(color))
+    return text, color
 end
 
--- The folded total has a narrow space to fit in, so once it's into gold
+-- Most figures have a narrow space to fit in, so once they're into gold
 -- the copper is left off.
 local function Rounded(copper)
     if math.abs(copper) >= 10000 then
@@ -151,8 +123,19 @@ local function Rounded(copper)
     return copper
 end
 
--- Kept by its top-left corner, so the panel grows downward from where
--- it was put when the breakdown opens.
+-- The figure the panel leads with, and what to call it: coin alone, unless
+-- the player has asked for the bags' gains to be counted in.
+local function Headline(summary)
+    if ns.settings.sessionTrackerCountBags and summary.overall then
+        return summary.overall, "Made, with bag gains"
+    end
+    return summary.coin, "Made this session"
+end
+
+-- Building --------------------------------------------------------------------
+
+-- Kept by its top-left corner, so the panel grows downward from where it
+-- was put as its sections come and go.
 local function SavePosition(frame)
     local left, top = frame:GetLeft(), frame:GetTop()
     if left and top then
@@ -295,8 +278,61 @@ local function CreateFoldButton(frame, beside)
     return button
 end
 
--- The panel's tooltip: the figures in full. opens is where a click on
--- the line being pointed at goes, if it's one of those.
+-- The cog at the left of the buttons: a quick menu of what the panel
+-- shows.
+local function CreateOptionsButton(frame, beside)
+    local button = CreateFrame("Button", nil, frame)
+    button:SetSize(OPTIONS_SIZE, OPTIONS_SIZE)
+    button:SetPoint("RIGHT", beside, "LEFT", -4, 0)
+
+    local cog = button:CreateTexture(nil, "ARTWORK")
+    cog:SetAtlas("questlog-icon-setting")
+    cog:SetAllPoints()
+
+    local glow = button:CreateTexture(nil, "HIGHLIGHT")
+    glow:SetAtlas("questlog-icon-setting")
+    glow:SetBlendMode("ADD")
+    glow:SetAlpha(0.4)
+    glow:SetAllPoints()
+
+    local function Switch(key)
+        return function()
+            return ns.settings[key]
+        end, function()
+            ns.settings[key] = not ns.settings[key]
+            frame:Refresh()
+        end
+    end
+
+    button:SetScript("OnClick", function(self)
+        GameTooltip_Hide()
+        MenuUtil.CreateContextMenu(self, function(_, root)
+            root:CreateTitle("Show on the panel")
+            root:CreateCheckbox("Coin in and out", Switch("sessionTrackerCoin"))
+            root:CreateCheckbox("Your bags, if sold", Switch("sessionTrackerBags"))
+            root:CreateDivider()
+            root:CreateCheckbox("Count bag gains in the total", Switch("sessionTrackerCountBags"))
+        end)
+    end)
+    button:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText("What it shows")
+        GameTooltip:AddLine(
+            "Switch the panel's sections on and off, and choose whether your bags "
+                .. "count towards the total.",
+            1,
+            1,
+            1,
+            true
+        )
+        GameTooltip:Show()
+    end)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+    return button
+end
+
+-- The panel's tooltip: the figures in full. opens is where a click on the
+-- line being pointed at goes, if it's one of those.
 local function ShowDetails(frame, opens)
     local summary = ns.Session.Summary()
     if not summary then
@@ -310,8 +346,8 @@ local function ShowDetails(frame, opens)
     if summary.seconds >= RATE_AFTER_SECONDS then
         -- Kept to the tooltip and said in so many words: on the panel it
         -- read as a total.
-        local overall = summary.overall or summary.coin
-        local text, color = Theme.SignedCoins(overall / summary.seconds * 3600)
+        local headline = Headline(summary)
+        local text, color = Theme.SignedCoins(headline / summary.seconds * 3600)
         GameTooltip:AddLine(" ")
         GameTooltip:AddDoubleLine(
             "Per hour, at this pace",
@@ -326,12 +362,11 @@ local function ShowDetails(frame, opens)
     end
     if summary.bags then
         GameTooltip:AddLine(" ")
-        GameTooltip:AddDoubleLine("Bags at auction", Theme.Coins(summary.auction), 1, 1, 1, 1, 1, 1)
-        GameTooltip:AddDoubleLine("Bags to vendors", Theme.Coins(summary.vendor), 1, 1, 1, 1, 1, 1)
         GameTooltip:AddLine(
-            "Each thing is counted the way Goldwise would sell it: at auction, "
-                .. "less the cut, if it says sell or hold, and at a vendor's price if it "
-                .. "says vendor. What you keep isn't counted.",
+            "Your bags are counted the way Goldwise would sell each thing: at "
+                .. "auction, less the cut, if it says sell or hold, and at a vendor's "
+                .. "price if it says vendor. What you keep isn't counted. None of it is "
+                .. "in the total unless you ask for it with the cog.",
             0.6,
             0.6,
             0.6,
@@ -354,11 +389,9 @@ local function ShowDetails(frame, opens)
             )
         end
         GameTooltip:AddLine(
-            "Change in bags compares what you carry now with what you started with, "
-                .. "both at today's prices. Listing something takes it out of your bags "
-                .. "before its coin arrives, so the session dips until the sale's letter "
-                .. "is collected. Putting things in the bank or posting them to another "
-                .. "character counts as them leaving.",
+            "The figure beside each compares what you carry now with what you "
+                .. "started with, both at today's prices. Putting things in the bank or "
+                .. "posting them to another character counts as them leaving.",
             0.6,
             0.6,
             0.6,
@@ -408,103 +441,181 @@ local function OpenAssets()
     ns.ShowWindowTab("List")
 end
 
--- Lays a button over a line of the panel that calls onClick on a left
--- click. A drag still moves the panel, and a right-click still brings up
--- its menu. The panel's drag handlers are looked up at the time, as
--- they're set after the lines are made.
-local function CoverLine(frame, line, onClick)
-    -- On the body with the line, so it folds away with it.
-    local button = CreateFrame("Button", nil, line.Label:GetParent())
-    button:SetPoint("TOPLEFT", line.Label, "TOPLEFT", -4, 2)
-    button:SetPoint("RIGHT", frame, "RIGHT", -PADDING + 4, 0)
-    button:SetHeight(LINE_HEIGHT)
+-- Laying out the body ---------------------------------------------------------
 
-    local glow = button:CreateTexture(nil, "HIGHLIGHT")
+-- The body is drawn top to bottom on every refresh, since what's in it
+-- depends on the session and on which sections are switched on. Its rows
+-- and rules are made the first time they're wanted and kept.
+
+-- Each kind of row's fonts and label colour.
+local KINDS = {
+    total = { label = "GameFontNormal", figure = "GameFontHighlight", color = { 1, 0.82, 0 } },
+    heading = {
+        label = "GameFontNormalSmall",
+        figure = "GameFontHighlightSmall",
+        color = { 1, 0.82, 0 },
+    },
+    item = {
+        label = "GameFontHighlightSmall",
+        figure = "GameFontHighlightSmall",
+        color = { 1, 1, 1 },
+    },
+    note = {
+        label = "GameFontHighlightSmall",
+        figure = "GameFontHighlightSmall",
+        color = Theme.MUTED,
+    },
+}
+
+local function NewRow(frame)
+    local body = frame.Body
+    local row = {}
+
+    row.Label = body:CreateFontString(nil, "ARTWORK")
+    row.Label:SetJustifyH("LEFT")
+    row.Figure = body:CreateFontString(nil, "ARTWORK")
+    row.Figure:SetJustifyH("RIGHT")
+    row.Aside = body:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    row.Aside:SetJustifyH("RIGHT")
+    row.Aside:SetWidth(ASIDE_WIDTH)
+    row.Aside:SetWordWrap(false)
+
+    -- A button over the row for the lines that open somewhere. A drag
+    -- still moves the panel and a right-click still brings up its menu;
+    -- the panel's drag handlers are looked up at the time, as they're set
+    -- after the body is made.
+    local cover = CreateFrame("Button", nil, body)
+    cover:SetPoint("TOPLEFT", row.Label, "TOPLEFT", -4, 2)
+    cover:SetPoint("RIGHT", frame, "RIGHT", -PADDING + 4, 0)
+    cover:SetHeight(ROW_HEIGHT)
+
+    local glow = cover:CreateTexture(nil, "HIGHLIGHT")
     glow:SetAllPoints()
     glow:SetColorTexture(1, 0.82, 0, 0.12)
 
-    button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-    button:RegisterForDrag("LeftButton")
-    button:SetScript("OnDragStart", function()
+    cover:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    cover:RegisterForDrag("LeftButton")
+    cover:SetScript("OnDragStart", function()
         frame:GetScript("OnDragStart")(frame)
     end)
-    button:SetScript("OnDragStop", function()
+    cover:SetScript("OnDragStop", function()
         frame:GetScript("OnDragStop")(frame)
     end)
-    button:SetScript("OnClick", function(_, mouseButton)
+    cover:SetScript("OnClick", function(self, mouseButton)
         if JustDropped() then
             return
         end
         if mouseButton == "RightButton" then
             OpenMenu(frame)
-        else
-            onClick()
+        elseif self.open then
+            self.open()
         end
     end)
-    button:SetScript("OnLeave", GameTooltip_Hide)
-    return button
+    cover:SetScript("OnEnter", function(self)
+        ShowDetails(frame, self.opens)
+    end)
+    cover:SetScript("OnLeave", GameTooltip_Hide)
+    row.Cover = cover
+
+    return row
 end
 
--- Makes a line open where its figure comes from when clicked.
-local function MakeClickable(frame, line, opens, open)
-    local button = CoverLine(frame, line, open)
-    button:SetScript("OnEnter", function()
-        ShowDetails(frame, opens)
-    end)
-end
-
--- The breakdown ---------------------------------------------------------------
-
--- Makes the "Coin in and out" line open and close the breakdown under it.
-local function CreateBreakdownSwitch(frame, line)
-    local button = CoverLine(frame, line, function()
-        ns.settings.sessionTrackerExpanded = not ns.settings.sessionTrackerExpanded
-        frame:Refresh()
-    end)
-    button:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:SetText("Coin in and out")
-        GameTooltip:AddLine(
-            ns.settings.sessionTrackerExpanded and "Click to fold the breakdown away."
-                or "Click to see where this session's coin came from and went: loot, "
-                    .. "quest rewards, vendors, the auction house, repairs and the rest.",
-            1,
-            1,
-            1,
-            true
-        )
-        GameTooltip:Show()
-    end)
-    button:SetScript("OnLeave", GameTooltip_Hide)
-end
-
--- The breakdown's nth line, made the first time it's wanted.
-local function BreakdownLine(frame, n)
-    local line = frame.breakdown[n]
-    if not line then
-        line = CreateLine(frame.Body, BREAKDOWN_START, "", "GameFontHighlightSmall")
-        frame.breakdown[n] = line
+-- Puts a row at the next place down. spec is { kind, label, figure, color,
+-- aside, asideColor, opens, open }: figure and aside are text, opens says
+-- where a click goes, for the tooltip, and open goes there.
+local function AddRow(layout, spec)
+    local frame = layout.frame
+    layout.rows = layout.rows + 1
+    local row = frame.rows[layout.rows]
+    if not row then
+        row = NewRow(frame)
+        frame.rows[layout.rows] = row
     end
-    line.Label:Show()
-    line.Figure:Show()
-    return line
+
+    local kind = KINDS[spec.kind]
+    local top = -layout.y
+    row.Label:SetFontObject(kind.label)
+    row.Label:SetTextColor(unpack(kind.color))
+    row.Label:SetText(spec.kind == "item" and ("   " .. spec.label) or spec.label)
+    row.Label:ClearAllPoints()
+    row.Label:SetPoint("TOPLEFT", PADDING, top)
+
+    row.Figure:SetFontObject(kind.figure)
+    row.Figure:SetText(spec.figure or "")
+    row.Figure:SetTextColor(unpack(spec.color or { 1, 1, 1 }))
+    row.Figure:ClearAllPoints()
+    if spec.aside then
+        row.Aside:ClearAllPoints()
+        row.Aside:SetPoint("TOPRIGHT", -PADDING, top)
+        row.Aside:SetText(spec.aside)
+        row.Aside:SetTextColor(unpack(spec.asideColor or Theme.MUTED))
+        row.Figure:SetPoint("TOPRIGHT", -(PADDING + ASIDE_WIDTH + 4), top)
+    else
+        row.Figure:SetPoint("TOPRIGHT", -PADDING, top)
+    end
+
+    row.Label:Show()
+    row.Figure:Show()
+    row.Aside:SetShown(spec.aside ~= nil)
+    row.Cover.open, row.Cover.opens = spec.open, spec.opens
+    row.Cover:SetShown(spec.open ~= nil)
+
+    layout.y = layout.y + ROW_HEIGHT
 end
 
--- Fills one side of the breakdown: a heading with the side's total, then
--- a line for each kind of coin, the biggest first. Kinds without a name
--- of their own are put together as "Other".
----@return number index  the place down the panel after its last line
----@return number used   how many of the breakdown's lines are now in use
-local function FillSide(frame, heading, amounts, labels, total, color, index, used)
-    MoveLine(heading, index)
-    heading.Label:Show()
-    heading.Figure:Show()
-    heading.Figure:SetText(Theme.Coins(total))
-    heading.Figure:SetTextColor(unpack(color))
-    index = index + 1
+-- A faint line between sections.
+local function AddRule(layout)
+    local frame = layout.frame
+    layout.rules = layout.rules + 1
+    local rule = frame.ruleLines[layout.rules]
+    if not rule then
+        rule = frame.Body:CreateTexture(nil, "ARTWORK")
+        rule:SetColorTexture(1, 1, 1, 0.12)
+        rule:SetHeight(1)
+        frame.ruleLines[layout.rules] = rule
+    end
+
+    local top = -(layout.y + math.floor(RULE_SPACE / 2) - 2)
+    rule:ClearAllPoints()
+    rule:SetPoint("TOPLEFT", PADDING, top)
+    rule:SetPoint("TOPRIGHT", -PADDING, top)
+    rule:Show()
+
+    layout.y = layout.y + RULE_SPACE
+end
+
+-- Puts away whatever this refresh didn't use, and sizes the panel to fit.
+local function FinishLayout(layout)
+    local frame = layout.frame
+    for n = layout.rows + 1, #frame.rows do
+        local row = frame.rows[n]
+        row.Label:Hide()
+        row.Figure:Hide()
+        row.Aside:Hide()
+        row.Cover:Hide()
+    end
+    for n = layout.rules + 1, #frame.ruleLines do
+        frame.ruleLines[n]:Hide()
+    end
+    -- The last row's text sits in the top of its slot.
+    frame:SetHeight(layout.y + PADDING - 2)
+end
+
+-- One side of the coin: a heading with its total, then a line for each kind,
+-- the biggest first. Kinds without a name of their own are put together as
+-- "Other".
+local function AddSide(layout, heading, amounts, labels, total, sign, color)
+    AddRow(layout, {
+        kind = "heading",
+        label = heading,
+        figure = Signed(sign * total),
+        color = color,
+        opens = "your purse",
+        open = OpenPurse,
+    })
 
     local byLabel, order = {}, {}
-    for category, amount in pairs(amounts) do
+    for category, amount in pairs(amounts or {}) do
         if amount > 0 then
             local label = labels[category] or "Other"
             if not byLabel[label] then
@@ -519,73 +630,49 @@ local function FillSide(frame, heading, amounts, labels, total, color, index, us
     end)
 
     if #order == 0 then
-        used = used + 1
-        local line = BreakdownLine(frame, used)
-        MoveLine(line, index)
-        line.Label:SetText("Nothing yet")
-        line.Label:SetTextColor(unpack(Theme.MUTED))
-        line.Figure:SetText("")
-        return index + 1, used
+        AddRow(layout, { kind = "note", label = "   Nothing yet" })
+        return
     end
-
     for _, label in ipairs(order) do
-        used = used + 1
-        local line = BreakdownLine(frame, used)
-        MoveLine(line, index)
-        line.Label:SetText("   " .. label)
-        line.Label:SetTextColor(1, 1, 1)
-        line.Figure:SetText(Theme.Coins(byLabel[label]))
-        line.Figure:SetTextColor(unpack(color))
-        index = index + 1
+        AddRow(layout, {
+            kind = "item",
+            label = label,
+            figure = Theme.Coins(byLabel[label]),
+            color = color,
+            opens = "your purse",
+            open = OpenPurse,
+        })
     end
-    return index, used
 end
 
--- Shows the breakdown or folds it away, and sizes the panel to fit.
-local function DrawBreakdown(frame, summary)
-    local open = ns.settings.sessionTrackerExpanded
-    frame.Switch.Figure:SetText(
-        open and "|A:common-icon-minus:12:12|a" or "|A:common-icon-plus:12:12|a"
-    )
+-- What the bags would fetch each way, and how far that has moved since the
+-- session began.
+local function AddBags(layout, summary)
+    AddRow(layout, { kind = "heading", label = "YOUR BAGS, IF SOLD" })
+    if not summary.bags then
+        AddRow(layout, { kind = "note", label = "   Valuing what you carry..." })
+        return
+    end
 
-    local last, used = BREAKDOWN_SWITCH, 0
-    if open then
-        local index
-        index, used = FillSide(
-            frame,
-            frame.InHeading,
-            summary.income or {},
-            INCOME_LABELS,
-            summary.earned,
-            Theme.INCOME,
-            BREAKDOWN_START,
-            used
-        )
-        index, used = FillSide(
-            frame,
-            frame.OutHeading,
-            summary.spending or {},
-            SPENDING_LABELS,
-            summary.spent,
-            Theme.SPENDING,
-            index + 0.5,
-            used
-        )
-        last = index - 1
-    else
-        for _, heading in ipairs({ frame.InHeading, frame.OutHeading }) do
-            heading.Label:Hide()
-            heading.Figure:Hide()
+    for _, way in ipairs({
+        { label = "At auction", worth = summary.auction, change = summary.auctionChange },
+        { label = "To vendors", worth = summary.vendor, change = summary.vendorChange },
+    }) do
+        local change = Rounded(way.change)
+        local aside, asideColor = "", nil
+        if math.floor(change + 0.5) ~= 0 then
+            aside, asideColor = Signed(change)
         end
+        AddRow(layout, {
+            kind = "item",
+            label = way.label,
+            figure = Theme.Coins(Rounded(way.worth)),
+            aside = aside,
+            asideColor = asideColor,
+            opens = "this character's assets",
+            open = OpenAssets,
+        })
     end
-
-    for n = used + 1, #frame.breakdown do
-        frame.breakdown[n].Label:Hide()
-        frame.breakdown[n].Figure:Hide()
-    end
-
-    -- Down to the bottom of the last line, and the padding under it.
-    frame:SetHeight(-TopOf(last) + 12 + PADDING)
 end
 
 local function Create()
@@ -596,6 +683,7 @@ local function Create()
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
+    frame:SetWidth(WIDTH)
     PlacePanel(frame)
 
     frame.Title = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
@@ -605,47 +693,23 @@ local function Create()
     frame.Clock = frame:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     frame.Clock:SetPoint("LEFT", frame.Title, "RIGHT", 6, 0)
 
+    -- From the right: the pin, the reset arrow, the fold button and the cog.
     frame.Fold = CreateFoldButton(frame, CreateResetButton(frame, CreatePlacesPin(frame)))
+    frame.Options = CreateOptionsButton(frame, frame.Fold)
 
     -- Folded, the title line carries the session's total in place of the
     -- clock, between the title and the buttons.
     frame.Total = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     frame.Total:SetPoint("LEFT", frame.Title, "RIGHT", 8, 0)
-    frame.Total:SetPoint("RIGHT", frame.Fold, "LEFT", -6, 0)
+    frame.Total:SetPoint("RIGHT", frame.Options, "LEFT", -6, 0)
     frame.Total:SetJustifyH("LEFT")
     frame.Total:SetWordWrap(false)
 
-    -- Everything under the title line, so folding can put it all away at once.
+    -- Everything under the title line, so folding can put it all away at
+    -- once.
     frame.Body = CreateFrame("Frame", nil, frame)
     frame.Body:SetAllPoints()
-
-    local body = frame.Body
-    frame.Coin = CreateLine(body, 1, "Coin")
-    frame.Goods = CreateLine(body, 2, "Change in bags")
-    frame.Overall = CreateLine(body, 3, "Altogether", "GameFontNormal")
-    frame.Overall.Figure:SetFontObject("GameFontHighlight")
-
-    frame.Bags = CreateLine(body, 4.5, "Bags worth")
-    frame.Auction = CreateLine(body, 5.5, "   at auction", "GameFontDisableSmall")
-    frame.Vendor = CreateLine(body, 6.5, "   to vendors", "GameFontDisableSmall")
-
-    -- Each line opens where its figure comes from.
-    for _, line in ipairs({ frame.Coin, frame.Overall }) do
-        MakeClickable(frame, line, "your purse", OpenPurse)
-    end
-    for _, line in ipairs({ frame.Goods, frame.Bags, frame.Auction, frame.Vendor }) do
-        MakeClickable(frame, line, "this character's assets", OpenAssets)
-    end
-
-    -- The switch for the breakdown, and its two headings. The lines under
-    -- them are made as they're needed.
-    frame.Switch = CreateLine(body, BREAKDOWN_SWITCH, "Coin in and out")
-    CreateBreakdownSwitch(frame, frame.Switch)
-    frame.InHeading = CreateLine(body, BREAKDOWN_START, "COIN IN", "GameFontDisableSmall")
-    frame.OutHeading = CreateLine(body, BREAKDOWN_START, "COIN OUT", "GameFontDisableSmall")
-    frame.breakdown = {}
-
-    frame:SetWidth(WIDTH)
+    frame.rows, frame.ruleLines = {}, {}
 
     frame:SetScript("OnDragStart", function(self)
         if not ns.settings.sessionTrackerLocked then
@@ -663,8 +727,8 @@ local function Create()
             OpenMenu(self)
         end
     end)
-    -- Not ShowDetails itself: OnEnter's own second argument would be
-    -- taken for where a click goes.
+    -- Not ShowDetails itself: OnEnter's own second argument would be taken
+    -- for where a click goes.
     frame:SetScript("OnEnter", function(self)
         ShowDetails(self)
     end)
@@ -691,8 +755,7 @@ local function Create()
             return
         end
 
-        -- Until the bags have been valued, coin is all there is to go on.
-        local overall = summary.overall or summary.coin
+        local headline, headlineLabel = Headline(summary)
 
         local folded = ns.settings.sessionTrackerFolded
         self.Fold:Update()
@@ -700,27 +763,52 @@ local function Create()
         self.Clock:SetShown(not folded)
         self.Total:SetShown(folded)
         if folded then
-            SetSigned({ Figure = self.Total }, Rounded(overall))
+            local text, color = Signed(Rounded(headline))
+            self.Total:SetText(text)
+            self.Total:SetTextColor(unpack(color))
             self:SetHeight(FOLDED_HEIGHT)
             return
         end
 
         self.Clock:SetText(Duration(summary.seconds))
-        SetSigned(self.Coin, summary.coin)
-        SetSigned(self.Goods, summary.goods)
-        SetSigned(self.Overall, overall)
 
-        if summary.bags then
-            self.Bags.Figure:SetText(Theme.Coins(summary.bags))
-            self.Auction.Figure:SetText(Theme.Coins(summary.auction))
-            self.Vendor.Figure:SetText(Theme.Coins(summary.vendor))
-        else
-            self.Bags.Figure:SetText("-")
-            self.Auction.Figure:SetText("-")
-            self.Vendor.Figure:SetText("-")
+        local layout = { frame = self, y = BODY_TOP, rows = 0, rules = 0 }
+        -- Rounded like the folded line, so a big figure stays clear of its label.
+        local text, color = Signed(Rounded(headline))
+        AddRow(layout, {
+            kind = "total",
+            label = headlineLabel,
+            figure = text,
+            color = color,
+            opens = "your purse",
+            open = OpenPurse,
+        })
+        if ns.settings.sessionTrackerCoin then
+            AddRule(layout)
+            AddSide(
+                layout,
+                "COIN IN",
+                summary.income,
+                INCOME_LABELS,
+                summary.earned,
+                1,
+                Theme.INCOME
+            )
+            AddSide(
+                layout,
+                "COIN OUT",
+                summary.spending,
+                SPENDING_LABELS,
+                summary.spent,
+                -1,
+                Theme.SPENDING
+            )
         end
-
-        DrawBreakdown(self, summary)
+        if ns.settings.sessionTrackerBags then
+            AddRule(layout)
+            AddBags(layout, summary)
+        end
+        FinishLayout(layout)
     end
 
     ns.Subscribe("SESSION_CHANGED", function()

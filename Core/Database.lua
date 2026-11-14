@@ -129,8 +129,11 @@ local DEFAULT_SETTINGS = {
     -- it's been moved.
     sessionTracker = false,
     sessionTrackerLocked = false,
-    -- Whether its breakdown of coin in and out is open.
-    sessionTrackerExpanded = false,
+    -- Its sections (coin in and out, and what the bags would fetch), and
+    -- whether the bags' gains count towards its total.
+    sessionTrackerCoin = true,
+    sessionTrackerBags = true,
+    sessionTrackerCountBags = false,
     -- Whether it's folded down to one line.
     sessionTrackerFolded = false,
 

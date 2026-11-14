@@ -44,10 +44,11 @@ end
 -- This character's session, once logged in.
 local current
 
--- The bags as last valued: { auction, vendor, unpriced, atStart }.
--- unpriced counts the kinds of thing with no auction price, which are
--- taken at a vendor's price if a vendor will have them. atStart is what
--- was in them when the session began, at the same prices.
+-- The bags as last valued: { auction, vendor, unpriced, auctionAtStart,
+-- vendorAtStart }. unpriced counts the kinds of thing with no auction
+-- price, which are taken at a vendor's price if a vendor will have them.
+-- The two "at start" are what was in them when the session began, at the
+-- same prices.
 local bags
 
 -- Whether the bags have been read since login. Until they have, they look
@@ -121,7 +122,8 @@ local function Value()
         auction = auction,
         vendor = vendor,
         unpriced = unpriced,
-        atStart = auctionBefore + vendorBefore,
+        auctionAtStart = auctionBefore,
+        vendorAtStart = vendorBefore,
     }
     ns.Publish("SESSION_CHANGED")
 end
@@ -247,14 +249,15 @@ end
 --- How the session stands.
 ---@return table|nil summary  nil before login. Otherwise { seconds, earned,
 ---        spent, income, spending, coin, bags, auction, vendor, unpriced,
----        goods, overall }. seconds is how long the session has run, and
----        unpriced how many kinds of thing in the bags have no auction
----        price. income and spending are { [category] = copper }, by
----        Purse.lua's categories, and the rest are copper. coin is what
----        came in less what went out; goods is how much more the bags are
----        worth than what was in them at the start, both at today's
----        prices; overall is the two together. bags and the fields after
----        it are nil until the bags have been valued.
+---        auctionChange, vendorChange, goods, overall }. seconds is how long
+---        the session has run, and unpriced how many kinds of thing in the
+---        bags have no auction price. income and spending are { [category]
+---        = copper }, by Purse.lua's categories, and the rest are copper.
+---        coin is what came in less what went out. auctionChange and
+---        vendorChange are how much more the bags would fetch each way than
+---        what was in them at the start, both at today's prices; goods is
+---        the two together, and overall is coin and goods together. bags
+---        and the fields after it are nil until the bags have been valued.
 function Session.Summary()
     if not current then
         return nil
@@ -273,7 +276,9 @@ function Session.Summary()
         summary.vendor = bags.vendor
         summary.unpriced = bags.unpriced
         summary.bags = bags.auction + bags.vendor
-        summary.goods = summary.bags - bags.atStart
+        summary.auctionChange = bags.auction - bags.auctionAtStart
+        summary.vendorChange = bags.vendor - bags.vendorAtStart
+        summary.goods = summary.auctionChange + summary.vendorChange
         summary.overall = summary.coin + summary.goods
     end
     return summary

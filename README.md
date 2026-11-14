@@ -196,14 +196,14 @@ and where to buy each.
 ### The session tracker: how this sitting is going
 
 A small panel to keep on screen while you farm or trade. Turn it on with
-the **Session tracker** button on the window's title bar, or `/gw session`. It
-shows what this session has made or lost in coin, how much more your bags
-are worth than when you started, and the two together. Its tooltip
-projects an hourly pace, once the session is ten minutes old.
-Underneath is what your bags are worth, each thing counted the way
-Goldwise would sell it: at auction less the cut, or to a vendor. Drag it
-anywhere, right-click to lock it or start afresh, and click the pin in its
-corner for Places.
+the **Session tracker** button on the window's title bar, or `/gw session`.
+It leads with what this session has made or lost in coin, then where that
+coin came from and went: loot, quest rewards, vendors, the auction house,
+repairs. Below that, kept apart, is what your bags would fetch if sold, at
+auction and to vendors, with how far each has moved since you started.
+The cog switches sections on and off, the arrow starts afresh before a
+run, and another button folds it to a single line. Drag it anywhere, and
+click the pin in its corner for Places.
 
 ### It speaks up when it matters
 

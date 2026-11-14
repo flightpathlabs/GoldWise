@@ -15,20 +15,21 @@ the `dev` branch.
   dismissed and has a button to bring them all back.
 - **A session tracker.** A small panel to keep on screen while you play,
   put there with the new Session tracker button on the Goldwise window's
-  title bar, `/gw session`, or the options. It shows what this session has
-  earned or lost in coin, how much more or less your bags are worth than
-  when it began, and the two together. Below that is
-  what your bags are worth, counted the way Goldwise would sell each
-  thing: at auction less the cut, or at a vendor's price. "Coin in and
-  out" opens a breakdown: looted, quest rewards, sold to vendors, auction
-  sales, and on the other side repairs, vendors, training, flights and
-  the rest. The arrow in its corner starts the session again, say before
-  a run, and the one beside it folds the panel to a single line with the
-  session's total. Click a line to open your purse or this character's
-  assets. Drag it where you like; right-click to lock it. A reload, or
-  logging back in within a quarter of an hour, carries on the same
-  session. The pin in its corner opens Places, and pointing at it names
-  the nearest auction house, repairs, bank, flight master and inn.
+  title bar, `/gw session`, or the options. It leads with what this
+  session has made or lost in coin. Under that, where the coin came from
+  and went: looted, quest rewards, sold to vendors, auction sales, and on
+  the other side repairs, vendors, training, flights and the rest. Then
+  what your bags would fetch if sold, at auction and to vendors, each with
+  how far it has moved since the session began. Your bags aren't in the
+  total, so something bought from a vendor shows as spent; the cog on the
+  panel can count them in, and switches each section on or off. The arrow
+  starts the session again, say before a run, and the button beside it
+  folds the panel to a single line with the total. Click a line to open
+  your purse or this character's assets. Drag it where you like;
+  right-click to lock it. A reload, or logging back in within a quarter
+  of an hour, carries on the same session. The pin in its corner opens
+  Places, and pointing at it names the nearest auction house, repairs,
+  bank, flight master and inn.
 - **Goldwise's cards can be moved.** Drag the card that tells you about a
   recipe for sale nearby, or any other, to wherever you'd like them to
   appear, and they'll come up there from then on. Right-click one to put
