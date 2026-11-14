@@ -4,6 +4,15 @@ What changed in each release of Goldwise, newest first. Work that hasn't
 been released yet is listed under "Unreleased" in the copy of this file on
 the `dev` branch.
 
+## Unreleased
+
+**New**
+
+- **Prices for other addons.** A small read-only `GoldwiseAPI` gives
+  other addons the auction price Goldwise would show for an item, so
+  Creel, the fishing log, can value catches without scanning the
+  auction house itself.
+
 ## 0.4.1 (13 November 2026)
 
 **New**

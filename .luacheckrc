@@ -33,6 +33,7 @@ globals = {
     "SLASH_GOLDWISE1",
     "SLASH_GOLDWISE2",
     "Goldwise_OnAddonCompartmentClick",
+    "GoldwiseAPI",
     "Goldwise_ShowHoveredItemHistory",
     "BINDING_NAME_GOLDWISE_HISTORY",
     "Goldwise_ShowHoveredItemTree",

@@ -70,6 +70,7 @@ Advisor\Resale.lua
 Advisor\Materials.lua
 Advisor\Conversions.lua
 Advisor\CraftTree.lua
+Advisor\API.lua
 
 UI\Theme.lua
 UI\Companions.lua
