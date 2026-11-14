@@ -127,6 +127,16 @@ end
 
 -- The list --------------------------------------------------------------------
 
+--- Opens the window on Prospects' list of vendor recipes worth buying to
+--- sell at auction.
+function ns.ShowResalePlan()
+    -- Opening the tab makes the list, if it hasn't been made yet.
+    ns.ShowWindowTab("Prospects")
+    if ProspectList.ShowResale then
+        ProspectList.ShowResale()
+    end
+end
+
 --- Creates the prospects list. It starts hidden and fills its parent.
 ---@param parent table            frame to fill
 ---@param onSelect fun(row: table) called when the player clicks a row
@@ -169,6 +179,11 @@ function ProspectList.Create(parent, onSelect)
         -- The window redraws the tab and takes its footer from what the
         -- tab says about itself, so tell it, don't just redraw here.
         ns.Publish("COURSE_CHANGED")
+    end
+
+    -- For ns.ShowResalePlan, from outside the tab.
+    ProspectList.ShowResale = function()
+        GoTo(RESALE)
     end
 
     -- The materials list can be narrowed: to one kind, which then gets

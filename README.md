@@ -222,8 +222,11 @@ click the pin in its corner for Places.
 A few quiet cards, each once per visit and each with a switch in the
 options: when you arrive somewhere with an auction house and a visit would
 pay, when you open a merchant carrying things worth more at auction, and
-when a vendor nearby sells a recipe you could use. Drag a card to
-wherever you'd like them to appear.
+when a vendor nearby sells a recipe you could use, or one that sells for
+a good deal more at auction than the vendor asks, whatever your
+professions. How much more counts as worth it is up to you, from a
+quarter more to triple. Drag a card to wherever you'd like them to
+appear.
 
 Or turn on **Auditor mode**, and the goblin delivers the same advice at
 full volume.

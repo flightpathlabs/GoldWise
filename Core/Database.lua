@@ -90,6 +90,12 @@ local DEFAULT_SETTINGS = {
     -- sale nearby, a word before vendoring), and whether they make a sound.
     cityPrompt = true,
     recipePrompt = true,
+    -- The same card also points out recipes sold nearby that would fetch
+    -- a good deal more at auction, whether or not the player can use them:
+    -- at least resaleShare percent more than the vendor asks, after the
+    -- auction house's cut. The Prospects list goes by the same figure.
+    resalePrompt = true,
+    resaleShare = 25,
     vendorCheck = true,
     promptSound = false,
 

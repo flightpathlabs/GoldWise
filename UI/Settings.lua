@@ -62,9 +62,9 @@ local function IgnoredRecipesTooltip()
     if #names > MAX_NAMES_LISTED then
         table.insert(listed, ("and %d more"):format(#names - MAX_NAMES_LISTED))
     end
-    return ("Goldwise no longer mentions these:\n%s\n\nThey're still on the Recipes tab."):format(
-        table.concat(listed, "\n")
-    )
+    local text = "Goldwise no longer mentions these:\n%s\n\n"
+        .. "They're still on the Recipes tab or Prospects' resale list."
+    return text:format(table.concat(listed, "\n"))
 end
 
 -- Our page, once it exists. Kept so it can be opened directly.
@@ -113,6 +113,30 @@ ns.OnEvent("PLAYER_LOGIN", function()
         "Once per zone each session, for recipes you haven't learned in the professions "
             .. "you have, when your skill is high enough or nearly so. The X beside a "
             .. "recipe on that card stops it being mentioned again."
+    )
+
+    AddCheckbox(
+        category,
+        "resalePrompt",
+        "Tell me when a vendor nearby sells a recipe worth reselling",
+        "On the same card: recipes sold in the zone you're in that would fetch a good "
+            .. "deal more at the auction house than the vendor asks, whether or not you know "
+            .. "them or have the profession."
+    )
+
+    AddDropdown(
+        category,
+        "resaleShare",
+        "Worth reselling at",
+        "How much a recipe has to fetch at auction, after the auction house's cut, over "
+            .. "what the vendor asks before Goldwise calls it worth reselling. Also decides "
+            .. "what's on the Prospects tab's \"Buy from vendors, sell at auction\" list.",
+        {
+            { 25, "25% profit or more" },
+            { 50, "50% profit or more" },
+            { 100, "Double or more" },
+            { 200, "Triple or more" },
+        }
     )
 
     -- The recipes waved away with the X on the recipe card, and a way to

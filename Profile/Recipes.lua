@@ -175,6 +175,13 @@ function Recipes.IgnoredNames()
     return names
 end
 
+--- Whether the player has dismissed a recipe from the recipe card.
+---@param item number  the recipe's item ID
+---@return boolean
+function Recipes.IsIgnored(item)
+    return Ignored()[item] ~= nil
+end
+
 --- Lets every dismissed recipe be mentioned again.
 ---@return number count  how many there were
 function Recipes.ClearIgnored()
@@ -267,8 +274,12 @@ end
 -- anyone, whatever their professions.
 
 -- The profit has to be worth the walk and the risk of it not selling:
--- at least this share of what was paid, and never less than a silver.
-local WORTHWHILE_SHARE = 0.25
+-- at least a share of what was paid (the player's choice, a quarter to
+-- begin with), and never less than a silver.
+local function WorthwhileShare()
+    local percent = ns.settings and tonumber(ns.settings.resaleShare) or 25
+    return percent / 100
+end
 
 -- What vendors actually charge, learned by looking at their wares:
 -- [itemID] = { price, stock, at }. stock is how many were left when it's
@@ -343,6 +354,7 @@ end
 ---@param marketKey string
 ---@return table deals  list of:
 ---   item        the recipe's item ID
+---   spell       the spell it teaches
 ---   profession  the profession it belongs to
 ---   cost        what the vendor asks, in copper
 ---   costIsSeen  true if that's from the vendor's own window, false if
@@ -382,12 +394,13 @@ function Recipes.Resale(marketKey)
                     end
                 else
                     local profit = price * (1 - cut) - cost
-                    if profit >= math.max(ns.SMALL_CHANGE, cost * WORTHWHILE_SHARE) then
+                    if profit >= math.max(ns.SMALL_CHANGE, cost * WorthwhileShare()) then
                         local vendors, here = VendorsFor(recipe, side, zoneHere)
 
                         if #vendors > 0 then
                             table.insert(deals, {
                                 item = item,
+                                spell = recipe[2],
                                 profession = profession,
                                 cost = cost,
                                 costIsSeen = costIsSeen,

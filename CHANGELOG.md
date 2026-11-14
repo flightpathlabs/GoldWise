@@ -32,6 +32,13 @@ the `dev` branch.
   something, it guesses from similar creatures and says so. An option
   puts a small coin and the figure above enemies' nameplates too; it
   starts switched off.
+- **Recipes worth reselling, called out in town.** The recipe card
+  that says a vendor nearby sells something you could learn now also
+  points out recipes sold there that fetch a good deal more at auction
+  than the vendor asks, whether or not you know them or have the
+  profession. An option sets how much more counts, from a quarter more
+  to triple, and the Prospects list of vendor recipes to resell goes by
+  the same figure.
 - **What your bank would fetch.** While the bank is open, a strip over
   it says what your bank and the account bank would fetch, at auction
   and to vendors, and how many things in them are worth listing. It

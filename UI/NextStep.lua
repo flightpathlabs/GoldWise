@@ -8,7 +8,8 @@ local _, ns = ...
 --   * Opening a merchant while carrying things that would fetch a good
 --     deal more at auction.
 --   * Entering a zone where a vendor sells a recipe the player could use
---     and hasn't learned.
+--     and hasn't learned, or one that would fetch a good deal more at the
+--     auction house than the vendor asks.
 --   * The first time the window is opened after an update with news
 --     worth telling a returning player (at the end of this file).
 --
@@ -264,33 +265,36 @@ local RECIPE_RETRY = 30
 -- wanted the first time through town isn't wanted the second.
 local recipesMentioned = {}
 
--- The recipe card while it's up: the card, the zone it's about, and the
--- recipes it's about, first shown first. Kept so the card can be redrawn
+-- The recipe card while it's up: the card, the zone it's about, and its
+-- rows, first shown first. Each row is one recipe, { item, spell,
+-- recipe, deal }: recipe is there when it's one the player could learn
+-- (from Recipes.ForSaleHere), deal when it's worth reselling (from
+-- Recipes.Resale), and a row can be both. Kept so the card can be redrawn
 -- when a row is dismissed or a recipe's name arrives.
 local recipeCard
 
 local DISMISS_TIP = {
     "Don't mention this one again",
-    "It stays on the Recipes tab. Goldwise's options can bring it back.",
+    "It stays on the Recipes tab or Prospects' resale list. Goldwise's options can bring it back.",
 }
 
 local RecipeCardOptions
 
 -- The X on one of the card's rows: that recipe is dropped for good, and
 -- the card closes up, bringing on the next one if there are more.
-local function DismissRecipe(recipe)
-    ns.Recipes.Ignore(recipe)
+local function DismissRecipe(row)
+    ns.Recipes.Ignore(row)
     if not recipeCard then
         return
     end
 
     local remaining = {}
-    for _, other in ipairs(recipeCard.recipes) do
-        if other ~= recipe then
+    for _, other in ipairs(recipeCard.rows) do
+        if other ~= row then
             table.insert(remaining, other)
         end
     end
-    recipeCard.recipes = remaining
+    recipeCard.rows = remaining
 
     if #remaining == 0 then
         ns.Toast.Hide()
@@ -300,44 +304,101 @@ local function DismissRecipe(recipe)
     end
 end
 
+-- What a row says under the recipe's name: the skill it takes, if it's
+-- one to learn, and the profit, if it's one to resell.
+local function RowDetail(row)
+    local parts = {}
+    local recipe, deal = row.recipe, row.deal
+
+    -- The line is one short line on the card, and the vendor's name at
+    -- the end of it is the part worth keeping. So a recipe worth
+    -- reselling says only that, and its skill is left to the Recipes tab.
+    if deal then
+        -- What the vendor asks is a guess until their wares have been seen.
+        table.insert(
+            parts,
+            ("+%s at auction, %scosts %s"):format(
+                Theme.Coins(deal.profit),
+                deal.costIsSeen and "" or "about ",
+                Theme.Coins(deal.cost)
+            )
+        )
+    elseif recipe then
+        local learn = ("%s %d"):format(recipe.profession, recipe.needed)
+        if not recipe.ready then
+            learn = ("%s (you're at %d)"):format(learn, recipe.skill)
+        end
+        table.insert(parts, learn)
+    end
+
+    local detail = table.concat(parts, "; ")
+    local spot = ns.Recipes.VendorSpot(recipe or deal)
+    if spot and spot.name then
+        detail = ("%s, from %s"):format(detail, spot.name)
+    end
+    return detail
+end
+
+-- The card's title and opening line, by what's on it.
+local function RecipeCardWords(zone, rows)
+    local toLearn, toResell = 0, 0
+    for _, row in ipairs(rows) do
+        if row.recipe then
+            toLearn = toLearn + 1
+        end
+        if row.deal then
+            toResell = toResell + 1
+        end
+    end
+
+    local loud = ns.settings.auditorMode
+    if toResell == 0 then
+        local body = toLearn == 1 and "A vendor in %s sells one you haven't learned."
+            or "Vendors in %s sell some you haven't learned."
+        return loud and "You are MISSING recipes" or "Recipes for sale here", body:format(zone)
+    elseif toLearn == 0 then
+        local body = toResell == 1
+                and "A vendor in %s sells a recipe that fetches a good deal more at auction."
+            or "Vendors in %s sell recipes that fetch a good deal more at auction."
+        return loud and "Free money at this vendor" or "Recipes worth reselling", body:format(zone)
+    end
+    local one = "A vendor in %s sells one you haven't learned that also fetches a "
+        .. "good deal more at auction."
+    local several = "Vendors in %s sell recipes you haven't learned, and some worth "
+        .. "reselling at auction."
+    local body = #rows == 1 and one or several
+    return loud and "Recipes. Buy them. NOW." or "Recipes for sale here", body:format(zone)
+end
+
 function RecipeCardOptions()
-    local zone, forSale = recipeCard.zone, recipeCard.recipes
+    local zone, rows = recipeCard.zone, recipeCard.rows
 
     local items = {}
-    for index = 1, math.min(ns.Toast.MAX_ITEMS, #forSale) do
-        local recipe = forSale[index]
-        local spot = ns.Recipes.VendorSpot(recipe)
-
-        local detail = ("%s %d"):format(recipe.profession, recipe.needed)
-        if not recipe.ready then
-            detail = ("%s (you're at %d)"):format(detail, recipe.skill)
-        end
-        if spot and spot.name then
-            detail = ("%s, from %s"):format(detail, spot.name)
-        end
-
+    for index = 1, math.min(ns.Toast.MAX_ITEMS, #rows) do
+        local row = rows[index]
         items[index] = {
-            itemID = recipe.item,
-            icon = C_Item.GetItemIconByID(recipe.item),
-            name = ns.Recipes.Name(recipe.item, recipe.spell),
-            quality = C_Item.GetItemQualityByID(recipe.item),
-            detail = detail,
+            itemID = row.item,
+            icon = C_Item.GetItemIconByID(row.item),
+            name = ns.Recipes.Name(row.item, row.spell),
+            quality = C_Item.GetItemQualityByID(row.item),
+            detail = RowDetail(row),
             onDismiss = function()
-                DismissRecipe(recipe)
+                DismissRecipe(row)
             end,
             dismissTip = DISMISS_TIP,
         }
     end
 
-    local body = #forSale == 1 and "A vendor in %s sells one you haven't learned."
-        or "Vendors in %s sell some you haven't learned."
-    body = body:format(zone)
-    if #forSale > #items then
-        body = body .. (" %d more are on the Recipes tab."):format(#forSale - #items)
+    local title, body = RecipeCardWords(zone, rows)
+    if #rows > #items then
+        body = body
+            .. (" %d more are on the Recipes tab, and Prospects' resale list."):format(
+                #rows - #items
+            )
     end
 
     return {
-        title = ns.settings.auditorMode and "You are MISSING recipes" or "Recipes for sale here",
+        title = title,
         body = body,
         items = items,
         primary = {
@@ -345,9 +406,12 @@ function RecipeCardOptions()
             onClick = function()
                 -- The vendor on the map if we can place them, and the
                 -- full list either way.
-                local spot = ns.Recipes.VendorSpot(forSale[1])
+                local first = rows[1]
+                local spot = first and ns.Recipes.VendorSpot(first.recipe or first.deal)
                 if spot then
                     ns.MapMarks.ShowPoint(spot.mapID, spot.x, spot.y)
+                elseif first and not first.recipe then
+                    ns.ShowResalePlan()
                 else
                     ns.ShowWindowTab("Recipes")
                 end
@@ -357,6 +421,35 @@ function RecipeCardOptions()
     }
 end
 
+-- The card's rows for the zone the player is in: what's worth reselling
+-- first, most profitable first, then what's left to learn.
+local function RecipeRows()
+    local rows, byItem = {}, {}
+    local function Row(item, spell)
+        local row = byItem[item]
+        if not row then
+            row = { item = item, spell = spell }
+            byItem[item] = row
+            table.insert(rows, row)
+        end
+        return row
+    end
+
+    if ns.settings.resalePrompt then
+        for _, deal in ipairs((ns.Recipes.Resale(ns.Market.Home()))) do
+            if deal.here and not ns.Recipes.IsIgnored(deal.item) then
+                Row(deal.item, deal.spell).deal = deal
+            end
+        end
+    end
+    if ns.settings.recipePrompt then
+        for _, recipe in ipairs(ns.Recipes.ForSaleHere()) do
+            Row(recipe.item, recipe.spell).recipe = recipe
+        end
+    end
+    return rows
+end
+
 -- A recipe's name can arrive after the card is up. The card shows the
 -- spell's name until then, and swaps in the recipe's own when it comes.
 ns.Subscribe("ITEM_NAMES_LOADED", function()
@@ -364,6 +457,12 @@ ns.Subscribe("ITEM_NAMES_LOADED", function()
         return
     end
     if ns.Toast.IsShowing() then
+        -- A recipe left off for want of its vendor price may now be worth
+        -- a row. Anything dismissed meanwhile stays off.
+        local rows = RecipeRows()
+        if #rows > 0 then
+            recipeCard.rows = rows
+        end
         ns.Toast.Update(recipeCard.id, RecipeCardOptions())
     else
         recipeCard = nil
@@ -371,7 +470,7 @@ ns.Subscribe("ITEM_NAMES_LOADED", function()
 end)
 
 local function CheckRecipes(isRetry)
-    if not ns.settings.recipePrompt or InCombatLockdown() then
+    if not (ns.settings.recipePrompt or ns.settings.resalePrompt) or InCombatLockdown() then
         return
     end
 
@@ -380,8 +479,8 @@ local function CheckRecipes(isRetry)
         return
     end
 
-    local forSale = ns.Recipes.ForSaleHere()
-    if #forSale == 0 then
+    local rows = RecipeRows()
+    if #rows == 0 then
         return
     end
 
@@ -395,7 +494,7 @@ local function CheckRecipes(isRetry)
     end
     recipesMentioned[zone] = true
 
-    recipeCard = { zone = zone, recipes = forSale }
+    recipeCard = { zone = zone, rows = rows }
     local shown = ns.Toast.Show(RecipeCardOptions())
     if shown then
         recipeCard.id = shown
