@@ -317,7 +317,7 @@ local function RowDetail(row)
         -- What the vendor asks is a guess until their wares have been seen.
         table.insert(
             parts,
-            ("+%s at auction, %scosts %s"):format(
+            ("+%s at auction, costs %s%s"):format(
                 Theme.Coins(deal.profit),
                 deal.costIsSeen and "" or "about ",
                 Theme.Coins(deal.cost)
