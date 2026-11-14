@@ -96,6 +96,7 @@ UI\ScanPanel.lua
 UI\MinimapButton.lua
 UI\Toast.lua
 UI\SessionTracker.lua
+UI\BankValue.lua
 UI\NextStep.lua
 UI\Tooltip.lua
 UI\MobPlates.lua

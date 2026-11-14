@@ -122,6 +122,38 @@ function Assets.WorthOfEverything(marketKey)
     return mine, everything
 end
 
+--- What some holdings would fetch, each sold the way Goldwise advises: at
+--- auction, less the cut, what it says to sell or hold; at a vendor's
+--- price what it says to vendor, and what has no auction price yet. What
+--- the player keeps isn't counted.
+---@param holdings table  list of { itemID, count }, and name and so on
+---        where known, as Describe takes them
+---@param marketKey string
+---@return number auction   copper
+---@return number vendor    copper
+---@return number unpriced  how many kinds of thing have no auction price
+---@return number listable  how many kinds of thing it says to sell
+function Assets.SaleValue(holdings, marketKey)
+    local auction, vendor, unpriced, listable = 0, 0, 0, 0
+    for _, holding in ipairs(holdings) do
+        local asset = Assets.Describe(holding, marketKey)
+        local advice = asset.advice
+        local verb = advice.verb
+        if verb == ns.Advice.SELL or verb == ns.Advice.HOLD then
+            auction = auction + (advice.proceeds or 0)
+            if verb == ns.Advice.SELL then
+                listable = listable + 1
+            end
+        elseif verb == ns.Advice.VENDOR then
+            vendor = vendor + (advice.fromVendor or 0)
+        elseif verb == ns.Advice.UNKNOWN then
+            unpriced = unpriced + 1
+            vendor = vendor + (asset.vendorPrice or 0) * asset.count
+        end
+    end
+    return auction, vendor, unpriced, listable
+end
+
 --- Assesses everything sellable in the player's own bags.
 ---@param marketKey string
 ---@return table assets   list of assets, as from Describe, unordered

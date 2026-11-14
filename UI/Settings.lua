@@ -284,6 +284,15 @@ ns.OnEvent("PLAYER_LOGIN", function()
 
     AddCheckbox(
         category,
+        "bankValue",
+        "Show what your bank would fetch",
+        "A strip over the bank window while it's open, with what's in your bank and the "
+            .. "account bank would fetch at auction and to vendors. It looks for the bank "
+            .. "window of bag addons too, and sits at the top of the screen if it can't find it."
+    )
+
+    AddCheckbox(
+        category,
         "auditorMode",
         "Auditor mode",
         "The goblin delivers the same advice at full volume. The facts don't change."

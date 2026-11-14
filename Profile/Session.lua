@@ -67,33 +67,81 @@ local function Fresh()
     return { startedAt = now, seenAt = now, earned = 0, spent = 0, income = {}, spending = {} }
 end
 
--- What's in the bags, as { [itemID] = count }.
+-- What's in the bags and the bank, as { [itemID] = count }. The bank is
+-- counted as it was at the last visit, this character's own and the one
+-- the account shares. Counting it means putting something in the bank is
+-- neither a gain nor a loss, which it isn't.
 local function Contents()
     local counts = {}
-    for _, holding in ipairs(ns.Bags.Holdings()) do
-        counts[holding.itemID] = (counts[holding.itemID] or 0) + holding.count
+    local function Add(holdings)
+        for _, holding in ipairs(holdings) do
+            counts[holding.itemID] = (counts[holding.itemID] or 0) + holding.count
+        end
     end
+    Add(ns.Bags.Holdings())
+    Add((ns.Bank.Holdings()))
+    Add((ns.Bank.AccountHoldings()))
     return counts
 end
 
--- What a list of holdings would fetch, each sold the way Goldwise advises.
-local function Worth(holdings, marketKey)
-    local auction, vendor, unpriced = 0, 0, 0
-    for _, holding in ipairs(holdings) do
-        local asset = ns.Assets.Describe(holding, marketKey)
-        local advice = asset.advice
-        local verb = advice.verb
-        if verb == ns.Advice.SELL or verb == ns.Advice.HOLD then
-            auction = auction + (advice.proceeds or 0)
-        elseif verb == ns.Advice.VENDOR then
-            vendor = vendor + (advice.fromVendor or 0)
-        elseif verb == ns.Advice.UNKNOWN then
-            unpriced = unpriced + 1
-            vendor = vendor + (asset.vendorPrice or 0) * asset.count
-        end
-        -- What the player keeps isn't for sale, so it isn't counted.
+-- A list of holdings, as Assets.SaleValue wants them, from counts.
+local function AsHoldings(counts)
+    local holdings = {}
+    for itemID, count in pairs(counts) do
+        table.insert(holdings, { itemID = itemID, count = count })
     end
-    return auction, vendor, unpriced
+    return holdings
+end
+
+-- Whether each bank has ever been read: this character's, then the
+-- account's.
+local function BanksSeen()
+    local _, ownSeenAt = ns.Bank.Holdings()
+    local _, accountSeenAt = ns.Bank.AccountHoldings()
+    return ownSeenAt ~= nil, accountSeenAt ~= nil
+end
+
+-- What the start was worth, { auction, vendor }, kept until prices,
+-- settings or the start itself change. It's the same answer every time
+-- otherwise, and working it out means assessing everything held.
+local startValue
+
+-- Takes what's held now as the start.
+local function SetStart()
+    current.bagsAtStart = Contents()
+    local own, account = BanksSeen()
+    current.banksSeen = { own = own, account = account }
+    startValue = nil
+end
+
+-- A bank that had never been read when the session began wasn't in the
+-- start, so the first time it is read, what's in it joins the start
+-- rather than showing up as gained. The bank is read as it opens, before
+-- anything can be moved in or out.
+local function AddNewlySeenBanks()
+    if
+        not current
+        or type(current.bagsAtStart) ~= "table"
+        or type(current.banksSeen) ~= "table"
+    then
+        return
+    end
+    local own, account = BanksSeen()
+    local function Fold(holdings)
+        for _, holding in ipairs(holdings) do
+            current.bagsAtStart[holding.itemID] = (current.bagsAtStart[holding.itemID] or 0)
+                + holding.count
+        end
+        startValue = nil
+    end
+    if own and not current.banksSeen.own then
+        Fold((ns.Bank.Holdings()))
+        current.banksSeen.own = true
+    end
+    if account and not current.banksSeen.account then
+        Fold((ns.Bank.AccountHoldings()))
+        current.banksSeen.account = true
+    end
 end
 
 -- The bags are compared with what was in them when the session began,
@@ -105,18 +153,21 @@ local function Value()
         return
     end
 
-    if type(current.bagsAtStart) ~= "table" then
-        current.bagsAtStart = Contents()
+    -- A session begun before the bank was counted started from the bags
+    -- alone. Counting the bank against that would show all of it as
+    -- gained, so it starts again from what's held now.
+    if type(current.bagsAtStart) ~= "table" or type(current.banksSeen) ~= "table" then
+        SetStart()
     end
 
     local market = ns.Market.Home()
-    local auction, vendor, unpriced = Worth(ns.Bags.Holdings(), market)
-
-    local before = {}
-    for itemID, count in pairs(current.bagsAtStart) do
-        table.insert(before, { itemID = itemID, count = count })
+    local auction, vendor, unpriced = ns.Assets.SaleValue(AsHoldings(Contents()), market)
+    if not startValue then
+        local auctionBefore, vendorBefore =
+            ns.Assets.SaleValue(AsHoldings(current.bagsAtStart), market)
+        startValue = { auction = auctionBefore, vendor = vendorBefore }
     end
-    local auctionBefore, vendorBefore = Worth(before, market)
+    local auctionBefore, vendorBefore = startValue.auction, startValue.vendor
 
     bags = {
         auction = auction,
@@ -210,14 +261,18 @@ end)
 
 ns.Subscribe("BAGS_CHANGED", function()
     bagsRead = true
+    AddNewlySeenBanks()
     ValueSoon()
 end)
 
-ns.Subscribe("PRICES_CHANGED", ValueSoon)
-
--- Marking something as kept, or switching to auditor mode, changes what
--- it would be sold for.
-ns.Subscribe("SETTINGS_CHANGED", ValueSoon)
+-- New prices, marking something as kept, or switching to auditor mode
+-- change what the start would be sold for, as well as what's held now.
+local function Revalue()
+    startValue = nil
+    ValueSoon()
+end
+ns.Subscribe("PRICES_CHANGED", Revalue)
+ns.Subscribe("SETTINGS_CHANGED", Revalue)
 
 --- Says whether anything is showing the session, so the bags are kept
 --- valued while it is and left alone while it isn't.
@@ -238,7 +293,12 @@ function Session.Restart()
     for field, value in pairs(fresh) do
         current[field] = value
     end
-    current.bagsAtStart = bagsRead and Contents() or nil
+    current.bagsAtStart = nil
+    current.banksSeen = nil
+    startValue = nil
+    if bagsRead then
+        SetStart()
+    end
 
     -- The last valuation was against the old start.
     bags = nil
@@ -249,15 +309,17 @@ end
 --- How the session stands.
 ---@return table|nil summary  nil before login. Otherwise { seconds, earned,
 ---        spent, income, spending, coin, bags, auction, vendor, unpriced,
----        auctionChange, vendorChange, goods, overall }. seconds is how long
----        the session has run, and unpriced how many kinds of thing in the
----        bags have no auction price. income and spending are { [category]
----        = copper }, by Purse.lua's categories, and the rest are copper.
----        coin is what came in less what went out. auctionChange and
----        vendorChange are how much more the bags would fetch each way than
----        what was in them at the start, both at today's prices; goods is
----        the two together, and overall is coin and goods together. bags
----        and the fields after it are nil until the bags have been valued.
+---        auctionChange, vendorChange, goods, overall, bankSeenAt }. seconds
+---        is how long the session has run, and unpriced how many kinds of
+---        thing held have no auction price. income and spending are
+---        { [category] = copper }, by Purse.lua's categories, and the rest
+---        are copper. coin is what came in less what went out. "Held" is
+---        the bags and the bank, the bank as of bankSeenAt, the last visit
+---        (nil if never). auctionChange and vendorChange are how much more
+---        what's held would fetch each way than what was held at the start,
+---        both at today's prices; goods is the two together, and overall
+---        is coin and goods together. bags and the fields after it are nil
+---        until the bags have been valued.
 function Session.Summary()
     if not current then
         return nil
@@ -280,6 +342,8 @@ function Session.Summary()
         summary.vendorChange = bags.vendor - bags.vendorAtStart
         summary.goods = summary.auctionChange + summary.vendorChange
         summary.overall = summary.coin + summary.goods
+        -- The bank is counted as it was last seen, which the tracker says.
+        summary.bankSeenAt = select(2, ns.Bank.Holdings())
     end
     return summary
 end

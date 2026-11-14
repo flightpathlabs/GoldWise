@@ -87,6 +87,12 @@ under its tooltip. For something in your bags, the tooltip also carries
 the verdict. Everything Goldwise adds to a tooltip is marked with its
 name, so you can tell its lines from another addon's.
 
+While your bank is open, a strip over it says what's in it would fetch,
+at auction and to vendors, for your own bank and the account bank, and
+how many things are worth listing. It looks for the bank window of
+Bagnon and other bag addons too, and sits at the top of the screen if it
+can't find one. Click it for Assets.
+
 ![The Assets tab: a verdict on everything you hold, and where its price has been heading](docs/images/assets.png)
 
 ### Price history for anything
@@ -201,13 +207,15 @@ A small panel to keep on screen while you farm or trade. Turn it on with
 the **Session tracker** button on the window's title bar, or `/gw session`.
 It leads with what this session has made or lost in coin, then where that
 coin came from and went: loot, quest rewards, vendors, the auction house,
-repairs. Below that, kept apart, is what your bags would fetch if sold, at
-auction and to vendors, with how far each has moved since you started.
+repairs. Below that, kept apart, is what your bags and bank would fetch if
+sold, at auction and to vendors, with how far each has moved since you
+started. The bank counts as it was when you last had it open, so moving
+things into it is neither a gain nor a loss.
 The cog switches sections on and off, the arrow starts afresh before a
 run, and another button folds it to a single line. Drag it anywhere, and
 click the pin in its corner for Places.
 
-![The session tracker, with what came in and went out, and what your bags would fetch](docs/images/session.png)
+![The session tracker, with what came in and went out, and what your bags and bank would fetch](docs/images/session.png)
 
 ### It speaks up when it matters
 

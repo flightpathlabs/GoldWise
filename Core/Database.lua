@@ -116,6 +116,10 @@ local DEFAULT_SETTINGS = {
     mobValueTooltip = true,
     mobValuePlates = false,
 
+    -- A strip over the bank window, while it's open, saying what's in the
+    -- bank would fetch.
+    bankValue = true,
+
     -- Which click on an item opens its crafting tree: a place in the
     -- list in UI\Shortcuts.lua, or 0 for none.
     treeClick = 1,

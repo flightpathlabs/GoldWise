@@ -73,6 +73,7 @@ read_globals = {
     "ColorManager",
     "CreateDataProvider",
     "CreateScrollBoxListLinearView",
+    "EnumerateFrames",
     "FormatLargeNumber",
     "GameTooltip_Hide",
     "GetMoneyString",
@@ -116,6 +117,7 @@ read_globals = {
     -- Frames and widgets
     "CreateFrame",
     "UIParent",
+    "BankFrame",
     "GameTooltip",
     "Minimap",
     "ItemRefTooltip",

@@ -309,7 +309,7 @@ local function CreateOptionsButton(frame, beside)
         MenuUtil.CreateContextMenu(self, function(_, root)
             root:CreateTitle("Show on the panel")
             root:CreateCheckbox("Coin in and out", Switch("sessionTrackerCoin"))
-            root:CreateCheckbox("Your bags, if sold", Switch("sessionTrackerBags"))
+            root:CreateCheckbox("Your bags and bank, if sold", Switch("sessionTrackerBags"))
             root:CreateDivider()
             root:CreateCheckbox("Count bag gains in the total", Switch("sessionTrackerCountBags"))
         end)
@@ -363,7 +363,7 @@ local function ShowDetails(frame, opens)
     if summary.bags then
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine(
-            "Your bags are counted the way Goldwise would sell each thing: at "
+            "Your bags and bank are counted the way Goldwise would sell each thing: at "
                 .. "auction, less the cut, if it says sell or hold, and at a vendor's "
                 .. "price if it says vendor. What you keep isn't counted. None of it is "
                 .. "in the total unless you ask for it with the cog.",
@@ -389,14 +389,20 @@ local function ShowDetails(frame, opens)
             )
         end
         GameTooltip:AddLine(
-            "The figure beside each compares what you carry now with what you "
-                .. "started with, both at today's prices. Putting things in the bank or "
-                .. "posting them to another character counts as them leaving.",
+            "The figure beside each compares what you hold now with what you "
+                .. "started with, both at today's prices. Moving things between your "
+                .. "bags and bank changes nothing; posting them to another character "
+                .. "counts as them leaving.",
             0.6,
             0.6,
             0.6,
             true
         )
+        -- The bank can only be read while it's open, so say how old it is.
+        local bankNote = summary.bankSeenAt
+                and ("Your bank as it was %s."):format(ns.Ago(GetServerTime() - summary.bankSeenAt))
+            or "Your bank isn't counted until you next open it."
+        GameTooltip:AddLine(bankNote, 0.6, 0.6, 0.6, true)
     end
     GameTooltip:AddLine(" ")
     if opens then
@@ -645,10 +651,10 @@ local function AddSide(layout, heading, amounts, labels, total, sign, color)
     end
 end
 
--- What the bags would fetch each way, and how far that has moved since the
--- session began.
+-- What the bags and bank would fetch each way, and how far that has moved
+-- since the session began.
 local function AddBags(layout, summary)
-    AddRow(layout, { kind = "heading", label = "YOUR BAGS, IF SOLD" })
+    AddRow(layout, { kind = "heading", label = "YOUR BAGS AND BANK, IF SOLD" })
     if not summary.bags then
         AddRow(layout, { kind = "note", label = "   Valuing what you carry..." })
         return

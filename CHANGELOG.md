@@ -32,6 +32,12 @@ the `dev` branch.
   something, it guesses from similar creatures and says so. An option
   puts a small coin and the figure above enemies' nameplates too; it
   starts switched off.
+- **What your bank would fetch.** While the bank is open, a strip over
+  it says what your bank and the account bank would fetch, at auction
+  and to vendors, and how many things in them are worth listing. It
+  looks for the bank window of Bagnon and other bag addons too, and sits
+  at the top of the screen when it can't find one. An option switches
+  it off.
 
 **Better**
 
@@ -39,6 +45,10 @@ the `dev` branch.
   follow only the recipes of the character you're on, so a cloth
   robe your tailor alt makes had no tree on your main. Now each step
   says which of your characters can make it.
+- **The session tracker counts your bank.** What you hold, if sold,
+  now takes in your bank and the account bank as they were when you
+  last had them open, so putting things in the bank no longer shows as
+  a loss. A session that was already running starts that count afresh.
 - **Alt-right-click always answers.** On an item none of your
   characters can make or use, it used to do nothing at all. It now
   opens the crafting tree page, which says so, and how Goldwise learns
