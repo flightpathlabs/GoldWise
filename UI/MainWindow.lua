@@ -95,6 +95,15 @@ local TABS = {
         end,
     },
     {
+        label = "Items",
+        page = "Items",
+        refresh = function(page)
+            -- Whether the search found more than it can list is the
+            -- tab's to say.
+            return page:Refresh()
+        end,
+    },
+    {
         label = "About",
         page = "About",
         refresh = function() end,
@@ -423,6 +432,7 @@ local function CreateWindow()
     frame.Profit = ns.ProfitTab.Create(frame.Inset)
     frame.Places = ns.PlacesTab.Create(frame.Inset)
     frame.Recipes = ns.RecipesTab.Create(frame.Inset)
+    frame.Items = ns.ItemsTab.Create(frame.Inset)
     frame.About = ns.AboutTab.Create(frame.Inset)
     frame.Detail = ns.ItemDetail.Create(frame.Inset, LeaveDetail)
     frame.Tree = ns.CraftTreeView.Create(frame.Inset, ShowCurrentTab, function(itemID)
@@ -496,6 +506,13 @@ function ns.ShowItemHistory(itemID, link)
 
     ns.ShowWindow()
     ShowDetail(row)
+end
+
+--- Opens the window on the Items tab, searching for something.
+---@param text string  part of a name, or an item link
+function ns.FindItems(text)
+    ns.ShowWindowTab("Items")
+    window.Items:Find(text)
 end
 
 --- Opens the window on one item's crafting tree: what it's made from and
@@ -616,6 +633,14 @@ SLASH_GOLDWISE1 = "/goldwise"
 SLASH_GOLDWISE2 = "/gw"
 SlashCmdList.GOLDWISE = function(message)
     message = strtrim(message or "")
+
+    -- "/gw find linen" searches the Items tab. Taken first, and with the
+    -- text as typed, so "/gw find [Linen Cloth]" searches too.
+    local first, rest = message:match("^(%S*)%s*(.-)$")
+    if first:lower() == "find" or first:lower() == "search" then
+        ns.FindItems(rest)
+        return
+    end
 
     -- An item shift-clicked into the command: "/gw [Light Leather]" for
     -- its price history, "/gw tree [Light Leather]" for its crafting tree.

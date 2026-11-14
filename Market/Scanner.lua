@@ -85,6 +85,15 @@ local function IsWholeMarket(query)
         and (not query.itemClassFilters or #query.itemClassFilters == 0)
 end
 
+-- Puts a list of browse results on record. The names of the items in it
+-- are written down too, for the Items tab: the rows themselves carry only
+-- item keys, so that's done a frame or two later, from what the client
+-- already knows.
+local function File(marketKey, rows, wholeMarket)
+    ns.Ledger.RecordScan(marketKey, rows, wholeMarket)
+    ns.Names.NoteBrowseRows(rows)
+end
+
 local function Stop(reason)
     local stopped = scan
     scan = nil
@@ -93,7 +102,7 @@ local function Stop(reason)
     -- A scan cut short has still read real prices, often thousands of
     -- them. They go on record, just not as a picture of the whole market.
     if stopped and stopped.heard and #stopped.heard > 0 then
-        ns.Ledger.RecordScan(stopped.marketKey, stopped.heard, false)
+        File(stopped.marketKey, stopped.heard, false)
     end
 
     ns.Publish("SCAN_STOPPED", reason)
@@ -107,7 +116,7 @@ local function FileWhatWasHeard()
 
     if heard and #heard.rows > 0 then
         ns.Log("overheard %d more rows of a search that stopped short", #heard.rows)
-        ns.Ledger.RecordScan(heard.marketKey, heard.rows, false)
+        File(heard.marketKey, heard.rows, false)
     end
 end
 
@@ -255,7 +264,7 @@ local function OnOwnResults(rows, complete)
         local seconds = GetTime() - scan.startedAt
         ns.Log("scan finished: %d rows in %.1fs", #rows, seconds)
         scan = nil
-        ns.Ledger.RecordScan(ns.Market.Current(), rows, true)
+        File(ns.Market.Current(), rows, true)
         ns.Publish("SCAN_FINISHED", #rows, seconds)
         return
     end
@@ -327,7 +336,7 @@ local function OnOverheardResults(complete)
     -- and only if it found something (see OnOwnResults).
     local wholeMarket = complete and #rows > 0 and lastSearch ~= nil and lastSearch.wholeMarket
     ns.Log("overheard %d rows%s", #rows, wholeMarket and " (whole market)" or "")
-    ns.Ledger.RecordScan(ns.Market.Current(), rows, wholeMarket)
+    File(ns.Market.Current(), rows, wholeMarket)
 
     -- Another addon has read the whole market for us. That's as good as
     -- having done it ourselves, and everything that waits on a finished
@@ -391,6 +400,9 @@ local function Learn(itemID, price, quantity)
         return
     end
     learned[itemID] = { price, quantity or 0 }
+
+    -- Whoever opened its listings has had the client load it.
+    ns.Names.NoteKnown(itemID)
 
     if not filing then
         filing = true

@@ -23,27 +23,22 @@ local NAME_RIGHT = 346
 
 -- Rows ------------------------------------------------------------------------
 
--- The menu behind a right-click: keep the item or sell it, and a way to
--- its page for anyone who went looking for that here.
+-- The menu behind a right-click: the one every item in the window has,
+-- with keeping the item or selling it at the top. Its price history is
+-- this row's own page, which knows whose the things are and how many are
+-- banked, where the plain history only knows about this character's bags.
 local function ShowKeepMenu(row, data, onSelect)
     local kept = ns.Keep.IsKept(data.itemID)
 
-    MenuUtil.CreateContextMenu(row, function(_, root)
-        root:CreateTitle(data.name)
+    ns.ItemMenu.Open(row, data.itemID, data.link, function(root)
         root:CreateButton(
             kept and "Suggest selling this again" or "Keep this, don't suggest selling",
             function()
                 ns.Keep.Toggle(data.itemID)
             end
         )
-        root:CreateButton("Price history", function()
-            onSelect(data)
-        end)
-        if ns.CraftTree.Has(data.itemID) then
-            root:CreateButton("Crafting tree", function()
-                ns.ShowCraftTree(data.itemID)
-            end)
-        end
+    end, function()
+        onSelect(data)
     end)
 end
 
@@ -95,7 +90,7 @@ local function CreateRowWidgets(row, onSelect)
     row.Proceeds:SetTextColor(unpack(Theme.MUTED))
 
     -- Left-click for the item's page; right-click to say whether it's for
-    -- sale at all.
+    -- sale at all, and for everything else an item can do.
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row:SetScript("OnClick", function(self, mouseButton)
         local data = self:GetElementData()
@@ -118,8 +113,9 @@ local function CreateRowWidgets(row, onSelect)
 
         local muted = Theme.MUTED
         GameTooltip:AddLine(
-            ns.Keep.IsKept(data.itemID) and "Right-click to put this up for sale again."
-                or "Right-click to keep this: Goldwise won't suggest selling it.",
+            ns.Keep.IsKept(data.itemID)
+                    and "Right-click to put this up for sale again, or for its crafting tree."
+                or "Right-click to keep this from sale, or for its crafting tree.",
             muted[1],
             muted[2],
             muted[3]

@@ -100,8 +100,8 @@ local function CreateRowWidgets(row)
     row.Detail:SetMaxLines(2)
     row.Detail:SetTextColor(unpack(Theme.MUTED))
 
-    -- A step about an item shows the item when pointed at, and opens its
-    -- price history when clicked.
+    -- A step about an item shows the item when pointed at, opens its price
+    -- history when clicked, and has the menu every item has on a right-click.
     row:SetScript("OnEnter", function(self)
         local itemID = self:GetElementData().itemID
         if itemID then
@@ -111,9 +111,15 @@ local function CreateRowWidgets(row)
         end
     end)
     row:SetScript("OnLeave", GameTooltip_Hide)
-    row:SetScript("OnClick", function(self)
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:SetScript("OnClick", function(self, mouseButton)
         local itemID = self:GetElementData().itemID
-        if itemID then
+        if not itemID then
+            return
+        end
+        if mouseButton == "RightButton" then
+            ns.ItemMenu.Open(self, itemID)
+        else
             ns.ShowItemHistory(itemID)
         end
     end)

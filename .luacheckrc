@@ -124,6 +124,9 @@ read_globals = {
     "SettingsTooltip",
     "SettingsPanel",
     "HideUIPanel",
+    "ChatFrameUtil",
+    "ChatEdit_InsertLink",
+    "StackSplitFrame",
     "InRepairMode",
     "TooltipDataProcessor",
 

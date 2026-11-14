@@ -180,10 +180,10 @@ local function ExamineBatch()
     local last = math.min(run.nextIndex + BATCH_SIZE, run.total) - 1
 
     for index = run.nextIndex, last do
-        -- Of the eighteen values this returns we want three: the stack
-        -- size (3rd), the buyout for the whole stack (10th) and the item
-        -- (17th).
-        local _, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID =
+        -- Of the eighteen values this returns we want four: the name (1st),
+        -- the stack size (3rd), the buyout for the whole stack (10th) and the
+        -- item (17th).
+        local name, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID =
             C_AuctionHouse.GetReplicateItemInfo(index)
 
         -- No buyout means a bid-only auction, which tells us nothing about
@@ -197,6 +197,8 @@ local function ExamineBatch()
                 entry[2] = entry[2] + count
             else
                 run.prices[itemID] = { unitPrice, count }
+                -- Once per item a scan, not per auction: there can be dozens.
+                ns.Names.Note(itemID, name)
             end
 
             if market.tracked[itemID] then

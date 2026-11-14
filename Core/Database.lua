@@ -29,6 +29,8 @@ local addonName, ns = ...
 --   newsSeen   which what's-new notes have been shown (see NextStep)
 --   lastDeepScan  when the account's deep scan cooldown was last spent
 --              (see DeepScan)
+--   itemNames  every item name come across, with the day it was last
+--              seen, for the Items tab's search (see Names)
 --   log        the last couple of hundred diagnostic lines
 --   errors     faults noted for a bug report
 --

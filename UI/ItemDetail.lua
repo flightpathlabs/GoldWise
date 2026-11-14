@@ -45,8 +45,8 @@ function ItemDetail.Create(parent, onBack)
     back:SetText("Back")
     back:SetScript("OnClick", onBack)
 
-    -- The item on show.
-    local shown
+    -- The item on show, and its link if the page was given one.
+    local shown, shownLink
 
     -- The chart's view, in the corner, where it stays put. The crafting
     -- tree button comes and goes, so it's the one that sits beside.
@@ -75,6 +75,22 @@ function ItemDetail.Create(parent, onBack)
     name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -1)
     name:SetJustifyH("LEFT")
     name:SetWordWrap(false)
+
+    -- The icon and name take a right-click like an item anywhere else in
+    -- the window. Neither can take the mouse itself, so this lies over
+    -- both: the icon's height, and out past it as far as the name can
+    -- run, which stops short of the buttons. The window can't be dragged
+    -- by this strip, which is the price of it.
+    local header = CreateFrame("Frame", nil, detail)
+    header:SetPoint("TOPLEFT", icon)
+    header:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 10 + NAME_WIDTH, 0)
+    header:EnableMouse(true)
+    header:SetScript("OnMouseUp", function(self, mouseButton)
+        if mouseButton == "RightButton" then
+            -- No "Price history" here: this is it.
+            ns.ItemMenu.Open(self, shown, shownLink, nil, false)
+        end
+    end)
 
     local facts = detail:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     facts:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -5)
@@ -132,11 +148,13 @@ function ItemDetail.Create(parent, onBack)
         local marketKey = ns.Market.Current()
         local history = ns.Ledger.History(marketKey, row.itemID, ns.settings.historyDays)
 
-        shown = row.itemID
-        tree:SetShown(ns.CraftTree.Has(row.itemID))
+        shown, shownLink = row.itemID, row.link
+        -- Always offered: the tree page says plainly when none of the player's
+        -- characters knows a recipe for it, which is worth knowing too.
+        tree:Show()
 
         icon:SetTexture(row.icon)
-        name:SetWidth(tree:IsShown() and NAME_WIDTH or NAME_WIDTH + TREE_BUTTON_WIDTH + 8)
+        name:SetWidth(NAME_WIDTH)
         name:SetText(Theme.ItemName(row.name, row.quality))
 
         local holder = row.owner and (row.owner .. " has") or "You have"

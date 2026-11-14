@@ -10,8 +10,10 @@ local _, ns = ...
 -- price. Going down the tree, the cheaper of the two is carried upward, so
 -- the cost at the top is the least the item can be had for.
 --
--- Only recipes this character knows are followed. A step the player
--- can't make is a thing to buy, and the tree stops there.
+-- Recipes known to any of the player's characters are followed, not just
+-- this one's: a part an alt can make is a part that needn't be bought,
+-- and each recipe says who knows it. A step nobody can make is a thing
+-- to buy, and the tree stops there.
 
 local CraftTree = {}
 ns.CraftTree = CraftTree
@@ -34,7 +36,7 @@ local function Index()
     end
 
     makers, users = {}, {}
-    for _, recipe in ipairs(ns.Crafts.Known()) do
+    for _, recipe in ipairs(ns.Crafts.KnownAnywhere()) do
         makers[recipe.item] = makers[recipe.item] or {}
         table.insert(makers[recipe.item], recipe)
 
@@ -106,10 +108,13 @@ function Step(itemID, quantity, marketKey, depth, path)
         path[itemID] = true
 
         -- Where more than one recipe makes it, the cheapest one counts. A
-        -- recipe that can be priced beats one that can't.
+        -- recipe that can be priced beats one that can't, and on a tie,
+        -- the one this character knows beats an alt's.
         for _, recipe in ipairs(makers[itemID] or {}) do
             local parts, cost = Ingredients(recipe, quantity, marketKey, depth, path)
-            local better = not step.recipe or (cost and (not step.make or cost < step.make))
+            local better = not step.recipe
+                or (cost and (not step.make or cost < step.make))
+                or (cost == step.make and recipe.mine and not step.recipe.mine)
 
             if better then
                 step.recipe, step.parts, step.make = recipe, parts, cost
@@ -130,8 +135,9 @@ end
 
 -- Reading it back -------------------------------------------------------------
 
---- Whether an item is part of anything the player can make: either they
---- can make it, or it goes into something they can.
+--- Whether an item is part of anything the player can make, on any of
+--- their characters: either one of them can make it, or it goes into
+--- something one of them can.
 ---@param itemID number
 ---@return boolean
 function CraftTree.Has(itemID)
@@ -145,8 +151,9 @@ end
 ---   root      the item itself, as a step: { itemID, quantity, depth, price,
 ---             listed, fromVendor, buy, make, best, recipe, parts }. buy,
 ---             make and best are for the whole quantity; parts is a list of
----             steps shaped the same way, and is nil for something the
----             player can't make.
+---             steps shaped the same way, and is nil for something none of
+---             the player's characters can make. A recipe is shaped as
+---             Crafts.KnownAnywhere() gives it, with knownBy and mine.
 ---   sells     what the root's quantity brings in at auction after the
 ---             cut; nil with no auction price
 ---   materials what the root's own ingredients cost if every one is
@@ -157,7 +164,7 @@ end
 ---             and onward counts the recipes the product goes into in turn
 ---   intoMore  how many more it goes into than are listed
 ---   cut       the auction house's share of a sale on this market
----   known     false if no recipes have been read for this character yet
+---   known     false if no recipes have been read for any character yet
 function CraftTree.For(itemID)
     Index()
 

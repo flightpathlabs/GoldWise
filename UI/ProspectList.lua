@@ -71,8 +71,16 @@ local function CreateRowWidgets(row, onSelect)
         end
     end)
 
-    row:SetScript("OnClick", function(self)
-        onSelect(self:GetElementData())
+    -- Left-click for the item's page, right-click for the menu every item
+    -- in the window has.
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:SetScript("OnClick", function(self, mouseButton)
+        local data = self:GetElementData()
+        if mouseButton == "RightButton" then
+            ns.ItemMenu.Open(self, data.itemID)
+        else
+            onSelect(data)
+        end
     end)
 
     row:SetScript("OnEnter", function(self)
@@ -331,7 +339,7 @@ function ProspectList.Create(parent, onSelect)
             plan:SetPlan(sections, loading)
 
             return "From the last full read of the auction house. "
-                .. "Click anything for its price history."
+                .. "Click for price history, right-click for more."
         elseif destination == RESALE then
             course:SetText("Buying to sell")
             about:SetText("Recipes a vendor sells for less than they fetch at auction")

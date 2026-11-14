@@ -114,9 +114,15 @@ local function CreateRowWidgets(row)
     row.Detail:SetTextColor(unpack(Theme.MUTED))
 
     -- Clicking a recipe opens its price history: handy for the ones worth
-    -- buying to sell on.
-    row:SetScript("OnClick", function(self)
-        ns.ShowItemHistory(self:GetElementData().item)
+    -- buying to sell on. Right-clicking gives the menu every item has.
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:SetScript("OnClick", function(self, mouseButton)
+        local item = self:GetElementData().item
+        if mouseButton == "RightButton" then
+            ns.ItemMenu.Open(self, item)
+        else
+            ns.ShowItemHistory(item)
+        end
     end)
 
     row:SetScript("OnEnter", function(self)

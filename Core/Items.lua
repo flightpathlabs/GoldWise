@@ -135,6 +135,9 @@ end
 function ns.ItemName(itemID)
     local name = C_Item.GetItemNameByID(itemID)
     if name then
+        -- Written down for the Items tab, which searches names the client
+        -- may not have this session.
+        ns.Names.Note(itemID, name)
         return name, false
     end
     return nil, ns.LoadItem(itemID)
@@ -166,6 +169,13 @@ function ns.ItemLabel(itemID)
 end
 
 local function OnItemLoaded(itemID, success)
+    -- Whatever loaded it, its name is worth writing down: this is how the
+    -- Items tab comes to know things the player has only seen in passing,
+    -- on the auction house or in a link in chat.
+    if success then
+        ns.Names.Note(itemID, C_Item.GetItemNameByID(itemID))
+    end
+
     -- Given up on, and here after all. Whatever was drawn without it
     -- will want to know.
     if unavailable[itemID] and success and C_Item.GetItemNameByID(itemID) then

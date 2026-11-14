@@ -6,7 +6,11 @@ local _, ns = ...
 --
 -- Every row is an item, and clicking one makes it the subject of the
 -- page, so the player can walk up and down a chain of recipes. Back
--- retraces their steps before it leaves.
+-- retraces their steps before it leaves. Right-clicking one opens the
+-- usual item menu instead.
+--
+-- The recipes are every character's, and where it isn't only the one
+-- being played who knows a recipe, the page says who does.
 
 local CraftTreeView = {}
 ns.CraftTreeView = CraftTreeView
@@ -45,6 +49,32 @@ local function HowMany(quantity)
     return (text:gsub("%.0$", ""))
 end
 
+-- Who knows a recipe, to start a sentence with: "You", "Torin", "You and
+-- Torin", "You, Torin and 2 more". The character being played comes
+-- first, as Crafts lists them.
+local function Who(recipe)
+    local names = {}
+    for index, character in ipairs(recipe.knownBy) do
+        names[index] = (index == 1 and recipe.mine) and "You" or character.name
+    end
+
+    if #names > 3 then
+        return ("%s, %s and %d more"):format(names[1], names[2], #names - 2)
+    elseif #names == 3 then
+        return ("%s, %s and %s"):format(names[1], names[2], names[3])
+    elseif #names == 2 then
+        return ("%s and %s"):format(names[1], names[2])
+    end
+    return names[1]
+end
+
+-- Whether a recipe is worth saying who knows. When it's only the
+-- character being played, as it mostly is, saying so on every row is
+-- noise.
+local function SayWho(recipe)
+    return not recipe.mine or #recipe.knownBy > 1
+end
+
 -- A profit in green; a loss in red, with a minus sign.
 local function ProfitText(amount)
     return Theme.Tint(Theme.SignedCoins(amount))
@@ -53,9 +83,11 @@ end
 -- Rows ------------------------------------------------------------------------
 
 -- One ingredient: how many, what they cost bought and made, and which of
--- those is the better deal.
+-- those is the better deal. Where it can be made, the note starts with
+-- who can make it.
 local function PartRow(part)
     local makeable = part.recipe ~= nil
+    local who = makeable and Who(part.recipe)
     local buy = part.buy and Theme.Coins(part.buy) or ""
     local make = part.make and Theme.Coins(part.make) or ""
     local note
@@ -63,15 +95,15 @@ local function PartRow(part)
     if makeable and part.buy and part.make then
         if part.make < part.buy then
             make = Theme.Tint(make, Theme.INCOME)
-            note = ("You can make this, and save %s."):format(ns.Money(part.buy - part.make))
+            note = ("%s can make this, and save %s."):format(who, ns.Money(part.buy - part.make))
         else
             buy = Theme.Tint(buy, Theme.INCOME)
-            note = "You can make this, but it's cheaper bought."
+            note = who .. " can make this, but it's cheaper bought."
         end
     elseif makeable and part.make then
-        note = "You can make this. None are for sale."
+        note = who .. " can make this. None are for sale."
     elseif makeable then
-        note = "You can make this, but something in it has no price yet."
+        note = who .. " can make this, but something in it has no price yet."
     elseif part.fromVendor then
         buy = "about " .. buy
         note = "From a vendor. The price is a guess."
@@ -104,6 +136,9 @@ end
 -- come to, and what's left.
 local function IntoRow(product)
     local notes = {}
+    if SayWho(product.recipe) then
+        table.insert(notes, Who(product.recipe) .. " can make it.")
+    end
     if product.makes > 1 then
         table.insert(notes, ("Makes %d."):format(product.makes))
     end
@@ -164,17 +199,17 @@ end
 local function Summary(tree)
     local root = tree.root
 
-    if not tree.known then
-        return "Goldwise hasn't seen your recipes yet.",
-            "Open each of your profession windows once, and it will read what you can make."
+    -- Nothing to show. This is also where the shortcut lands on an item
+    -- nobody can do anything with, and where it lands before any recipes
+    -- have been read at all, so it says how to fill the page.
+    if not root.recipe and #tree.into == 0 then
+        return "None of your characters knows a recipe that makes or uses this yet.",
+            "If one does, open that profession's window on them once and Goldwise will learn it."
     end
 
     if not root.recipe then
-        local second = "It's a thing to buy or to find."
-        if #tree.into > 0 then
-            second = "Below is what you can make with it, and what each would earn."
-        end
-        return "You don't know a recipe that makes this.", second
+        return "None of your characters knows a recipe that makes this.",
+            "Below is what they can make with it, and what each would earn."
     end
 
     local forHowMany = root.quantity > 1 and ("For %d: "):format(root.quantity) or ""
@@ -217,7 +252,7 @@ local function Summary(tree)
         )
     )
     if root.make and root.make < outlay then
-        local line = ("Making the parts you can make yourself brings the cost down to %s"):format(
+        local line = ("Making the parts you can make brings the cost down to %s"):format(
             Theme.Coins(root.make)
         )
         if tree.sells then
@@ -243,7 +278,7 @@ end
 
 -- Drawing a row ---------------------------------------------------------------
 
-local function CreateRowWidgets(row, onPick)
+local function CreateRowWidgets(row, onPick, onHistory)
     row.created = true
 
     row.Stripe = row:CreateTexture(nil, "BACKGROUND")
@@ -296,9 +331,20 @@ local function CreateRowWidgets(row, onPick)
         end
     end)
     row:SetScript("OnLeave", GameTooltip_Hide)
-    row:SetScript("OnClick", function(self)
+
+    -- Left-click follows the chain to that item; right-click has the
+    -- same menu as an item anywhere else in Goldwise.
+    row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    row:SetScript("OnClick", function(self, mouseButton)
         local itemID = self:GetElementData().itemID
-        if itemID then
+        if not itemID then
+            return
+        elseif mouseButton == "RightButton" then
+            -- Through the tree's own way to an item's page, so Back comes here.
+            ns.ItemMenu.Open(self, itemID, nil, nil, function()
+                onHistory(itemID)
+            end)
+        else
             onPick(itemID)
         end
     end)
@@ -419,18 +465,23 @@ function CraftTreeView.Create(parent, onBack, onHistory)
         icon:SetTexture(C_Item.GetItemIconByID(subject))
         name:SetText(Theme.ItemName(ns.ItemLabel(subject), C_Item.GetItemQualityByID(subject)))
 
+        -- After the price: how many the player has, and who can make it
+        -- if that's anyone besides the character being played.
         local held = ns.Bank.Held(subject)
-        local have = held > 0 and (" You have %d."):format(held) or ""
+        local more = held > 0 and (" You have %d."):format(held) or ""
+        if root.recipe and SayWho(root.recipe) then
+            more = ("%s %s can make it."):format(more, Who(root.recipe))
+        end
         if root.price then
             facts:SetText(
                 ("%s each at auction, %s.%s"):format(
                     Theme.Coins(root.price),
                     Theme.Listed(root.listed),
-                    have
+                    more
                 )
             )
         else
-            facts:SetText("No auction price yet." .. have)
+            facts:SetText("No auction price yet." .. more)
         end
 
         local first, second = Summary(tree)
@@ -467,7 +518,7 @@ function CraftTreeView.Create(parent, onBack, onHistory)
     list:SetElementExtent(ROW_HEIGHT)
     list:SetElementInitializer("Button", function(row, data)
         if not row.created then
-            CreateRowWidgets(row, Pick)
+            CreateRowWidgets(row, Pick, onHistory)
         end
         FillRow(row, data)
     end)

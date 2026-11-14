@@ -70,9 +70,12 @@ end
 
 -- The game sends every click made on an item with a key held down
 -- through one function, wherever the item is: a bag, a chat link, the
--- auction house. We watch it go by. Kept to items that are part of
--- something the player can make, so the click does nothing new anywhere
--- else.
+-- auction house. We watch it go by.
+--
+-- The chosen click opens the tree for any item, even one none of the
+-- player's characters can make or make anything from. A click that
+-- sometimes does nothing looks broken, and the page itself can say why
+-- it's empty and how to fill it.
 if HandleModifiedItemClick then
     hooksecurefunc("HandleModifiedItemClick", function(link)
         local click = ChosenClick()
@@ -88,7 +91,7 @@ if HandleModifiedItemClick then
         end
 
         local itemID = C_Item.GetItemInfoInstant(link)
-        if itemID and ns.CraftTree.Has(itemID) then
+        if itemID then
             ns.ShowCraftTree(itemID)
         end
     end)

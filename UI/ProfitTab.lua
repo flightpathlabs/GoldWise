@@ -82,6 +82,14 @@ local function CreateRowWidgets(row)
     row.What:SetPoint("RIGHT", row.Amount, "LEFT", -12, 0)
     row.What:SetJustifyH("LEFT")
     row.What:SetWordWrap(false)
+
+    -- A sale or purchase of something the game named has the menu every
+    -- item in the window has. Left-clicks do nothing here, as before.
+    row:RegisterForClicks("RightButtonUp")
+    row:SetScript("OnClick", function(self)
+        local entry = self:GetElementData()
+        ns.ItemMenu.Open(self, entry.itemID, entry.link)
+    end)
 end
 
 -- "Sold 20 Linen Cloth", "Bought 5 Silk Cloth", "Bid returned".
@@ -120,6 +128,10 @@ local function FillRow(row, entry)
     local text, color = Theme.SignedCoins(spent and -entry.amount or entry.amount)
     row.Amount:SetText(text)
     row.Amount:SetTextColor(unpack(color))
+
+    -- Only entries that know which item it was have a menu. The rest let
+    -- the mouse through.
+    row:EnableMouse(entry.itemID ~= nil)
 end
 
 -- The lines -------------------------------------------------------------------
@@ -218,7 +230,7 @@ function ProfitTab.Create(parent)
 
     local view = CreateScrollBoxListLinearView()
     view:SetElementExtent(ROW_HEIGHT)
-    view:SetElementInitializer("Frame", function(row, entry)
+    view:SetElementInitializer("Button", function(row, entry)
         if not row.created then
             CreateRowWidgets(row)
         end

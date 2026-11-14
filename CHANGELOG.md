@@ -13,6 +13,29 @@ the `dev` branch.
   Creel, the fishing log, can value catches without scanning the
   auction house itself. Other addons can also open Goldwise on an
   item's crafting tree or price history.
+- **An Items tab, for finding anything.** Type part of a name, or
+  shift-click an item into the box, and Goldwise lists what matches:
+  what you carry first, then everything it has seen in your bags or at
+  the auction house. Click one for its price history, or press its
+  Crafting tree button. `/gw find` and a few words opens it from chat.
+  To make that possible, Goldwise now remembers the names of items it
+  has seen, for as long as it keeps their prices.
+- **Right-click any item in Goldwise** for its crafting tree, its price
+  history, or to link it in chat. It works on Assets, Profit's latest
+  sales, Recipes, the plans on Prospects, the crafting tree's own rows
+  and an item's page.
+
+**Better**
+
+- **The crafting tree knows all your characters' recipes.** It used to
+  follow only the recipes of the character you're on, so a cloth
+  robe your tailor alt makes had no tree on your main. Now each step
+  says which of your characters can make it.
+- **Alt-right-click always answers.** On an item none of your
+  characters can make or use, it used to do nothing at all. It now
+  opens the crafting tree page, which says so, and how Goldwise learns
+  a recipe: open that profession's window once on the character who
+  has it. The item's page always has its Crafting tree button too.
 
 ## 0.4.1 (13 November 2026)
 

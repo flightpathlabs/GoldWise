@@ -9,7 +9,8 @@ local _, ns = ...
 -- it for that character.
 --
 -- That's the raw material for the sums in Advisor\Conversions: whether a
--- stack of ore is worth more as ore or as bars.
+-- stack of ore is worth more as ore or as bars. Advisor\CraftTree reads
+-- every character's recipes together, since an alt can make parts too.
 
 local Crafts = {}
 ns.Crafts = Crafts
@@ -132,6 +133,21 @@ end
 
 -- Reading it back -------------------------------------------------------------
 
+-- A saved recipe, with its ingredients paired up for reading.
+local function Unpack(profession, recipe)
+    local needs = {}
+    for index = 1, #recipe.needs, 2 do
+        table.insert(needs, { itemID = recipe.needs[index], count = recipe.needs[index + 1] })
+    end
+
+    return {
+        profession = profession,
+        item = recipe.item,
+        makes = recipe.makes,
+        needs = needs,
+    }
+end
+
 --- Everything the current character is known to be able to make.
 ---@return table recipes  list of { profession, item, makes, needs }, where
 ---        needs is a list of { itemID, count }
@@ -140,20 +156,62 @@ function Crafts.Known()
 
     for profession, recipes in pairs(Books()[ns.Characters.CurrentKey()] or {}) do
         for _, recipe in pairs(recipes) do
-            local needs = {}
-            for index = 1, #recipe.needs, 2 do
-                table.insert(
-                    needs,
-                    { itemID = recipe.needs[index], count = recipe.needs[index + 1] }
-                )
-            end
+            table.insert(known, Unpack(profession, recipe))
+        end
+    end
+    return known
+end
 
-            table.insert(known, {
-                profession = profession,
-                item = recipe.item,
-                makes = recipe.makes,
-                needs = needs,
-            })
+--- Everything any of the player's characters is known to be able to make.
+--- A recipe two of them know is listed once, with both against it.
+---
+--- Known() is for what can be made here and now. This is for the bigger
+--- picture, where an alt who can make a part saves buying it.
+---@return table recipes  list shaped like Known()'s, each also with
+---        knownBy, a list of { key, name } with the current character
+---        first and the rest by name, and mine, true if the current
+---        character is one of them
+function Crafts.KnownAnywhere()
+    local books = Books()
+    local current = ns.Characters.CurrentKey()
+
+    local names = {}
+    for _, character in ipairs(ns.Characters.All()) do
+        names[character.key] = character.name
+    end
+
+    local keys = {}
+    for key in pairs(books) do
+        names[key] = names[key] or key:match("^[^-]+") or key
+        table.insert(keys, key)
+    end
+    table.sort(keys, function(a, b)
+        if (a == current) ~= (b == current) then
+            return a == current
+        elseif names[a] ~= names[b] then
+            return names[a] < names[b]
+        end
+        return a < b
+    end)
+
+    -- Whoever's read first lends a shared recipe its details, so where two
+    -- copies differ, the current character's wins: it's the freshest the
+    -- player can vouch for.
+    local known, byID = {}, {}
+    for _, key in ipairs(keys) do
+        local who = { key = key, name = names[key] }
+        for profession, recipes in pairs(books[key]) do
+            for recipeID, recipe in pairs(recipes) do
+                local entry = byID[recipeID]
+                if not entry then
+                    entry = Unpack(profession, recipe)
+                    entry.knownBy, entry.mine = {}, false
+                    byID[recipeID] = entry
+                    table.insert(known, entry)
+                end
+                table.insert(entry.knownBy, who)
+                entry.mine = entry.mine or key == current
+            end
         end
     end
     return known

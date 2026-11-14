@@ -43,6 +43,7 @@ Market\Deposit.lua
 Market\Throttle.lua
 Ledger\Store.lua
 Ledger\Stats.lua
+Ledger\Names.lua
 Market\Feed.lua
 Market\Network.lua
 Market\Scanner.lua
@@ -73,6 +74,7 @@ Advisor\CraftTree.lua
 Advisor\API.lua
 
 UI\Theme.lua
+UI\ItemMenu.lua
 UI\Companions.lua
 UI\Chart.lua
 UI\MapMarks.lua
@@ -86,6 +88,7 @@ UI\ProfitTab.lua
 UI\PlacesTab.lua
 UI\RecipesTab.lua
 UI\AboutTab.lua
+UI\ItemsTab.lua
 UI\MainWindow.lua
 UI\ScanPanel.lua
 UI\MinimapButton.lua
