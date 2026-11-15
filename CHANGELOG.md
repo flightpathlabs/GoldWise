@@ -49,6 +49,11 @@ the `dev` branch.
   It's under Your resales on the Recipes tab.
 - **Sort the Assets list** by sell value, by name, or by what Goldwise
   suggests doing with each thing. It remembers your choice.
+- **The Profit chart fits what you've played.** Early on it shows the
+  hours since your first coin, an hour at a time, and widens as your
+  record grows until it shows the month a day at a time. A menu beside
+  it picks a fixed span instead. Auction house trades are now kept by
+  the hour for this, from this version on.
 - **What your bank would fetch.** While the bank is open, a strip over
   it says what your bank and the account bank would fetch, at auction
   and to vendors, and how many things in them are worth listing. It

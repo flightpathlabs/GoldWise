@@ -139,6 +139,9 @@ local function OwnBook()
     if type(own.recent) ~= "table" then
         own.recent = {}
     end
+    if type(own.hours) ~= "table" then
+        own.hours = {}
+    end
     return own
 end
 
@@ -157,10 +160,35 @@ local function BookFor(whose)
     if type(theirs) ~= "table" then
         return { days = {}, recent = {} }
     end
-    return { days = theirs.days or {}, recent = theirs.recent or {} }
+    return { days = theirs.days or {}, recent = theirs.recent or {}, hours = theirs.hours or {} }
 end
 
 -- Recording -------------------------------------------------------------------
+
+local SECONDS_PER_HOUR = 3600
+
+-- Hours are kept as long as days are kept for the purse: a month.
+local KEEP_HOURS = 30 * 24
+
+-- What the auction house came to in this hour, in a book: [hour] = net
+-- copper, where hour counts from the epoch. Finer than days, for charting
+-- a short stretch of play. Kept from the version that brought it in, so
+-- days go further back.
+local function AddToHour(book, net)
+    if type(book.hours) ~= "table" then
+        book.hours = {}
+    end
+    local now = math.floor(GetServerTime() / SECONDS_PER_HOUR)
+    if not book.hours[now] then
+        -- A new hour is as good a moment as any to drop the oldest.
+        for hour in pairs(book.hours) do
+            if hour <= now - KEEP_HOURS then
+                book.hours[hour] = nil
+            end
+        end
+    end
+    book.hours[now] = (book.hours[now] or 0) + net
+end
 
 -- Today's totals in a book: sold, bought, deposits, refunds and cut in
 -- copper, and how many sales.
@@ -254,6 +282,10 @@ local function File(kind, amount, expected)
             -- A purchase or a bid. Either way the coin has gone.
             day.bought = day.bought + amount
         end
+
+        -- Coin in from a sale or a returned bid, out for the rest.
+        local coming = kind == Trade.SALE or kind == Trade.REFUND
+        AddToHour(book, coming and amount or -amount)
     end
 
     -- What the player paid for a thing is worth knowing the next time they
@@ -619,6 +651,40 @@ function Trade.Daily(numDays, whose)
         })
     end
     return days, firstDay, today
+end
+
+--- What the auction house came to over a run of equal stretches of time,
+--- numbered as Purse.Flow numbers them. Stretches of a day go back as far
+--- as the days do; shorter ones only as far as hours have been kept.
+---@param hoursEach number  how long each stretch is: 24 for a day
+---@param count number      how many stretches back, counting this one
+---@param whose boolean|string|nil  as for Daily
+---@return table values  net copper, one for each stretch from first to last
+---@return number first
+---@return number last
+function Trade.Flow(hoursEach, count, whose)
+    local nowHour = math.floor(GetServerTime() / SECONDS_PER_HOUR)
+    local last = ns.Purse.StretchOf(nowHour, hoursEach)
+    local first = last - count + 1
+    local byStretch = {}
+
+    if hoursEach == 24 then
+        for day, record in pairs(BookFor(whose).days) do
+            byStretch[day] = Net(record)
+        end
+    else
+        local book = BookFor(whose)
+        for hour, net in pairs(book.hours or {}) do
+            local at = ns.Purse.StretchOf(hour, hoursEach)
+            byStretch[at] = (byStretch[at] or 0) + net
+        end
+    end
+
+    local values = {}
+    for at = first, last do
+        table.insert(values, byStretch[at] or 0)
+    end
+    return values, first, last
 end
 
 --- The same stretch, added up.

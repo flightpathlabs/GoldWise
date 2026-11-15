@@ -357,6 +357,28 @@ local function AddUp(hoursEach, count, whose)
     return stretches, first, last
 end
 
+--- Which stretch of so many hours an hour falls in, numbered as Flow and
+--- Coin number them.
+---@param hour number       hours since the epoch, as server time
+---@param hoursEach number
+---@return number stretch
+function Purse.StretchOf(hour, hoursEach)
+    return StretchOf(hour, hoursEach)
+end
+
+--- The first hour anything is on record for, as hours since the epoch.
+---@param whose boolean|string|nil  as for Flow
+---@return number|nil hour  nil when nothing is
+function Purse.FirstHour(whose)
+    local first
+    for hour in pairs(HoursFor(whose)) do
+        if not first or hour < first then
+            first = hour
+        end
+    end
+    return first
+end
+
 --- The moment a stretch starts.
 ---@param stretch number    as Purse.Flow and Purse.Coin number them
 ---@param hoursEach number  how long each stretch is

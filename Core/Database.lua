@@ -150,6 +150,10 @@ local DEFAULT_SETTINGS = {
     -- the list in UI\PurseTab.lua. And whether that chart shows a line of
     -- coin held in place of the bars.
     purseSpan = 1,
+
+    -- How finely the Profit chart cuts up time: 0 to choose for itself,
+    -- or a place in the list in UI\ProfitTab.lua.
+    profitScale = 0,
     purseCoin = false,
 
     -- Whether the Purse and Profit tabs show the whole account's money or

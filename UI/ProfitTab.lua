@@ -24,6 +24,68 @@ local LIST_TOP = CHART_TOP + CHART_HEIGHT + 30
 
 local ROW_HEIGHT = 26
 
+-- How finely the chart can cut up time, in the order the menu lists them,
+-- after "Fits what's on record". About thirty points is as many as stay
+-- readable, so the finer the cut, the shorter the time on show.
+local SCALES = {
+    { label = "30 days, a day at a time", short = "A day at a time", hours = 24, count = 30 },
+    { label = "2 weeks, 12 hours at a time", short = "12 hours at a time", hours = 12, count = 28 },
+    { label = "A week, 6 hours at a time", short = "6 hours at a time", hours = 6, count = 28 },
+    { label = "A day, an hour at a time", short = "An hour at a time", hours = 1, count = 24 },
+}
+
+-- Stretch lengths the chart can choose for itself, finest first.
+local FITTING_HOURS = { 1, 2, 3, 6, 12, 24 }
+local MOST_POINTS = 30
+
+-- The cut that fills the chart from the first thing on record to now:
+-- by the hour early on, then wider as the record grows, until a day at a
+-- time covers the month.
+local function FittingScale(whose)
+    local nowHour = math.floor(GetServerTime() / 3600)
+    local firstHour = ns.Purse.FirstHour(whose) or nowHour
+    for _, hours in ipairs(FITTING_HOURS) do
+        local last = ns.Purse.StretchOf(nowHour, hours)
+        local count = last - ns.Purse.StretchOf(firstHour, hours) + 1
+        if count <= MOST_POINTS or hours == 24 then
+            return { hours = hours, count = math.max(2, math.min(count, MOST_POINTS)) }
+        end
+    end
+end
+
+local function ChosenScale(whose)
+    return SCALES[ns.settings.profitScale] or FittingScale(whose)
+end
+
+-- What one point on the chart stands for: "hour", "6-hour stretch", "day".
+local function StretchName(hours)
+    if hours == 24 then
+        return "day"
+    elseif hours == 1 then
+        return "hour"
+    end
+    return ("%d-hour stretch"):format(hours)
+end
+
+-- The same, so many at a time: "an hour", "6 hours", "a day".
+local function AtATime(hours)
+    if hours == 24 then
+        return "a day"
+    elseif hours == 1 then
+        return "an hour"
+    end
+    return ("%d hours"):format(hours)
+end
+
+-- "the last 9 hours", "the last 5 days".
+local function SpanText(scale)
+    local total = scale.hours * scale.count
+    if total < 48 then
+        return ("the last %d hours"):format(total)
+    end
+    return ("the last %d days"):format(math.floor(total / 24 + 0.5))
+end
+
 -- The three things the chart can show, in the order the menu lists them.
 -- Each day on its own shows the good days and the bad. Added up as they
 -- go, the same figures show whether the month is going anywhere. And what
@@ -36,13 +98,13 @@ local HOW_PROFIT_COUNTS = "Sales count when you take the coin from your mailbox.
 
 local VIEWS = {
     [EACH_DAY] = {
-        label = "Each day",
-        about = "How each day went for %s, over the last 30 days",
+        label = "One at a time",
+        about = "How each %s went for %s, over %s",
         footer = HOW_PROFIT_COUNTS,
     },
     [RUNNING] = {
         label = "Running total",
-        about = "How the last 30 days added up for %s",
+        about = "How %s added up for %s, %s at a time",
         footer = HOW_PROFIT_COUNTS,
     },
     [WORTH] = {
@@ -146,17 +208,19 @@ local function RunningTotal(values)
     return totals
 end
 
--- Everything in less everything out, for each day of the stretch. The
--- purse leaves out days with nothing on record, and a line needs them all.
-local function OverallByDay(firstDay, lastDay)
-    local byDay = {}
-    for _, day in ipairs((ns.Purse.Daily(DAYS, Theme.MoneyWhose()))) do
-        byDay[day.day] = day.income - day.spending
+-- Everything in less everything out, for each stretch of the chart. The
+-- purse leaves out stretches with nothing on record, and a line needs
+-- them all.
+local function Overall(scale, whose)
+    local flow, first, last = ns.Purse.Flow(scale.hours, scale.count, whose)
+    local byStretch = {}
+    for _, stretch in ipairs(flow) do
+        byStretch[stretch.at] = stretch.income - stretch.spending
     end
 
     local values = {}
-    for day = firstDay, lastDay do
-        table.insert(values, byDay[day] or 0)
+    for at = first, last do
+        table.insert(values, byStretch[at] or 0)
     end
     return values
 end
@@ -200,9 +264,38 @@ function ProfitTab.Create(parent)
         end)
     end)
 
-    -- Whose money the whole tab is about, beside it.
+    -- How finely time is cut up, beside it.
+    local scaleButton = CreateFrame("Button", nil, tab, "UIPanelButtonTemplate")
+    scaleButton:SetSize(150, 20)
+    scaleButton:SetPoint("RIGHT", pick, "LEFT", -6, 0)
+    scaleButton:SetScript("OnClick", function(self)
+        MenuUtil.CreateContextMenu(self, function(_, root)
+            root:CreateTitle("Time")
+            root:CreateRadio("Fit to what's on record", function()
+                return not SCALES[ns.settings.profitScale]
+            end, function()
+                ns.settings.profitScale = 0
+                ns.Publish("COURSE_CHANGED")
+            end)
+            for index, scale in ipairs(SCALES) do
+                root:CreateRadio(scale.label, function()
+                    return ns.settings.profitScale == index
+                end, function()
+                    ns.settings.profitScale = index
+                    ns.Publish("COURSE_CHANGED")
+                end)
+            end
+        end)
+    end)
+
+    -- Whose money the whole tab is about, beside that.
     local whose = Theme.CreateMoneyScopeButton(tab)
-    whose:SetPoint("RIGHT", pick, "LEFT", -6, 0)
+    whose:SetPoint("RIGHT", scaleButton, "LEFT", -6, 0)
+
+    -- The line beside the heading stops short of the buttons.
+    about:SetPoint("RIGHT", whose, "LEFT", -10, 0)
+    about:SetJustifyH("LEFT")
+    about:SetWordWrap(false)
 
     local sold = Theme.CreateTile(tab, "Sold at auction")
     sold:SetPoint("TOPLEFT", 12, -34)
@@ -275,17 +368,19 @@ function ProfitTab.Create(parent)
         )
     end
 
-    -- Draws how each day went, or how the days added up.
-    local function DrawProfit(running)
-        local trade, firstDay, lastDay = ns.Trade.Daily(DAYS, Theme.MoneyWhose())
-        local atAuction = {}
-        for index, day in ipairs(trade) do
-            atAuction[index] = day.net
-        end
-        local overall = OverallByDay(firstDay, lastDay)
+    -- Draws how each stretch went, or how they added up.
+    local function DrawProfit(running, scale)
+        local scope = Theme.MoneyWhose()
+        local atAuction, first, last = ns.Trade.Flow(scale.hours, scale.count, scope)
+        local overall = Overall(scale, scope)
 
         if running then
             atAuction, overall = RunningTotal(atAuction), RunningTotal(overall)
+        end
+
+        local byHour = scale.hours < 24
+        local function Label(stretch)
+            return ns.Chart.Label(ns.Purse.StartOf(stretch, scale.hours), byHour)
         end
 
         chart:SetSeries(
@@ -297,9 +392,10 @@ function ProfitTab.Create(parent)
                     values = atAuction,
                 },
             },
-            firstDay,
-            lastDay,
-            Nothing("Nothing earned or spent on record yet. It starts with your next coin.")
+            first,
+            last,
+            Nothing("Nothing earned or spent on record yet. It starts with your next coin."),
+            { firstLabel = Label(first), lastLabel = Label(last) }
         )
     end
 
@@ -337,14 +433,25 @@ function ProfitTab.Create(parent)
         net.Note:SetText("Sold, less what you spent there.")
 
         local chosen = VIEWS[showing]
+        local scale = ChosenScale(scope)
+        local owner = Theme.MoneyOwner()
         if showing == WORTH then
+            -- What the player is worth is noted a day at a time.
             DrawWorth()
+            local words = ns.settings.moneyAccountWide and chosen.aboutAccount or chosen.about
+            about:SetText(words:format(owner))
         else
-            DrawProfit(showing == RUNNING)
+            DrawProfit(showing == RUNNING, scale)
+            if showing == RUNNING then
+                about:SetText(chosen.about:format(SpanText(scale), owner, AtATime(scale.hours)))
+            else
+                about:SetText(chosen.about:format(StretchName(scale.hours), owner, SpanText(scale)))
+            end
         end
-        local words = ns.settings.moneyAccountWide and chosen.aboutAccount or chosen.about
-        about:SetText(words:format(Theme.MoneyOwner()))
         pick:SetText(chosen.label)
+        scaleButton:SetShown(showing ~= WORTH)
+        local fixed = SCALES[ns.settings.profitScale]
+        scaleButton:SetText(fixed and fixed.short or "Fit to the record")
 
         local recent = ns.Trade.Recent(scope)
         empty:SetText(Nothing(NO_TRADE))
