@@ -90,8 +90,8 @@ local TABS = {
         page = "Recipes",
         refresh = function(page)
             page:Refresh()
-            return "Click a recipe for its price history. "
-                .. "The list of who sells what comes from What's Training?."
+            return "Click a recipe for its history, or its pin for the vendor. "
+                .. "Vendor lists from What's Training?."
         end,
     },
     {

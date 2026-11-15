@@ -39,6 +39,10 @@ the `dev` branch.
   profession. An option sets how much more counts, from a quarter more
   to triple, and the Prospects list of vendor recipes to resell goes by
   the same figure.
+- **The Recipes tab in two columns.** Recipes to get, the ones you can
+  use now first and closest to your skill, and potential sales, what's
+  sold near you first and then by most profit. Each row has its own map
+  pin for its vendor.
 - **What your bank would fetch.** While the bank is open, a strip over
   it says what your bank and the account bank would fetch, at auction
   and to vendors, and how many things in them are worth listing. It

@@ -1,74 +1,125 @@
 local _, ns = ...
 
--- The Recipes tab: what vendors sell that the player hasn't learned, for
--- the professions they have, and where to buy it.
+-- The Recipes tab, in two columns.
+--
+--   * On the left, recipes to get: what vendors sell that the player
+--     hasn't learned, for the professions they have. The ones they can
+--     use now come first, closest to their skill first, since those are
+--     the ones that still teach them something. Then what's coming up,
+--     nearest first, and last what a reputation is holding back.
+--
+--   * On the right, potential sales: vendor recipes that have fetched a
+--     good deal more at auction than the vendor asks, whoever can use
+--     them. The same list as Prospects' "Buy from vendors, sell at
+--     auction": what's sold where the player is standing first, then the
+--     rest, each by most profit.
+--
+-- Each row has a pin that puts its vendor on the map.
 
 local RecipesTab = {}
 ns.RecipesTab = RecipesTab
 
 local Theme = ns.Theme
 
-local ROW_HEIGHT = 44
+-- Three lines beside the icon: the name, the detail and where it's sold.
+local ROW_HEIGHT = 48
 
--- Columns are placed from the right edge, in pixels.
-local MAP_RIGHT = 10
-local WHERE_RIGHT = 84
-local WHERE_WIDTH = 230
+-- What a reputation holding a recipe back is written in.
+local LOCKED_COLOR = { 1, 0.5, 0.25 }
+local PIN_SIZE = 22
 
--- What a row says -------------------------------------------------------------
+-- Room between the two columns, and under the headings.
+local GUTTER = 16
+local LIST_TOP = 52
 
--- "Alchemy 60", and how the player stands against it.
-local function SkillText(recipe)
-    local text = ("%s %d"):format(recipe.profession, recipe.needed)
-    if recipe.ready then
-        return GREEN_FONT_COLOR:WrapTextInColorCode(text)
-    end
-    return ("%s (you're at %d)"):format(text, recipe.skill)
-end
-
--- What else there is to know: what it costs in favor, what's stopping the
--- player buying it, and what it would sell for if they bought it to sell.
-local function ExtrasText(recipe)
-    local extras = {}
-
-    -- The price goes first. The line is short, and what a recipe would
-    -- sell for is the part most worth reading.
-    if not recipe.bound then
-        local price = ns.Ledger.Price(ns.Market.Current(), recipe.item)
-        if price then
-            table.insert(extras, ("%s at auction"):format(Theme.Coins(price)))
-        end
-    end
-    if recipe.favor then
-        table.insert(extras, ("%d Merchant's Favor"):format(recipe.favor))
-    end
-    if recipe.locked then
-        table.insert(extras, recipe.locked)
-    end
-    return table.concat(extras, ", ")
-end
+-- What a row says ---------------------------------------------------------------
 
 -- "Here, in Westfall", or the first couple of zones it's sold in.
-local function WhereText(recipe)
-    if recipe.here then
-        return ("Here, in %s"):format(recipe.here.zone), true
+local function WhereText(entry)
+    if entry.here then
+        return ("Here, in %s"):format(entry.here.zone), true
     end
-
-    return ns.Recipes.ZonesText(recipe.vendors), false
+    return ns.Recipes.ZonesText(entry.vendors), false
 end
 
-local function ShowOnMap(recipe)
-    local spot = ns.Recipes.VendorSpot(recipe)
+-- For a recipe to get: "Alchemy 60", and how the player stands against it,
+-- then what else stands in the way.
+local function LearnDetail(recipe)
+    local parts = {}
+    local skill = ("%s %d"):format(recipe.profession, recipe.needed)
+    if recipe.ready then
+        skill = GREEN_FONT_COLOR:WrapTextInColorCode(skill)
+    else
+        skill = ("%s (at %d)"):format(skill, recipe.skill)
+    end
+    table.insert(parts, skill)
+    if recipe.favor then
+        table.insert(parts, ("%d Merchant's Favor"):format(recipe.favor))
+    end
+    -- A reputation holding it back goes on the line below, in place of
+    -- where it's sold: it's the longer, and the more important.
+    return table.concat(parts, ", ")
+end
+
+-- For a potential sale: what it should leave once sold, and what the
+-- vendor asks, which is a guess until their wares have been seen.
+local function SaleDetail(deal)
+    return ("+%s at auction, costs %s%s"):format(
+        Theme.Coins(deal.profit),
+        deal.costIsSeen and "" or "about ",
+        Theme.Coins(deal.cost)
+    )
+end
+
+local function ShowOnMap(entry)
+    local spot = ns.Recipes.VendorSpot(entry)
     if spot then
         ns.MapMarks.ShowPoint(spot.mapID, spot.x, spot.y)
         return
     end
 
-    local vendor = recipe.here or recipe.vendors[1]
+    local vendor = entry.here or entry.vendors[1]
     ns.Print(
         "It's sold in %s. Goldwise can put the vendor on your map when Questie is installed.",
-        vendor.zone or "a zone it can't name"
+        vendor and vendor.zone or "a zone it can't name"
     )
+end
+
+-- The order of recipes to get: usable now and closest to the player's
+-- skill first, then coming up and nearest first, then held back by a
+-- reputation. Ties go to the one sold where the player is standing.
+local function ByCloseness(a, b)
+    local function Group(recipe)
+        if recipe.locked then
+            return 3
+        end
+        return recipe.ready and 1 or 2
+    end
+    local groupA, groupB = Group(a), Group(b)
+    if groupA ~= groupB then
+        return groupA < groupB
+    end
+
+    local gapA, gapB = math.abs(a.skill - a.needed), math.abs(b.skill - b.needed)
+    if gapA ~= gapB then
+        return gapA < gapB
+    end
+    if (a.here ~= nil) ~= (b.here ~= nil) then
+        return a.here ~= nil
+    end
+    return a.item < b.item
+end
+
+-- The order of potential sales: sold where the player is standing first,
+-- then the rest, each most profitable first.
+local function ByNearAndProfit(a, b)
+    if (a.here ~= nil) ~= (b.here ~= nil) then
+        return a.here ~= nil
+    end
+    if a.profit ~= b.profit then
+        return a.profit > b.profit
+    end
+    return a.item < b.item
 end
 
 -- Rows ------------------------------------------------------------------------
@@ -86,35 +137,48 @@ local function CreateRowWidgets(row)
     row.Icon:SetSize(32, 32)
     row.Icon:SetPoint("LEFT", 6, 0)
 
-    row.Map = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-    row.Map:SetSize(64, 22)
-    row.Map:SetPoint("RIGHT", -MAP_RIGHT, 0)
-    row.Map:SetText("Map")
-    row.Map:SetScript("OnClick", function(self)
+    -- The vendor on the map, as on the town card.
+    row.Pin = CreateFrame("Button", nil, row)
+    row.Pin:SetSize(PIN_SIZE, PIN_SIZE)
+    row.Pin:SetPoint("RIGHT", -6, 0)
+    row.Pin.Icon = row.Pin:CreateTexture(nil, "ARTWORK")
+    row.Pin.Icon:SetAtlas("Waypoint-MapPin-Untracked")
+    row.Pin.Icon:SetAllPoints()
+    row.Pin.Icon:SetAlpha(0.8)
+    row.Pin:SetScript("OnClick", function(self)
         ShowOnMap(self:GetParent():GetElementData())
     end)
-
-    row.Where = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    row.Where:SetPoint("RIGHT", -WHERE_RIGHT, 0)
-    row.Where:SetWidth(WHERE_WIDTH)
-    row.Where:SetJustifyH("RIGHT")
-    row.Where:SetMaxLines(2)
+    row.Pin:SetScript("OnEnter", function(self)
+        self.Icon:SetAlpha(1)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Show the vendor on the map")
+        GameTooltip:Show()
+    end)
+    row.Pin:SetScript("OnLeave", function(self)
+        self.Icon:SetAlpha(0.8)
+        GameTooltip_Hide()
+    end)
 
     row.Name = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    row.Name:SetPoint("TOPLEFT", row.Icon, "TOPRIGHT", 8, -2)
-    row.Name:SetPoint("RIGHT", row.Where, "LEFT", -10, 0)
+    row.Name:SetPoint("TOPLEFT", row.Icon, "TOPRIGHT", 8, -1)
+    row.Name:SetPoint("RIGHT", row.Pin, "LEFT", -6, 0)
     row.Name:SetJustifyH("LEFT")
     row.Name:SetWordWrap(false)
 
     row.Detail = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    row.Detail:SetPoint("TOPLEFT", row.Name, "BOTTOMLEFT", 0, -4)
-    row.Detail:SetPoint("RIGHT", row.Where, "LEFT", -10, 0)
+    row.Detail:SetPoint("TOPLEFT", row.Name, "BOTTOMLEFT", 0, -3)
+    row.Detail:SetPoint("RIGHT", row.Pin, "LEFT", -6, 0)
     row.Detail:SetJustifyH("LEFT")
     row.Detail:SetWordWrap(false)
-    row.Detail:SetTextColor(unpack(Theme.MUTED))
 
-    -- Clicking a recipe opens its price history: handy for the ones worth
-    -- buying to sell on. Right-clicking gives the menu every item has.
+    row.Where = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    row.Where:SetPoint("TOPLEFT", row.Detail, "BOTTOMLEFT", 0, -2)
+    row.Where:SetPoint("RIGHT", row.Pin, "LEFT", -6, 0)
+    row.Where:SetJustifyH("LEFT")
+    row.Where:SetWordWrap(false)
+
+    -- Clicking a recipe opens its price history. Right-clicking gives the
+    -- menu every item has.
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row:SetScript("OnClick", function(self, mouseButton)
         local item = self:GetElementData().item
@@ -133,26 +197,79 @@ local function CreateRowWidgets(row)
     row:SetScript("OnLeave", GameTooltip_Hide)
 end
 
-local function FillRow(row, recipe)
+-- Fills a row from a recipe to get or a potential sale; detailFor says
+-- which.
+local function FillRow(row, entry, detailFor)
     -- Recipe items the player has never seen aren't known to the client
     -- until it has fetched them. Recipes.Name asks, and the window redraws
     -- this tab when the answer arrives.
-    local name = ns.Recipes.Name(recipe.item, recipe.spell)
+    local name = ns.Recipes.Name(entry.item, entry.spell)
 
     row.Stripe:SetShown(row:GetOrderIndex() % 2 == 0)
-    row.Icon:SetTexture(C_Item.GetItemIconByID(recipe.item) or "Interface\\Icons\\INV_Scroll_03")
-    row.Name:SetText(Theme.ItemName(name, C_Item.GetItemQualityByID(recipe.item)))
+    row.Icon:SetTexture(C_Item.GetItemIconByID(entry.item) or "Interface\\Icons\\INV_Scroll_03")
+    row.Name:SetText(Theme.ItemName(name, C_Item.GetItemQualityByID(entry.item)))
+    row.Detail:SetText(detailFor(entry))
 
-    local extras = ExtrasText(recipe)
-    row.Detail:SetText(SkillText(recipe) .. (extras ~= "" and ("   " .. extras) or ""))
-
-    local where, isHere = WhereText(recipe)
-    row.Where:SetText(where)
-    if isHere then
-        row.Where:SetTextColor(unpack(Theme.COIN))
+    if entry.locked then
+        row.Where:SetText(entry.locked)
+        row.Where:SetTextColor(unpack(LOCKED_COLOR))
     else
-        row.Where:SetTextColor(unpack(Theme.MUTED))
+        local where, isHere = WhereText(entry)
+        row.Where:SetText(where)
+        row.Where:SetTextColor(unpack(isHere and Theme.COIN or Theme.MUTED))
     end
+end
+
+-- One column: a heading, a line under it, and a scrolling list.
+local function CreateColumn(tab, title, about, detailFor)
+    local column = CreateFrame("Frame", nil, tab)
+
+    column.Heading = column:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    column.Heading:SetPoint("TOPLEFT", 6, -10)
+    column.Heading:SetText(title)
+
+    column.About = column:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    column.About:SetPoint("TOPLEFT", column.Heading, "BOTTOMLEFT", 0, -4)
+    column.About:SetPoint("RIGHT", -6, 0)
+    column.About:SetJustifyH("LEFT")
+    column.About:SetWordWrap(false)
+    column.About:SetTextColor(unpack(Theme.MUTED))
+    column.About:SetText(about)
+
+    column.Empty = column:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    column.Empty:SetPoint("TOPLEFT", 12, -LIST_TOP - 20)
+    column.Empty:SetPoint("RIGHT", -12, 0)
+    column.Empty:SetJustifyH("LEFT")
+    column.Empty:SetTextColor(unpack(Theme.MUTED))
+
+    local scrollBox = CreateFrame("Frame", nil, column, "WowScrollBoxList")
+    scrollBox:SetPoint("TOPLEFT", 0, -LIST_TOP)
+    scrollBox:SetPoint("BOTTOMRIGHT", -16, 6)
+
+    local scrollBar = CreateFrame("EventFrame", nil, column, "MinimalScrollBar")
+    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 4, 0)
+    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 4, 0)
+
+    local view = CreateScrollBoxListLinearView()
+    view:SetElementExtent(ROW_HEIGHT)
+    view:SetElementInitializer("Button", function(row, entry)
+        if not row.created then
+            CreateRowWidgets(row)
+        end
+        FillRow(row, entry, detailFor)
+    end)
+    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+
+    function column:Show(entries, emptyText)
+        self.Empty:SetText(emptyText or "")
+        self.Empty:SetShown(#entries == 0)
+        scrollBox:SetDataProvider(
+            CreateDataProvider(entries),
+            ScrollBoxConstants.RetainScrollPosition
+        )
+    end
+
+    return column
 end
 
 -- The tab ---------------------------------------------------------------------
@@ -165,66 +282,64 @@ function RecipesTab.Create(parent)
     tab:SetAllPoints()
     tab:Hide()
 
-    local heading = tab:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    heading:SetPoint("TOPLEFT", 12, -10)
-    heading:SetText("Recipes")
+    local toGet = CreateColumn(
+        tab,
+        "Recipes to get",
+        "For your professions, closest to your skill first",
+        LearnDetail
+    )
+    toGet:SetPoint("TOPLEFT", 6, 0)
+    toGet:SetPoint("BOTTOMRIGHT", tab, "BOTTOM", -GUTTER / 2, 0)
 
-    local about = tab:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    about:SetPoint("LEFT", heading, "RIGHT", 10, 0)
-    about:SetTextColor(unpack(Theme.MUTED))
-    about:SetText("What vendors sell that you haven't learned, for the professions you have")
+    local toSell = CreateColumn(
+        tab,
+        "Potential sales",
+        "Sold near you first, then by most profit at auction",
+        SaleDetail
+    )
+    toSell:SetPoint("TOPLEFT", tab, "TOP", GUTTER / 2, 0)
+    toSell:SetPoint("BOTTOMRIGHT", -6, 0)
 
-    local empty = tab:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    empty:SetPoint("CENTER")
-    empty:SetWidth(520)
-    empty:SetTextColor(unpack(Theme.MUTED))
+    -- A faint line between the two.
+    local rule = tab:CreateTexture(nil, "ARTWORK")
+    rule:SetColorTexture(1, 1, 1, 0.08)
+    rule:SetWidth(1)
+    rule:SetPoint("TOP", 0, -10)
+    rule:SetPoint("BOTTOM", 0, 6)
 
-    local scrollBox = CreateFrame("Frame", nil, tab, "WowScrollBoxList")
-    scrollBox:SetPoint("TOPLEFT", 6, -32)
-    scrollBox:SetPoint("BOTTOMRIGHT", -22, 6)
-
-    local scrollBar = CreateFrame("EventFrame", nil, tab, "MinimalScrollBar")
-    scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 6, 0)
-    scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 6, 0)
-
-    local view = CreateScrollBoxListLinearView()
-    view:SetElementExtent(ROW_HEIGHT)
-    view:SetElementInitializer("Button", function(row, recipe)
-        if not row.created then
-            CreateRowWidgets(row)
-        end
-        FillRow(row, recipe)
-    end)
-    ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
-
-    --- Rebuilds the list for the player's professions, skill and zone.
+    --- Rebuilds both lists for the player's professions, skill and zone.
     function tab:Refresh()
         local recipes = ns.Recipes.Unlearned()
+        table.sort(recipes, ByCloseness)
 
+        local emptyLeft
         if #recipes == 0 then
             local hasProfession = false
             for profession in pairs(ns.RecipeData) do
                 hasProfession = hasProfession or ns.Professions.SkillByName(profession) ~= nil
             end
-            if hasProfession then
-                empty:SetText("You've learned everything vendors sell for your professions.")
-            else
-                empty:SetText(
-                    "Take up a crafting profession and the recipes its vendors sell "
-                        .. "are listed here."
-                )
-            end
+            emptyLeft = hasProfession
+                    and "You've learned everything vendors sell for your professions."
+                or "Take up a crafting profession and the recipes its vendors sell are listed here."
         end
-        empty:SetShown(#recipes == 0)
+        toGet:Show(recipes, emptyLeft)
 
-        scrollBox:SetDataProvider(
-            CreateDataProvider(recipes),
-            ScrollBoxConstants.RetainScrollPosition
-        )
+        local deals, unpriced = ns.Recipes.Resale(ns.Market.Home())
+        table.sort(deals, ByNearAndProfit)
+        local emptyRight
+        if #deals == 0 and not ns.Ledger.LastScan(ns.Market.Home()) then
+            emptyRight = "This needs auction prices. Visit an auction house first."
+        elseif #deals == 0 then
+            emptyRight = unpriced > 0
+                    and "Still finding out what vendors ask for some recipes. A moment..."
+                or "No vendor recipe has fetched enough more at auction lately. "
+                    .. "How much counts is in Goldwise's options."
+        end
+        toSell:Show(deals, emptyRight)
     end
 
-    -- Things that change the list while it's on screen: moving to another
-    -- zone, and learning something.
+    -- Things that change the lists while they're on screen: moving to
+    -- another zone, and learning something.
     local function RefreshIfShown()
         if tab:IsVisible() then
             tab:Refresh()

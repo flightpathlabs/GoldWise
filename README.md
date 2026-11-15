@@ -196,8 +196,12 @@ tailors, each for a different stretch of the profession.
 
 ### Recipes: the ones you're walking past
 
-What vendors sell that you haven't learned, for the professions you have,
-and where to buy each.
+Two columns. On the left, what vendors sell that you haven't learned, for
+the professions you have: the ones you can use now first, closest to your
+skill, then what's coming up. On the right, vendor recipes that have
+fetched a good deal more at auction than the vendor asks, whoever can use
+them: what's sold near you first, then by most profit. Each row has a pin
+that puts its vendor on your map.
 
 ![The Recipes tab](docs/images/recipes.png)
 
