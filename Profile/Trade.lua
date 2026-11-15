@@ -246,6 +246,30 @@ local function DropOld(list)
     end
 end
 
+-- Notes what one of something was last bought for, at the auction house
+-- or from a vendor, so a sale of it later can say what it cost.
+local function NotePaid(itemID, each, from)
+    Book().paid[itemID] = {
+        each = each,
+        at = GetServerTime(),
+        name = ns.ItemName(itemID) or C_Item.GetItemNameByID(itemID),
+        from = from,
+    }
+end
+
+-- What was last paid for something, found by its name, which is all a
+-- sale's letter gives: { each, at, name }, and its item ID.
+local function PaidFor(name)
+    if not name then
+        return nil
+    end
+    for itemID, paid in pairs(Book().paid) do
+        if (paid.name or C_Item.GetItemNameByID(itemID)) == name then
+            return paid, itemID
+        end
+    end
+end
+
 -- Says what a purchase was for, on the list and as the price last paid.
 local function Name(entries, amount, itemID, count)
     for _, entry in ipairs(entries) do
@@ -253,9 +277,19 @@ local function Name(entries, amount, itemID, count)
         entry.count = count
     end
     if count and count > 0 then
-        Book().paid[itemID] = { each = amount / count, at = GetServerTime() }
+        NotePaid(itemID, amount / count, "auction")
     end
 end
+
+-- Buying from a vendor is a cost too: something bought to sell on at
+-- auction should say so when it sells.
+hooksecurefunc("BuyMerchantItem", function(index)
+    local itemID = GetMerchantItemID(index)
+    local info = itemID and C_MerchantFrame.GetItemInfo(index)
+    if info and not info.hasExtendedCost and (info.price or 0) > 0 then
+        NotePaid(itemID, info.price / math.max(info.stackCount or 1, 1), "vendor")
+    end
+end)
 
 -- Puts one movement of coin on record, now that it has happened, in the
 -- account's book and this character's.
@@ -292,10 +326,7 @@ local function File(kind, amount, expected)
     -- wonder whether to sell it. Only where the game said what was bought
     -- and how many, and only once it's theirs: a bid can still come back.
     if kind == Trade.PURCHASE and expected.itemID and (expected.count or 0) > 0 then
-        Book().paid[expected.itemID] = {
-            each = amount / expected.count,
-            at = GetServerTime(),
-        }
+        NotePaid(expected.itemID, amount / expected.count, "auction")
     end
 
     -- Deposits are left off the list: one for every listing would bury
@@ -311,6 +342,19 @@ local function File(kind, amount, expected)
             count = expected.count,
             who = UnitName("player"),
         }
+
+        -- A sale of something bought earlier says what that cost, and so
+        -- what was left over: what the letter held, less the deposit
+        -- handed back with it, less what was paid.
+        if kind == Trade.SALE then
+            local paid, itemID = PaidFor(expected.name)
+            entry.itemID = entry.itemID or itemID
+            entry.deposit = math.min(expected.deposit or 0, amount)
+            if paid and paid.each then
+                entry.cost = math.floor(paid.each * (expected.count or 1) + 0.5)
+                entry.profit = amount - entry.deposit - entry.cost
+            end
+        end
         local own = CopyTable(entry)
         RememberIn(Book(), entry)
         RememberIn(OwnBook(), own)
@@ -737,14 +781,27 @@ end
 ---@param whose boolean|string|nil  true for the whole account, a character's
 ---        key for theirs, nothing for the one being played
 ---@return table entries  list of { at, kind, amount, itemID, name, count,
----        who }. who is the character's name, on entries since it was kept.
----        at is server time; itemID and name are each there only when
----        the game gave them.
+---        who, deposit, cost, profit }. who is the character's name, on
+---        entries since it was kept. at is server time; itemID and name
+---        are each there only when the game gave them. A sale of something
+---        whose price paid is known has cost, what was paid for it, and
+---        profit, what was left after that and the deposit handed back.
 function Trade.Recent(whose)
     local recent = BookFor(whose).recent
     local entries = {}
     for index = #recent, 1, -1 do
-        table.insert(entries, recent[index])
+        local entry = recent[index]
+        -- A sale put on record before costs were kept, of something whose
+        -- price was noted before it sold, can say what it cost now.
+        if entry.kind == Trade.SALE and not entry.cost then
+            local paid, itemID = PaidFor(entry.name)
+            if paid and paid.each and (paid.at or 0) <= (entry.at or 0) then
+                entry.itemID = entry.itemID or itemID
+                entry.cost = math.floor(paid.each * (entry.count or 1) + 0.5)
+                entry.profit = entry.amount - (entry.deposit or 0) - entry.cost
+            end
+        end
+        table.insert(entries, entry)
     end
     return entries
 end

@@ -54,6 +54,9 @@ the `dev` branch.
   record grows until it shows the month a day at a time. A menu beside
   it picks a fixed span instead. Auction house trades are now kept by
   the hour for this, from this version on.
+- **Sales say what they cost.** On the Profit tab, a sale of something
+  you bought earlier, at auction or from a vendor, says what you paid
+  and the profit left after it and the deposit.
 - **What your bank would fetch.** While the bank is open, a strip over
   it says what your bank and the account bank would fetch, at auction
   and to vendors, and how many things in them are worth listing. It

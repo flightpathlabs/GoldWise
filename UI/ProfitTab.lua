@@ -181,6 +181,17 @@ local function FillRow(row, entry)
     -- Across the account, whose sale or purchase it was, where that was
     -- noted. Entries from before it was are left as they are.
     local what = WhatText(entry)
+
+    -- A sale of something bought earlier: what it cost, and what was left.
+    if entry.kind == ns.Trade.SALE and entry.cost then
+        local profit, color = Theme.SignedCoins(entry.profit or 0)
+        what = ("%s  %s %s"):format(
+            what,
+            Theme.Aside(("paid %s,"):format(ns.Money(entry.cost))),
+            CreateColor(unpack(color)):WrapTextInColorCode(profit .. " profit")
+        )
+    end
+
     if ns.settings.moneyAccountWide and entry.who then
         what = ("%s  %s"):format(what, Theme.Aside(entry.who))
     end
