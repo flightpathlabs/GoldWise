@@ -57,4 +57,27 @@ function API.ShowItemHistory(itemID)
     return true
 end
 
+--- Whether the player has said they use an item, so it isn't for sale:
+--- marked Keep on the Assets tab, or a tool of a trade they haven't said
+--- otherwise about. Encore asks before offering to disenchant something.
+---@param item number|string  an item ID, or an item link or "item:123" string
+---@return boolean kept  false too before Goldwise's saved data has loaded,
+---        and for anything that isn't an item
+---@return string|nil why  "chosen" if the player said so, "tool" for a
+---        tool of a trade
+function API.IsKept(item)
+    if not ns.db then
+        return false
+    end
+    local itemID = item
+    if type(item) == "string" then
+        itemID = C_Item.GetItemInfoInstant(item)
+    end
+    if type(itemID) ~= "number" then
+        return false
+    end
+    local kept, why = ns.Keep.IsKept(itemID)
+    return kept == true, why
+end
+
 GoldwiseAPI = API
