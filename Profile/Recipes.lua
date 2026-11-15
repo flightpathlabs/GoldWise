@@ -306,6 +306,35 @@ local function IsRecipeItem(itemID)
     return recipeItems[itemID] == true
 end
 
+-- Recipes that can be bought for coin and sold on, by item ID: the spell
+-- each teaches. Made on first use.
+local tradeableSpells
+
+--- Whether an item is a vendor recipe that can be sold on once bought:
+--- sold for coin, and not bound when bought.
+---@param itemID number
+---@return number|nil spell  the spell it teaches, if so
+function Recipes.Tradeable(itemID)
+    if not tradeableSpells then
+        tradeableSpells = {}
+        for _, recipes in pairs(ns.RecipeData) do
+            for _, recipe in ipairs(recipes) do
+                if not recipe.bound and not recipe.favor then
+                    tradeableSpells[recipe[1]] = recipe[2]
+                end
+            end
+        end
+    end
+    return tradeableSpells[itemID]
+end
+
+--- Whether the player knows the spell a recipe teaches.
+---@param spellID number
+---@return boolean
+function Recipes.IsLearned(spellID)
+    return IsLearned(spellID)
+end
+
 -- Notes the price and stock of every recipe a merchant has on show.
 local function ReadMerchant()
     local prices = VendorPrices()

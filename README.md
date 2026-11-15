@@ -203,6 +203,12 @@ fetched a good deal more at auction than the vendor asks, whoever can use
 them: what's sold near you first, then by most profit. Each row has a pin
 that puts its vendor on your map.
 
+**Your resales** swaps the right-hand list for the recipes you've bought
+from vendors to sell: what each really cost, what it really sold for
+after the auction house's cut, and the profit, with any deposits lost on
+listings that didn't sell taken off. Goldwise follows each one from the
+vendor to its sale by itself.
+
 ![The Recipes tab](docs/images/recipes.png)
 
 ### The session tracker: how this sitting is going

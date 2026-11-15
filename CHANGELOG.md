@@ -43,6 +43,10 @@ the `dev` branch.
   use now first and closest to your skill, and potential sales, what's
   sold near you first and then by most profit. Each row has its own map
   pin for its vendor.
+- **A log of your recipe resales.** Buy a recipe from a vendor that can
+  be sold on, list it and sell it, and Goldwise keeps what it really
+  cost, what it really sold for and the profit, deposits lost included.
+  It's under Your resales on the Recipes tab.
 - **What your bank would fetch.** While the bank is open, a strip over
   it says what your bank and the account bank would fetch, at auction
   and to vendors, and how many things in them are worth listing. It

@@ -71,6 +71,7 @@ read_globals = {
 
     -- Blizzard's shared Lua helpers
     "ColorManager",
+    "CreateColor",
     "CreateDataProvider",
     "CreateScrollBoxListLinearView",
     "EnumerateFrames",

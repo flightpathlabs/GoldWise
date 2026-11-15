@@ -94,10 +94,16 @@ end
 --                                   doing ("auction", "mail", "vendor",
 --                                   "repair", "loot", "quest"...)
 --   TRADE_CHANGED    kind, amount,  a sale, purchase or fee at the auction
---                    name, count    house has been put on record; kind is
---                                   one of Trade.SALE and the rest, and
---                                   name and count say what it was for,
---                                   where the game said
+--                    name, count,   house has been put on record; kind is
+--                    deposit,       one of Trade.SALE and the rest, and
+--                    itemID         name, count and itemID say what it was
+--                                   for, where the game said. For a sale,
+--                                   deposit is the part of amount that was
+--                                   the deposit handed back
+--   LISTINGS_READ    marketKey,     the player's auctions at one auction
+--                    auctions       house have been read in full; auctions
+--                                   is [auctionID] = { itemID, name,
+--                                   count, endsAt, sold }
 --   PLACES_CHANGED                  the directory of places has learned more
 --   CRAFTS_CHANGED                  the player's known recipes have been read
 --   DROPS_CHANGED    npcID          what a kind of creature drops has been

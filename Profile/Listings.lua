@@ -106,6 +106,7 @@ local function Read()
 
     Markets()[openMarket] = { seenAt = now, auctions = auctions }
     ns.Publish("BAGS_CHANGED")
+    ns.Publish("LISTINGS_READ", openMarket, auctions)
 end
 
 -- Whether Blizzard's Auctions tab is showing. It asks for the list itself,

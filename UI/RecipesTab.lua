@@ -12,7 +12,9 @@ local _, ns = ...
 --     good deal more at auction than the vendor asks, whoever can use
 --     them. The same list as Prospects' "Buy from vendors, sell at
 --     auction": what's sold where the player is standing first, then the
---     rest, each by most profit.
+--     rest, each by most profit. A button swaps it for the player's own
+--     resales: what each recipe they bought to sell really cost, what it
+--     really sold for, and the profit (Profile\Resales.lua).
 --
 -- Each row has a pin that puts its vendor on the map.
 
@@ -69,6 +71,42 @@ local function SaleDetail(deal)
         deal.costIsSeen and "" or "about ",
         Theme.Coins(deal.cost)
     )
+end
+
+-- For one of the player's own resales: what it cost and, once sold, what
+-- it fetched and what was left over.
+local function LotDetail(lot)
+    local paid = ("Paid %s"):format(Theme.Coins(lot.paid or 0))
+    if lot.state == ns.Resales.SOLD then
+        local profit, color = Theme.SignedCoins(lot.profit or 0)
+        local text = ("%s, sold for %s: "):format(paid, Theme.Coins(lot.received or 0))
+        return text .. CreateColor(unpack(color)):WrapTextInColorCode(profit)
+    end
+    local lost = ""
+    if (lot.lost or 0) > 0 then
+        lost = (", %s in lost deposits"):format(Theme.Coins(lot.lost))
+    end
+    if lot.state == ns.Resales.LISTED then
+        return paid .. ", up for auction" .. lost
+    end
+    return paid .. ", not listed yet" .. lost
+end
+
+-- When it was bought, listed or sold, and by whom if not this character.
+local function LotWhen(lot)
+    local now = GetServerTime()
+    local text
+    if lot.state == ns.Resales.SOLD then
+        text = "Sold " .. ns.Ago(now - (lot.soldAt or now))
+    elseif lot.state == ns.Resales.LISTED then
+        text = "Listed " .. ns.Ago(now - (lot.listedAt or now))
+    else
+        text = "Bought " .. ns.Ago(now - (lot.boughtAt or now))
+    end
+    if lot.who and lot.who ~= ns.Characters.CurrentKey() then
+        text = ("%s, by %s"):format(text, lot.who:match("^[^-]+") or lot.who)
+    end
+    return text
 end
 
 local function ShowOnMap(entry)
@@ -208,6 +246,18 @@ local function FillRow(row, entry, detailFor)
     row.Stripe:SetShown(row:GetOrderIndex() % 2 == 0)
     row.Icon:SetTexture(C_Item.GetItemIconByID(entry.item) or "Interface\\Icons\\INV_Scroll_03")
     row.Name:SetText(Theme.ItemName(name, C_Item.GetItemQualityByID(entry.item)))
+
+    -- One of the player's own resales: no vendor to show, and its story
+    -- in place of where it's sold.
+    if entry.state then
+        row.Pin:Hide()
+        row.Detail:SetText(LotDetail(entry))
+        row.Where:SetText(LotWhen(entry))
+        row.Where:SetTextColor(unpack(Theme.MUTED))
+        return
+    end
+
+    row.Pin:Show()
     row.Detail:SetText(detailFor(entry))
 
     if entry.locked then
@@ -260,7 +310,7 @@ local function CreateColumn(tab, title, about, detailFor)
     end)
     ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
 
-    function column:Show(entries, emptyText)
+    function column:Fill(entries, emptyText)
         self.Empty:SetText(emptyText or "")
         self.Empty:SetShown(#entries == 0)
         scrollBox:SetDataProvider(
@@ -300,6 +350,17 @@ function RecipesTab.Create(parent)
     toSell:SetPoint("TOPLEFT", tab, "TOP", GUTTER / 2, 0)
     toSell:SetPoint("BOTTOMRIGHT", -6, 0)
 
+    -- The right column shows either what could be resold or what the
+    -- player has resold. This swaps between them.
+    local showingYours = false
+    local swap = CreateFrame("Button", nil, toSell, "UIPanelButtonTemplate")
+    swap:SetSize(120, 20)
+    swap:SetPoint("TOPRIGHT", -4, -6)
+    swap:SetScript("OnClick", function()
+        showingYours = not showingYours
+        tab:Refresh()
+    end)
+
     -- A faint line between the two.
     local rule = tab:CreateTexture(nil, "ARTWORK")
     rule:SetColorTexture(1, 1, 1, 0.08)
@@ -322,7 +383,31 @@ function RecipesTab.Create(parent)
                     and "You've learned everything vendors sell for your professions."
                 or "Take up a crafting profession and the recipes its vendors sell are listed here."
         end
-        toGet:Show(recipes, emptyLeft)
+        toGet:Fill(recipes, emptyLeft)
+
+        swap:SetText(showingYours and "Potential sales" or "Your resales")
+        if showingYours then
+            local lots, totals = ns.Resales.All()
+            toSell.Heading:SetText("Your resales")
+            -- A loss is shown as one, in red.
+            local profit, color = Theme.SignedCoins(totals.profit)
+            local about = ("%d sold, %s profit"):format(
+                totals.sold,
+                CreateColor(unpack(color)):WrapTextInColorCode(profit)
+            )
+            if totals.held > 0 then
+                about = ("%s; %d still to sell"):format(about, totals.held)
+            end
+            toSell.About:SetText(about)
+            toSell:Fill(
+                lots,
+                "Buy a recipe from a vendor to sell at auction, and how it goes is kept here: "
+                    .. "what you paid, what it sold for, and the profit."
+            )
+            return
+        end
+        toSell.Heading:SetText("Potential sales")
+        toSell.About:SetText("Sold near you first, then by most profit at auction")
 
         local deals, unpriced = ns.Recipes.Resale(ns.Market.Home())
         table.sort(deals, ByNearAndProfit)
@@ -335,7 +420,7 @@ function RecipesTab.Create(parent)
                 or "No vendor recipe has fetched enough more at auction lately. "
                     .. "How much counts is in Goldwise's options."
         end
-        toSell:Show(deals, emptyRight)
+        toSell:Fill(deals, emptyRight)
     end
 
     -- Things that change the lists while they're on screen: moving to
@@ -347,6 +432,7 @@ function RecipesTab.Create(parent)
     end
     ns.OnEvent("ZONE_CHANGED_NEW_AREA", RefreshIfShown)
     ns.OnEvent("NEW_RECIPE_LEARNED", RefreshIfShown)
+    ns.Subscribe("RESALES_CHANGED", RefreshIfShown)
 
     return tab
 end

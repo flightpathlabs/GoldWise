@@ -248,7 +248,15 @@ local function File(kind, amount, expected)
         RememberIn(OwnBook(), CopyTable(entry))
     end
 
-    ns.Publish("TRADE_CHANGED", kind, amount, expected.name, expected.count)
+    ns.Publish(
+        "TRADE_CHANGED",
+        kind,
+        amount,
+        expected.name,
+        expected.count,
+        expected.deposit,
+        expected.itemID
+    )
 end
 
 -- Expecting -------------------------------------------------------------------
@@ -317,13 +325,19 @@ end
 -- A listing has been posted. Takes what asking the game for its deposit
 -- came back with: whether it answered, and the figure. A listing that
 -- costs nothing to post moves no coin, and so there's nothing to expect.
-local function ExpectDeposit(answered, deposit)
+local function ExpectDeposit(itemID, answered, deposit)
     if not answered or not deposit then
         -- The game wouldn't say. A deposit is coming all the same.
-        Expect(leaving, { kind = Trade.DEPOSIT })
+        Expect(leaving, { kind = Trade.DEPOSIT, itemID = itemID })
     elseif deposit > 0 then
-        Expect(leaving, { kind = Trade.DEPOSIT, amount = deposit })
+        Expect(leaving, { kind = Trade.DEPOSIT, amount = deposit, itemID = itemID })
     end
+end
+
+-- The item in a bag slot being posted, if the game will say.
+local function PostedItem(location)
+    local ok, itemID = pcall(C_Item.GetItemID, location)
+    return ok and itemID or nil
 end
 
 -- What the auction house lets a player ask of it, and what each will
@@ -351,14 +365,18 @@ local ASKS = {
     end,
 
     PostItem = function(location, duration, quantity)
-        ExpectDeposit(pcall(C_AuctionHouse.CalculateItemDeposit, location, duration, quantity))
+        ExpectDeposit(
+            PostedItem(location),
+            pcall(C_AuctionHouse.CalculateItemDeposit, location, duration, quantity)
+        )
     end,
 
     PostCommodity = function(location, duration, quantity)
-        ExpectDeposit(pcall(function()
-            local itemID = C_Item.GetItemID(location)
-            return C_AuctionHouse.CalculateCommodityDeposit(itemID, duration, quantity)
-        end))
+        local itemID = PostedItem(location)
+        ExpectDeposit(
+            itemID,
+            pcall(C_AuctionHouse.CalculateCommodityDeposit, itemID, duration, quantity)
+        )
     end,
 }
 
