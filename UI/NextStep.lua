@@ -470,9 +470,11 @@ local function RecipeRows()
     return rows
 end
 
--- A recipe's name can arrive after the card is up. The card shows the
--- spell's name until then, and swaps in the recipe's own when it comes.
-ns.Subscribe("ITEM_NAMES_LOADED", function()
+-- Things can arrive after the card is up. A recipe's name: the card
+-- shows the spell's until then. And where its vendor stands: Questie
+-- takes a while after logging in to be ready, and until then the rows
+-- have no map pins.
+local function RedrawRecipeCard()
     if not recipeCard then
         return
     end
@@ -487,7 +489,9 @@ ns.Subscribe("ITEM_NAMES_LOADED", function()
     else
         recipeCard = nil
     end
-end)
+end
+ns.Subscribe("ITEM_NAMES_LOADED", RedrawRecipeCard)
+ns.Subscribe("PLACES_CHANGED", RedrawRecipeCard)
 
 local function CheckRecipes(isRetry)
     if not (ns.settings.recipePrompt or ns.settings.resalePrompt) or InCombatLockdown() then
