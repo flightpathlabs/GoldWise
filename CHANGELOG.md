@@ -6,6 +6,13 @@ the `dev` branch.
 
 ## Unreleased
 
+**New**
+
+- **A watch list.** Right-click any item in Goldwise and choose Watch
+  its price, or type `/gw watch` and shift-click one. Watched items
+  have their own list on the Assets tab, with their price and trend,
+  whether you hold any or not.
+
 **Fixed**
 
 - **The recipe card's resale lines fit.** The vendor's name ran off the

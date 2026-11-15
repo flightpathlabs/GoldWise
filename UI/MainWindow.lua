@@ -584,6 +584,7 @@ for _, message in ipairs({
     "ITEM_NAMES_LOADED",
     "PROFILE_CHANGED",
     "SETTINGS_CHANGED",
+    "WATCH_CHANGED",
     "AUCTION_HOUSE_CLOSED",
 }) do
     ns.Subscribe(message, Refresh)
@@ -645,11 +646,29 @@ SlashCmdList.GOLDWISE = function(message)
     -- An item shift-clicked into the command: "/gw [Light Leather]" for
     -- its price history, "/gw tree [Light Leather]" for its crafting tree.
     local linkedItem = message:match("|Hitem:(%d+)")
-    if linkedItem and message:lower():find("^tree%s") then
+    if linkedItem and message:lower():find("^watch%s") then
+        local watching = ns.Watch.Toggle(tonumber(linkedItem))
+        ns.Print(
+            watching and "Watching %s. It's on the Assets tab, under Watched."
+                or "No longer watching %s.",
+            message:match("|c.-|h|r") or ("item " .. linkedItem)
+        )
+        return
+    elseif linkedItem and message:lower():find("^tree%s") then
         ns.ShowCraftTree(tonumber(linkedItem))
         return
     elseif linkedItem then
         ns.ShowItemHistory(tonumber(linkedItem), message:match("|c.-|h|r"))
+        return
+    end
+
+    -- "/gw watch [Linen Cloth]" starts or stops watching it.
+    if linkedItem == nil and first:lower() == "watch" then
+        -- The Assets list makes this when the window is first built.
+        ns.ShowWindowTab("List")
+        if ns.ShowWatchList then
+            ns.ShowWatchList()
+        end
         return
     end
 

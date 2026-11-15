@@ -94,7 +94,11 @@ local function CreateRowWidgets(row, onSelect)
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row:SetScript("OnClick", function(self, mouseButton)
         local data = self:GetElementData()
-        if mouseButton == "RightButton" then
+        if mouseButton == "RightButton" and data.watched then
+            ns.ItemMenu.Open(self, data.itemID, data.link, nil, function()
+                onSelect(data)
+            end)
+        elseif mouseButton == "RightButton" then
             ShowKeepMenu(self, data, onSelect)
         else
             onSelect(data)
@@ -112,14 +116,13 @@ local function CreateRowWidgets(row, onSelect)
         end
 
         local muted = Theme.MUTED
-        GameTooltip:AddLine(
-            ns.Keep.IsKept(data.itemID)
-                    and "Right-click to put this up for sale again, or for its crafting tree."
-                or "Right-click to keep this from sale, or for its crafting tree.",
-            muted[1],
-            muted[2],
-            muted[3]
-        )
+        local hint = ns.Keep.IsKept(data.itemID)
+                and "Right-click to put this up for sale again, or for its crafting tree."
+            or "Right-click to keep this from sale, or for its crafting tree."
+        if data.watched then
+            hint = "Right-click to stop watching it, or for its crafting tree."
+        end
+        GameTooltip:AddLine(hint, muted[1], muted[2], muted[3])
         GameTooltip:Show()
     end)
     row:SetScript("OnLeave", GameTooltip_Hide)
@@ -155,7 +158,7 @@ local function FillRow(row, data)
         name = name .. "  " .. Theme.Aside("on " .. data.owner)
     end
     row.Name:SetText(name)
-    row.Reason:SetText(advice.reason)
+    row.Reason:SetText(data.watched and data.seenText or advice.reason)
 
     if data.price then
         row.Price:SetText(Theme.Coins(data.price))
@@ -167,6 +170,13 @@ local function FillRow(row, data)
 
     row.Trend:SetValues(data.trend, TrendColor(data.againstUsual))
 
+    if data.watched then
+        -- Watched, not necessarily held: no verdict, just how many are.
+        row.Verb:SetText("Watching")
+        row.Verb:SetTextColor(unpack(Theme.MUTED))
+        row.Proceeds:SetText(data.held > 0 and ("you have " .. data.held) or "")
+        return
+    end
     row.Verb:SetText(Theme.VERB_LABELS[advice.verb])
     row.Verb:SetTextColor(unpack(Theme.VERB_COLORS[advice.verb]))
 
@@ -272,13 +282,30 @@ function ShelfList.Create(parent, onSelect)
         ns.Publish("SETTINGS_CHANGED")
     end)
 
+    -- Whether the list shows what the player holds or what they watch.
+    local showingWatched = false
+    local viewButton = CreateFrame("Button", nil, list, "UIPanelButtonTemplate")
+    viewButton:SetSize(110, 20)
+
     -- How the list is ordered: by sell value to begin with.
     local sortButton = CreateFrame("Button", nil, list, "UIPanelButtonTemplate")
     sortButton:SetSize(160, 20)
     sortButton:SetPoint("RIGHT", scope, "LEFT", -8, 0)
 
+    viewButton:SetPoint("RIGHT", sortButton, "LEFT", -8, 0)
+    viewButton:SetScript("OnClick", function()
+        showingWatched = not showingWatched
+        list:Refresh()
+    end)
+
+    -- Opens the window on the watch list.
+    function ns.ShowWatchList()
+        showingWatched = true
+        ns.ShowWindowTab("List")
+    end
+
     -- The line beside the heading stops short of the buttons.
-    about:SetPoint("RIGHT", sortButton, "LEFT", -10, 0)
+    about:SetPoint("RIGHT", viewButton, "LEFT", -10, 0)
     about:SetJustifyH("LEFT")
     about:SetWordWrap(false)
     sortButton:SetScript("OnClick", function(self)
@@ -349,8 +376,65 @@ function ShelfList.Create(parent, onSelect)
 
     --- Rebuilds the rows from what the player holds and the current prices.
     ---@return number total  what selling everything marked Sell should bring in
+    -- The watch list: each watched item's price and trend, held or not.
+    local function RefreshWatched(marketKey)
+        local rows = {}
+        local held = ns.Bags.Counts()
+        for _, itemID in ipairs(ns.Watch.All()) do
+            local name, link, quality, _, _, _, _, _, _, icon = C_Item.GetItemInfo(itemID)
+            local count = (held[itemID] or 0) + ns.Bank.Count(itemID)
+            local row = ns.Assets.Describe({
+                itemID = itemID,
+                count = math.max(count, 1),
+                name = name or ns.ItemName(itemID),
+                link = link,
+                quality = quality,
+                icon = icon or C_Item.GetItemIconByID(itemID),
+            }, marketKey)
+            row.watched = true
+            row.held = count
+            row.count = count
+            -- Its page would otherwise give a verdict on things not held.
+            if count == 0 then
+                row.advice =
+                    { verb = ns.Advice.UNKNOWN, reason = "You aren't carrying any of these." }
+            end
+            row.seenText = row.seenAt and ("Price seen " .. ns.Ago(GetServerTime() - row.seenAt))
+                or "No price seen yet: visit an auction house"
+            table.insert(rows, row)
+        end
+
+        -- Dearest first, by the price shown, then by name. The holdings'
+        -- sorts go by verdicts this list doesn't show.
+        table.sort(rows, function(a, b)
+            local left, right = a.price or -1, b.price or -1
+            if left ~= right then
+                return left > right
+            end
+            return ByName(a, b)
+        end)
+        sortButton:Hide()
+        viewButton:SetText("Your things")
+        scope:Hide()
+        about:SetText("Things you're watching at the auction house, held or not")
+        empty:SetText(
+            "Right-click any item in Goldwise and choose Watch its price, "
+                .. "or type /gw watch and shift-click an item."
+        )
+        empty:SetShown(#rows == 0)
+        scrollBox:SetDataProvider(CreateDataProvider(rows), ScrollBoxConstants.RetainScrollPosition)
+        return 0
+    end
+
     function list:Refresh()
         local marketKey = ns.Market.Current()
+        if showingWatched then
+            ShowWorth(marketKey)
+            return RefreshWatched(marketKey)
+        end
+        viewButton:SetText("Watched (" .. #ns.Watch.All() .. ")")
+        scope:Show()
+        sortButton:Show()
         local everyone = ns.settings.allCharacters
         local rows = {}
         local total = 0

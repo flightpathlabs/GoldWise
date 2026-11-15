@@ -45,6 +45,10 @@ function ItemMenu.Open(owner, itemID, link, extra, onHistory)
         root:CreateButton("Crafting tree", function()
             ns.ShowCraftTree(itemID)
         end)
+        local watching = ns.Watch.IsWatched(itemID)
+        root:CreateButton(watching and "Stop watching its price" or "Watch its price", function()
+            ns.Watch.Toggle(itemID)
+        end)
         if onHistory ~= false then
             root:CreateButton("Price history", function()
                 if onHistory then

@@ -15,7 +15,8 @@ set up.
 
 ## What's in it
 
-- **Assets:** what you hold, with a price, a trend and a suggestion.
+- **Assets:** what you hold, with a price, a trend and a suggestion,
+  and a watch list for anything else you want to keep an eye on.
 - **Prospects:** pick a goal (gathering, crafting, reselling vendor
   recipes) and get a short plan.
 - **Purse and Profit:** what you've earned and spent, and what's coming

@@ -62,6 +62,7 @@ Profile\Directory.lua
 Profile\Training.lua
 Profile\Recipes.lua
 Profile\Keep.lua
+Profile\Watch.lua
 Profile\Crafts.lua
 Profile\Drops.lua
 
