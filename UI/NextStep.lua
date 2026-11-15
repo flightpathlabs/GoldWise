@@ -438,6 +438,23 @@ function RecipeCardOptions()
             end,
         },
         secondary = { label = "Close" },
+        quiet = {
+            label = "Don't show again",
+            tip = {
+                "Don't show this card again",
+                "Goldwise's options can turn it back on: the two \"Tell me when a vendor "
+                    .. 'nearby sells a recipe" boxes.',
+            },
+            onClick = function()
+                ns.settings.recipePrompt = false
+                ns.settings.resalePrompt = false
+                ns.Publish("SETTINGS_CHANGED")
+                ns.Print(
+                    "The recipe card won't come up again. Turn it back on in Options, "
+                        .. "AddOns, Goldwise."
+                )
+            end,
+        },
     }
 end
 

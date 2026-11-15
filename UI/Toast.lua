@@ -259,6 +259,27 @@ local function Create()
     frame.Secondary:SetSize(120, 22)
     frame.Secondary:SetPoint("LEFT", frame.Primary, "RIGHT", 8, 0)
 
+    -- A quiet way out, in grey at the bottom right: "Don't show again".
+    frame.Quiet = CreateFrame("Button", nil, frame)
+    frame.Quiet:SetPoint("BOTTOMRIGHT", -PADDING, PADDING + 3)
+    frame.Quiet.Text = frame.Quiet:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    frame.Quiet.Text:SetPoint("RIGHT")
+    frame.Quiet:SetScript("OnEnter", function(self)
+        self.Text:SetTextColor(1, 1, 1)
+        if self.tip then
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(self.tip[1])
+            for index = 2, #self.tip do
+                GameTooltip:AddLine(self.tip[index], 1, 1, 1, true)
+            end
+            GameTooltip:Show()
+        end
+    end)
+    frame.Quiet:SetScript("OnLeave", function(self)
+        self.Text:SetTextColor(0.5, 0.5, 0.5)
+        GameTooltip_Hide()
+    end)
+
     return frame
 end
 
@@ -377,6 +398,22 @@ local function Fill(options)
     WireButton(card.Primary, options.primary)
     WireButton(card.Secondary, options.secondary)
 
+    local quiet = options.quiet
+    card.Quiet:SetShown(quiet ~= nil)
+    if quiet then
+        card.Quiet.Text:SetText(quiet.label)
+        card.Quiet.Text:SetTextColor(0.5, 0.5, 0.5)
+        card.Quiet:SetSize(card.Quiet.Text:GetStringWidth(), 16)
+        card.Quiet.tip = quiet.tip
+        card.Quiet:SetScript("OnClick", function()
+            GameTooltip_Hide()
+            card:Hide()
+            if quiet.onClick then
+                quiet.onClick()
+            end
+        end)
+    end
+
     card:SetHeight(height + 14 + 22 + PADDING)
 end
 
@@ -395,6 +432,9 @@ end
 ---   primary    { label, onClick, keepOpen } for the main button; the card
 ---              closes when it's clicked unless keepOpen is set
 ---   secondary  the same for the other button, optional
+---   quiet      { label, onClick, tip } for a small grey link at the
+---              bottom right, such as "Don't show again"; the card closes
+---              when it's clicked. Optional.
 ---@return number|nil card  for Toast.Update; nil if nothing was shown
 function Toast.Show(options)
     -- Nothing we have to say is worth a pop-up in the middle of a fight.
