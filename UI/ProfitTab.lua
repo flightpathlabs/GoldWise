@@ -44,23 +44,6 @@ local MOST_POINTS = 30
 local function FittingScale(whose)
     local nowHour = math.floor(GetServerTime() / 3600)
     local firstHour = ns.Purse.FirstHour(whose) or nowHour
-
-    -- Auction trades were kept only by the day before 0.5.0. Until the
-    -- hours kept cover what the chart would show, a day at a time is the
-    -- cut both lines can fill.
-    local hourlySince = ns.Trade.HourlySince(whose)
-    if hourlySince and hourlySince > firstHour then
-        return {
-            hours = 24,
-            count = math.max(
-                2,
-                math.min(
-                    MOST_POINTS,
-                    ns.Purse.StretchOf(nowHour, 24) - ns.Purse.StretchOf(firstHour, 24) + 1
-                )
-            ),
-        }
-    end
     for _, hours in ipairs(FITTING_HOURS) do
         local last = ns.Purse.StretchOf(nowHour, hours)
         local count = last - ns.Purse.StretchOf(firstHour, hours) + 1
@@ -199,19 +182,14 @@ local function FillRow(row, entry)
     -- noted. Entries from before it was are left as they are.
     local what = WhatText(entry)
 
-    -- A sale of something bought earlier: what it cost, and what was left,
-    -- where that's known.
+    -- A sale of something bought earlier: what it cost, and what was left.
     if entry.kind == ns.Trade.SALE and entry.cost then
-        if entry.profit then
-            local profit, color = Theme.SignedCoins(entry.profit)
-            what = ("%s  %s %s"):format(
-                what,
-                Theme.Aside(("paid %s,"):format(ns.Money(entry.cost))),
-                CreateColor(unpack(color)):WrapTextInColorCode(profit .. " profit")
-            )
-        else
-            what = ("%s  %s"):format(what, Theme.Aside(("paid %s"):format(ns.Money(entry.cost))))
-        end
+        local profit, color = Theme.SignedCoins(entry.profit or 0)
+        what = ("%s  %s %s"):format(
+            what,
+            Theme.Aside(("paid %s,"):format(ns.Money(entry.cost))),
+            CreateColor(unpack(color)):WrapTextInColorCode(profit .. " profit")
+        )
     end
 
     if ns.settings.moneyAccountWide and entry.who then
@@ -482,11 +460,7 @@ function ProfitTab.Create(parent)
             end
         end
         pick:SetText(chosen.label)
-        -- The scale button is only for the profit views; without it, the
-        -- one beside it closes up.
         scaleButton:SetShown(showing ~= WORTH)
-        whose:ClearAllPoints()
-        whose:SetPoint("RIGHT", showing ~= WORTH and scaleButton or pick, "LEFT", -6, 0)
         local fixed = SCALES[ns.settings.profitScale]
         scaleButton:SetText(fixed and fixed.short or "Fit to the record")
 

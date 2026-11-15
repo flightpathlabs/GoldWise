@@ -10,22 +10,6 @@ the `dev` branch.
 
 - **The recipe card's resale lines fit.** The vendor's name ran off the
   end of the line; it's on the row's map pin instead.
-- **The recipe card keeps to its own zone.** Left up while you moved
-  on, it could swap in the next zone's recipes under the old zone's
-  name, and kept that zone's own card from coming up.
-- **Buyouts are named more reliably.** A buyout the game couldn't
-  price as you clicked was kept as a bid with no item, and the item
-  could be put down to some other coin instead. Only purchases you
-  asked for are named now, and a bid that was really a buyout becomes
-  one.
-- **Prices paid at vendors** are only noted once the coin has gone, so
-  a purchase that failed doesn't count.
-- **Older sales say what they cost without a profit,** as the deposit
-  handed back with them wasn't kept and the figure would have been too
-  high.
-- **The Profit chart fits a day at a time** until auction trades kept by
-  the hour cover what it would show, so the auction line isn't empty
-  for the weeks before 0.5.0.
 - **Looting no longer fills Goldwise's diagnostic log.** Only what's out
   of the ordinary is noted, once a session, so a bug report keeps the
   rest of what it needs.

@@ -160,12 +160,7 @@ local function BookFor(whose)
     if type(theirs) ~= "table" then
         return { days = {}, recent = {} }
     end
-    return {
-        days = theirs.days or {},
-        recent = theirs.recent or {},
-        hours = theirs.hours or {},
-        hoursFrom = theirs.hoursFrom,
-    }
+    return { days = theirs.days or {}, recent = theirs.recent or {}, hours = theirs.hours or {} }
 end
 
 -- Recording -------------------------------------------------------------------
@@ -184,7 +179,6 @@ local function AddToHour(book, net)
         book.hours = {}
     end
     local now = math.floor(GetServerTime() / SECONDS_PER_HOUR)
-    book.hoursFrom = book.hoursFrom or now
     if not book.hours[now] then
         -- A new hour is as good a moment as any to drop the oldest.
         for hour in pairs(book.hours) do
@@ -198,10 +192,6 @@ end
 
 -- Today's totals in a book: sold, bought, deposits, refunds and cut in
 -- copper, and how many sales.
--- The prices paid by name: [name] = itemID, made when first needed. Let
--- go of whenever the prices paid change, so it's made again.
-local paidByName
-
 local function TodayIn(book)
     local days = book.days
     local today = ns.Ledger.Today()
@@ -220,7 +210,6 @@ local function TodayIn(book)
                 paid[itemID] = nil
             end
         end
-        paidByName = nil
     end
     return days[today]
 end
@@ -233,33 +222,19 @@ local function RememberIn(book, entry)
     end
 end
 
--- Buyouts and bids the player placed, and pool purchases they confirmed,
--- put on record and waiting for the game to say they went through:
--- { entries, amount, itemID, auctionID, pool, done, at }. entries are the
--- account's and this character's copies on the list; itemID is what we
--- were told it was for, if anything; auctionID is the auction bid on;
--- pool marks a purchase from a pool; done marks a buyout the game has
--- said went through, still waiting to hear what it was. Only these are
--- ever named from the game's word: coin that left without being asked
--- for is left as it is.
---
--- The game says a buyout went through by its auction, and what was bought
--- by its item, in two separate words that can come in either order, and
--- either before or after the coin. A bid that wasn't a buyout gets
--- neither, and stays a bid.
-local awaiting = {}
+-- Purchases put on record without word of what was bought: { entries,
+-- amount, at }, where entries are the account's and this character's
+-- copies on the list. The game may say what it was a moment later.
+local unnamed = {}
 
--- What the game has said before the coin for it was put on record:
--- auctions bought out, [auctionID] = when; items bought from auctions and
--- from pools, { itemID, count, at }.
-local boughtOut = {}
-local heardItems = {}
-local heardPools = {}
+-- What the game has said was just bought, before the coin for it was put
+-- on record: { itemID, count, at }.
+local justBought = {}
 
--- Buyouts settled already knowing their item, whose own word from the
--- game hasn't come yet: { itemID, at }. When it comes, it's theirs, and
--- mustn't be taken for word of another.
-local namedItems = {}
+-- Purchases put on record already knowing what they were for: { itemID,
+-- at }. The game's word on these is old news, and mustn't be taken for
+-- word of another.
+local alreadyNamed = {}
 
 -- Seconds either waits for the other.
 local PURCHASE_WAIT = 10
@@ -273,22 +248,13 @@ end
 
 -- Notes what one of something was last bought for, at the auction house
 -- or from a vendor, so a sale of it later can say what it cost.
--- Prices paid are kept as long as price history is, like the days.
 local function NotePaid(itemID, each, from)
-    local paid = Book().paid
-    paid[itemID] = {
+    Book().paid[itemID] = {
         each = each,
         at = GetServerTime(),
         name = ns.ItemName(itemID) or C_Item.GetItemNameByID(itemID),
         from = from,
     }
-    local oldest = GetServerTime() - ns.settings.historyDays * ns.SECONDS_PER_DAY
-    for other, record in pairs(paid) do
-        if (record.at or 0) < oldest then
-            paid[other] = nil
-        end
-    end
-    paidByName = nil
 end
 
 -- What was last paid for something, found by its name, which is all a
@@ -297,116 +263,31 @@ local function PaidFor(name)
     if not name then
         return nil
     end
-    local index = paidByName
-    if not index then
-        -- Kept only when every name was known. One the client hasn't
-        -- loaded yet would otherwise stay missing from it.
-        index = {}
-        local complete = true
-        for itemID, record in pairs(Book().paid) do
-            local known = record.name or C_Item.GetItemNameByID(itemID)
-            if known then
-                index[known] = itemID
-            else
-                complete = false
-            end
+    for itemID, paid in pairs(Book().paid) do
+        if (paid.name or C_Item.GetItemNameByID(itemID)) == name then
+            return paid, itemID
         end
-        paidByName = complete and index or nil
-    end
-    local itemID = index[name]
-    if itemID and Book().paid[itemID] then
-        return Book().paid[itemID], itemID
     end
 end
 
--- What was on record as a bid was a buyout after all. The day's totals
--- already count the coin as spent either way.
-local function MarkBought(waiting)
-    for _, entry in ipairs(waiting.entries) do
-        entry.kind = Trade.PURCHASE
-    end
-end
-
--- The game has said a purchase went through: it was for this, so many
--- of them.
-local function Settle(waiting, itemID, count)
-    count = count or 1
-    MarkBought(waiting)
-    for _, entry in ipairs(waiting.entries) do
+-- Says what a purchase was for, on the list and as the price last paid.
+local function Name(entries, amount, itemID, count)
+    for _, entry in ipairs(entries) do
         entry.itemID = itemID
         entry.count = count
     end
-    if count > 0 then
-        NotePaid(itemID, waiting.amount / count, "auction")
-    end
-end
-
--- Takes the oldest word heard of an item, or of any item if itemID is nil.
-local function TakeHeard(list, itemID)
-    DropOld(list)
-    for index, heard in ipairs(list) do
-        if not itemID or heard.itemID == itemID then
-            return table.remove(list, index)
-        end
-    end
-end
-
-local function Wait(waiting)
-    DropOld(awaiting)
-    table.insert(awaiting, waiting)
-end
-
--- A buyout has gone through. If we know what it was for, that's settled;
--- if not, the game's word on its item may already be here, or may yet
--- come.
-local function BoughtOut(waiting)
-    if waiting.itemID then
-        Settle(waiting, waiting.itemID, 1)
-        if not waiting.heard and not TakeHeard(heardItems, waiting.itemID) then
-            DropOld(namedItems)
-            table.insert(namedItems, { itemID = waiting.itemID, at = GetTime() })
-        end
-        return
-    end
-    local heard = TakeHeard(heardItems)
-    if heard then
-        Settle(waiting, heard.itemID, 1)
-    else
-        MarkBought(waiting)
-        waiting.done = true
-        Wait(waiting)
+    if count and count > 0 then
+        NotePaid(itemID, amount / count, "auction")
     end
 end
 
 -- Buying from a vendor is a cost too: something bought to sell on at
--- auction should say so when it sells. Noted once the coin has left, so a
--- purchase that didn't go through (full bags, too little coin) isn't.
-local vendorBuys = {}
-
-hooksecurefunc("BuyMerchantItem", function(index, quantity)
+-- auction should say so when it sells.
+hooksecurefunc("BuyMerchantItem", function(index)
     local itemID = GetMerchantItemID(index)
     local info = itemID and C_MerchantFrame.GetItemInfo(index)
     if info and not info.hasExtendedCost and (info.price or 0) > 0 then
-        local each = info.price / math.max(info.stackCount or 1, 1)
-        local count = math.max(1, tonumber(quantity) or info.stackCount or 1)
-        table.insert(
-            vendorBuys,
-            { itemID = itemID, each = each, total = each * count, at = GetTime() }
-        )
-    end
-end)
-
-ns.Subscribe("MONEY_MOVED", function(delta, category)
-    if delta >= 0 or #vendorBuys == 0 or (category ~= "vendor" and category ~= "other") then
-        return
-    end
-    DropOld(vendorBuys)
-    for index, buy in ipairs(vendorBuys) do
-        if math.abs(-delta - buy.total) <= 1 then
-            table.remove(vendorBuys, index)
-            NotePaid(buy.itemID, buy.each, "vendor")
-            return
-        end
+        NotePaid(itemID, info.price / math.max(info.stackCount or 1, 1), "vendor")
     end
 end)
 
@@ -478,36 +359,32 @@ local function File(kind, amount, expected)
         RememberIn(Book(), entry)
         RememberIn(OwnBook(), own)
 
-        -- Something the player asked to buy: the game says what went
-        -- through, just before the coin or just after. Its word settles
-        -- what it was, and whether a bid was a buyout.
-        if expected.asked and (kind == Trade.PURCHASE or kind == Trade.BID) then
-            local waiting = {
-                entries = { entry, own },
-                amount = amount,
-                itemID = expected.itemID,
-                auctionID = expected.auctionID,
-                pool = expected.pool,
-                heard = expected.heard,
-                at = GetTime(),
-            }
-            if waiting.pool then
-                local heard = TakeHeard(heardPools, waiting.itemID)
-                if heard then
-                    Settle(waiting, heard.itemID, heard.count)
-                else
-                    Wait(waiting)
+        if kind == Trade.PURCHASE and expected.itemID then
+            -- Already known; the game's word on it, before or after, is
+            -- no news.
+            DropOld(justBought)
+            local heard = false
+            for index, bought in ipairs(justBought) do
+                if bought.itemID == expected.itemID then
+                    table.remove(justBought, index)
+                    heard = true
+                    break
                 end
+            end
+            if not heard then
+                DropOld(alreadyNamed)
+                table.insert(alreadyNamed, { itemID = expected.itemID, at = GetTime() })
+            end
+        elseif kind == Trade.PURCHASE then
+            -- No word of what it was for: the game may have said just
+            -- before, or may say just after.
+            DropOld(justBought)
+            local bought = table.remove(justBought, 1)
+            if bought then
+                Name({ entry, own }, amount, bought.itemID, bought.count)
             else
-                local saidAt = waiting.auctionID and boughtOut[waiting.auctionID]
-                if waiting.auctionID then
-                    boughtOut[waiting.auctionID] = nil
-                end
-                if saidAt and GetTime() - saidAt <= PURCHASE_WAIT then
-                    BoughtOut(waiting)
-                else
-                    Wait(waiting)
-                end
+                DropOld(unnamed)
+                table.insert(unnamed, { entries = { entry, own }, amount = amount, at = GetTime() })
             end
         end
     end
@@ -619,21 +496,13 @@ local ASKS = {
             amount = amount,
             itemID = itemID,
             count = 1,
-            asked = true,
-            auctionID = auctionID,
         })
     end,
 
     -- So many of something that's sold from a pool. The price is settled
     -- by the auction house, so there's no amount to match on.
     ConfirmCommoditiesPurchase = function(itemID, quantity)
-        Expect(leaving, {
-            kind = Trade.PURCHASE,
-            itemID = itemID,
-            count = quantity,
-            asked = true,
-            pool = true,
-        })
+        Expect(leaving, { kind = Trade.PURCHASE, itemID = itemID, count = quantity })
     end,
 
     PostItem = function(location, duration, quantity)
@@ -658,120 +527,36 @@ for name, onAsk in pairs(ASKS) do
     end
 end
 
--- Finds and takes a waiting purchase that fits: the oldest, or with
--- newest set, the latest.
-local function TakeWaiting(fits, newest)
-    DropOld(awaiting)
-    local from, to, step = 1, #awaiting, 1
-    if newest then
-        from, to, step = #awaiting, 1, -1
+-- The game says what was bought once a purchase goes through: one item
+-- from an auction, or so many of something sold from a pool. Where the
+-- coin for it was put on record without saying, it says so now.
+local function Purchased(itemID, count)
+    if not itemID then
+        return
     end
-    for index = from, to, step do
-        if fits(awaiting[index]) then
-            return table.remove(awaiting, index)
+    DropOld(alreadyNamed)
+    for index, named in ipairs(alreadyNamed) do
+        if named.itemID == itemID then
+            table.remove(alreadyNamed, index)
+            return
         end
     end
-end
-
--- Whether something was just bought from a pool, by the player's asking
--- or the game's word. The game may also say "item purchased" for it,
--- which is no word of a buyout.
-local function FromPool(itemID)
-    for _, list in ipairs({ awaiting, heardPools }) do
-        DropOld(list)
-        for _, entry in ipairs(list) do
-            if entry.itemID == itemID and (list == heardPools or entry.pool) then
-                return true
-            end
-        end
-    end
-    for _, expected in ipairs(leaving) do
-        if expected.pool and expected.itemID == itemID then
-            return true
-        end
-    end
-    return false
-end
-
--- A buyout went through, by its auction.
-ns.OnEvent("AUCTION_HOUSE_PURCHASE_COMPLETED", function(auctionID)
-    -- A bid and then a buyout on one auction share its ID. The buyout is
-    -- the later.
-    local waiting = TakeWaiting(function(candidate)
-        return not candidate.pool and candidate.auctionID == auctionID
-    end, true)
+    DropOld(unnamed)
+    local waiting = table.remove(unnamed, 1)
     if waiting then
-        BoughtOut(waiting)
+        Name(waiting.entries, waiting.amount, itemID, count)
         ns.Publish("TRADE_CHANGED")
     else
-        -- Kept for its coin, a moment away; older ones are let go.
-        local now = GetTime()
-        for other, at in pairs(boughtOut) do
-            if now - at > PURCHASE_WAIT then
-                boughtOut[other] = nil
-            end
-        end
-        boughtOut[auctionID] = now
+        DropOld(justBought)
+        table.insert(justBought, { itemID = itemID, count = count, at = GetTime() })
     end
-end)
+end
 
--- What a buyout was for. It goes to one already said to have gone through
--- and still unnamed; otherwise it's kept for the buyout it belongs to.
 ns.OnEvent("ITEM_PURCHASED", function(itemID)
-    if FromPool(itemID) then
-        return
-    end
-
-    -- The word for a buyout already settled knowing its item.
-    if TakeHeard(namedItems, itemID) then
-        return
-    end
-
-    -- Or for one we know the item of, still waiting to hear it went
-    -- through, or whose coin hasn't come yet.
-    DropOld(awaiting)
-    for _, candidate in ipairs(awaiting) do
-        if not candidate.pool and not candidate.done and candidate.itemID == itemID then
-            candidate.heard = true
-            return
-        end
-    end
-    for _, expected in ipairs(leaving) do
-        if
-            expected.asked
-            and not expected.pool
-            and expected.itemID == itemID
-            and not expected.heard
-        then
-            expected.heard = true
-            return
-        end
-    end
-
-    local waiting = TakeWaiting(function(candidate)
-        return candidate.done and not candidate.itemID
-    end)
-    if waiting then
-        Settle(waiting, itemID, 1)
-        ns.Publish("TRADE_CHANGED")
-    else
-        DropOld(heardItems)
-        table.insert(heardItems, { itemID = itemID, at = GetTime() })
-    end
+    Purchased(itemID, 1)
 end)
-
--- So many of something bought from a pool.
 ns.OnEvent("COMMODITY_PURCHASED", function(itemID, quantity)
-    local waiting = TakeWaiting(function(candidate)
-        return candidate.pool and candidate.itemID == itemID
-    end)
-    if waiting then
-        Settle(waiting, itemID, quantity)
-        ns.Publish("TRADE_CHANGED")
-    else
-        DropOld(heardPools)
-        table.insert(heardPools, { itemID = itemID, count = quantity, at = GetTime() })
-    end
+    Purchased(itemID, quantity)
 end)
 
 -- Matching --------------------------------------------------------------------
@@ -946,37 +731,6 @@ function Trade.Flow(hoursEach, count, whose)
     return values, first, last
 end
 
---- From when the auction house's trades are complete hour by hour, where
---- days on record go back further than that: a version before 0.5.0 kept
---- only days. Nil when the hours miss nothing the days have.
----@param whose boolean|string|nil  as for Daily
----@return number|nil hour  hours since the epoch
-function Trade.HourlySince(whose)
-    local book = BookFor(whose)
-    local firstDay
-    for day in pairs(book.days or {}) do
-        if not firstDay or day < firstDay then
-            firstDay = day
-        end
-    end
-    if not firstDay then
-        return nil
-    end
-
-    local since = book.hoursFrom
-    for hour in pairs(book.hours or {}) do
-        if not since or hour < since then
-            since = hour
-        end
-    end
-    since = since or math.floor(GetServerTime() / SECONDS_PER_HOUR)
-
-    if firstDay < ns.Purse.StretchOf(since, 24) then
-        return since
-    end
-    return nil
-end
-
 --- The same stretch, added up.
 ---@param numDays number
 ---@param whose boolean|string|nil  as for Daily
@@ -1039,16 +793,12 @@ function Trade.Recent(whose)
         local entry = recent[index]
         -- A sale put on record before costs were kept, of something whose
         -- price was noted before it sold, can say what it cost now.
-        -- What the deposit handed back with it was isn't known for those,
-        -- so they say what it cost but not what was left.
         if entry.kind == Trade.SALE and not entry.cost then
             local paid, itemID = PaidFor(entry.name)
             if paid and paid.each and (paid.at or 0) <= (entry.at or 0) then
                 entry.itemID = entry.itemID or itemID
                 entry.cost = math.floor(paid.each * (entry.count or 1) + 0.5)
-                if entry.deposit then
-                    entry.profit = entry.amount - entry.deposit - entry.cost
-                end
+                entry.profit = entry.amount - (entry.deposit or 0) - entry.cost
             end
         end
         table.insert(entries, entry)
