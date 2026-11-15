@@ -80,11 +80,25 @@ the `dev` branch.
   the change since you started beside each, which read as a loss
   whenever you sold something. What you have up for auction now counts
   with your bags until it sells or its time runs out.
+- **Goldwise's cards stay until you close them.** An option has them
+  put themselves away after a while, as before. The recipe card has
+  two sections, potential profit at auction and recipes you're
+  missing, a map pin on each row for its own vendor, and a Don't show
+  again button.
 - **Alt-right-click always answers.** On an item none of your
   characters can make or use, it used to do nothing at all. It now
   opens the crafting tree page, which says so, and how Goldwise learns
   a recipe: open that profession's window once on the character who
   has it. The item's page always has its Crafting tree button too.
+
+**Fixed**
+
+- **Things bought at auction say what they were.** A purchase could be
+  put on record as just "Bought at auction" when the game didn't have
+  the auction's details to hand as you bought. It now takes the name
+  the game gives once the purchase goes through.
+- **The recipe card's map pins** were missing when it came up just
+  after logging in, before Questie was ready.
 
 ## 0.4.1 (13 November 2026)
 

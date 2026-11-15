@@ -601,6 +601,28 @@ local NEWS = {
             }
         end,
     },
+    {
+        id = "0.5.0",
+        title = "New in Goldwise",
+        body = function()
+            return table.concat({
+                "An Items tab finds any item by name, and right-clicking an item anywhere "
+                    .. "in Goldwise opens its crafting tree or price history.",
+                "Enemies' tooltips say what a kill is worth, learned from your own looting. "
+                    .. "The bank window says what your bank would fetch.",
+                "And the Recipes tab now has two sides: recipes to get, and recipes worth "
+                    .. "buying from a vendor to sell, with a log of how your resales went.",
+            }, "\n\n")
+        end,
+        action = function()
+            return {
+                label = "See Recipes",
+                onClick = function()
+                    ns.ShowWindowTab("Recipes")
+                end,
+            }
+        end,
+    },
 }
 
 local NEWS_WIDTH = 300
