@@ -29,7 +29,7 @@ local BANK_TICK_SIZE = 18
 -- A rule between sections, with the space around it.
 local RULE_SPACE = 9
 -- Room on the right of a bag line for how much it has changed.
-local ASIDE_WIDTH = 80
+local ASIDE_WIDTH = 96
 
 -- Folded to its title line: the padding above and below, and a line of
 -- text between.
@@ -394,9 +394,11 @@ local function ShowDetails(frame, opens)
             .. "posting them to another character counts as them leaving."
         local bagsOnlyNote = "Putting things in the bank or posting them to another "
             .. "character counts as them leaving. Tick Bank to count your bank too."
-        local leaving = summary.withBank and withBankNote or bagsOnlyNote
+        local leaving = (summary.withBank and withBankNote or bagsOnlyNote)
+            .. " Selling things, or listing them at auction, makes it less too; "
+            .. "what they sold for is under Coin in."
         GameTooltip:AddLine(
-            "The figure beside each compares what you hold now with what you "
+            'The "more" or "less" beside each compares what you hold now with what you '
                 .. "started with, both at today's prices. "
                 .. leaving,
             0.6,
@@ -727,10 +729,14 @@ local function AddBags(layout, summary)
         { label = "At auction", worth = summary.auction, change = summary.auctionChange },
         { label = "To vendors", worth = summary.vendor, change = summary.vendorChange },
     }) do
+        -- How far it has moved since the session began, in words. Selling
+        -- or posting things makes it less, which isn't a loss, so it isn't
+        -- coloured like one: the coin for them is counted above.
         local change = Rounded(way.change)
         local aside, asideColor = "", nil
         if math.floor(change + 0.5) ~= 0 then
-            aside, asideColor = Signed(change)
+            aside = ("%s %s"):format(Theme.Coins(math.abs(change)), change > 0 and "more" or "less")
+            asideColor = Theme.MUTED
         end
         AddRow(layout, {
             kind = "item",
