@@ -23,6 +23,9 @@ local ICON_SIZE = 32
 -- The X on a row that can be dismissed.
 local DISMISS_SIZE = 16
 
+-- A heading over a group of rows, and the room it takes.
+local HEADING_HEIGHT = 18
+
 -- More items than this and the card stops being something to take in at
 -- a glance. The caller says where the rest can be found.
 Toast.MAX_ITEMS = 4
@@ -203,8 +206,14 @@ local function Create()
     frame.Body:SetSpacing(3)
 
     frame.Rows = {}
+    frame.Headings = {}
     for index = 1, Toast.MAX_ITEMS do
         frame.Rows[index] = CreateItemRow(frame)
+        local heading = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+        heading:SetJustifyH("LEFT")
+        heading:SetWidth(textWidth)
+        heading:SetTextColor(unpack(Theme.COIN))
+        frame.Headings[index] = heading
     end
 
     frame.Primary = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
@@ -298,6 +307,19 @@ local function Fill(options)
     end
     for index, row in ipairs(card.Rows) do
         local item = items[index]
+        local heading = card.Headings[index]
+        heading:SetShown(item ~= nil and item.heading ~= nil)
+        if item and item.heading then
+            -- A little air above every heading but the first.
+            if index > 1 then
+                height = height + 4
+            end
+            heading:SetText(item.heading)
+            heading:ClearAllPoints()
+            heading:SetPoint("TOPLEFT", PADDING, -height)
+            height = height + HEADING_HEIGHT
+        end
+
         row:SetShown(item ~= nil)
         if item then
             FillItemRow(row, item)
@@ -321,8 +343,9 @@ end
 ---              quality, count, detail, onDismiss, dismissTip }, shown as
 ---              rows with their icons; detail is the line under the name.
 ---              A row with onDismiss gets a small X that calls it, and
----              dismissTip ({ title, line, ... }) is the X's tooltip.
----              Optional.
+---              dismissTip ({ title, line, ... }) is the X's tooltip. A
+---              row with heading starts a section, with that heading over
+---              it. Optional.
 ---   primary    { label, onClick, keepOpen } for the main button; the card
 ---              closes when it's clicked unless keepOpen is set
 ---   secondary  the same for the other button, optional

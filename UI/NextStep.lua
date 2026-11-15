@@ -304,109 +304,121 @@ local function DismissRecipe(row)
     end
 end
 
--- What a row says under the recipe's name: the skill it takes, if it's
--- one to learn, and the profit, if it's one to resell.
-local function RowDetail(row)
-    local parts = {}
-    local recipe, deal = row.recipe, row.deal
-
-    -- The line is one short line on the card, and the vendor's name at
-    -- the end of it is the part worth keeping. So a recipe worth
-    -- reselling says only that, and its skill is left to the Recipes tab.
-    if deal then
-        -- What the vendor asks is a guess until their wares have been seen.
-        table.insert(
-            parts,
-            ("+%s at auction, costs %s%s"):format(
-                Theme.Coins(deal.profit),
-                deal.costIsSeen and "" or "about ",
-                Theme.Coins(deal.cost)
-            )
-        )
-    elseif recipe then
-        local learn = ("%s %d"):format(recipe.profession, recipe.needed)
-        if not recipe.ready then
-            learn = ("%s (you're at %d)"):format(learn, recipe.skill)
-        end
-        table.insert(parts, learn)
+-- What a recipe worth reselling says under its name: what it should
+-- leave once sold, and what the vendor asks. It's a figure from recent
+-- auction prices, and the card says so; it isn't a promise.
+local function ProfitDetail(row)
+    local deal = row.deal
+    -- What the vendor asks is a guess until their wares have been seen.
+    local detail = ("About %s more than it costs (%s%s)"):format(
+        Theme.Coins(deal.profit),
+        deal.costIsSeen and "" or "about ",
+        Theme.Coins(deal.cost)
+    )
+    local spot = ns.Recipes.VendorSpot(deal)
+    if spot and spot.name then
+        detail = ("%s, %s"):format(detail, spot.name)
     end
+    return detail
+end
 
-    local detail = table.concat(parts, "; ")
-    local spot = ns.Recipes.VendorSpot(recipe or deal)
+-- What a recipe the player could learn says under its name: the skill it
+-- takes, and who sells it.
+local function LearnDetail(row)
+    local recipe = row.recipe
+    local detail = ("%s %d"):format(recipe.profession, recipe.needed)
+    if not recipe.ready then
+        detail = ("%s (you're at %d)"):format(detail, recipe.skill)
+    end
+    local spot = ns.Recipes.VendorSpot(recipe)
     if spot and spot.name then
         detail = ("%s, from %s"):format(detail, spot.name)
     end
     return detail
 end
 
--- The card's title and opening line, by what's on it.
-local function RecipeCardWords(zone, rows)
-    local toLearn, toResell = 0, 0
+-- The two sections of the card, each its rows in order.
+local function Sections(rows)
+    local profits, missing = {}, {}
     for _, row in ipairs(rows) do
-        if row.recipe then
-            toLearn = toLearn + 1
-        end
         if row.deal then
-            toResell = toResell + 1
+            table.insert(profits, row)
+        end
+        if row.recipe then
+            table.insert(missing, row)
         end
     end
-
-    local loud = ns.settings.auditorMode
-    if toResell == 0 then
-        local body = toLearn == 1 and "A vendor in %s sells one you haven't learned."
-            or "Vendors in %s sell some you haven't learned."
-        return loud and "You are MISSING recipes" or "Recipes for sale here", body:format(zone)
-    elseif toLearn == 0 then
-        local body = toResell == 1
-                and "A vendor in %s sells a recipe that fetches a good deal more at auction."
-            or "Vendors in %s sell recipes that fetch a good deal more at auction."
-        return loud and "Free money at this vendor" or "Recipes worth reselling", body:format(zone)
-    end
-    local one = "A vendor in %s sells one you haven't learned that also fetches a "
-        .. "good deal more at auction."
-    local several = "Vendors in %s sell recipes you haven't learned, and some worth "
-        .. "reselling at auction."
-    local body = #rows == 1 and one or several
-    return loud and "Recipes. Buy them. NOW." or "Recipes for sale here", body:format(zone)
+    return profits, missing
 end
+
+local PROFIT_HEADING = "POTENTIAL PROFIT AT AUCTION"
+local MISSING_HEADING = "RECIPES YOU'RE MISSING"
 
 function RecipeCardOptions()
     local zone, rows = recipeCard.zone, recipeCard.rows
+    local profits, missing = Sections(rows)
+
+    -- With both sections, each gets half the card unless the other
+    -- needs less.
+    local room = ns.Toast.MAX_ITEMS
+    local profitRoom = #missing > 0 and math.max(room - #missing, math.floor(room / 2)) or room
+    local shownProfits = math.min(#profits, profitRoom)
+    local shownMissing = math.min(#missing, room - shownProfits)
 
     local items = {}
-    for index = 1, math.min(ns.Toast.MAX_ITEMS, #rows) do
-        local row = rows[index]
-        items[index] = {
+    local function Add(row, heading, detail)
+        table.insert(items, {
             itemID = row.item,
             icon = C_Item.GetItemIconByID(row.item),
             name = ns.Recipes.Name(row.item, row.spell),
             quality = C_Item.GetItemQualityByID(row.item),
-            detail = RowDetail(row),
+            detail = detail,
+            heading = heading,
             onDismiss = function()
                 DismissRecipe(row)
             end,
             dismissTip = DISMISS_TIP,
-        }
+        })
+    end
+    for index = 1, shownProfits do
+        Add(profits[index], index == 1 and PROFIT_HEADING or nil, ProfitDetail(profits[index]))
+    end
+    for index = 1, shownMissing do
+        Add(missing[index], index == 1 and MISSING_HEADING or nil, LearnDetail(missing[index]))
     end
 
-    local title, body = RecipeCardWords(zone, rows)
-    if #rows > #items then
-        body = body
-            .. (" %d more are on the Recipes tab, and Prospects' resale list."):format(
-                #rows - #items
-            )
+    -- What the figures are, said plainly: it's what recent prices
+    -- suggest, not a reason to buy.
+    local lines = {}
+    if #profits > 0 then
+        table.insert(
+            lines,
+            (
+                "Sold by vendors in %s, against what they've fetched at auction lately, "
+                .. "after the cut. Prices move, so check them before you buy."
+            ):format(zone)
+        )
+    elseif #missing > 0 then
+        table.insert(lines, ("Sold by vendors in %s, in professions you have."):format(zone))
+    end
+    local unlisted = (#profits - shownProfits) + (#missing - shownMissing)
+    if unlisted > 0 then
+        table.insert(
+            lines,
+            ("%d more on the Recipes tab and Prospects' resale list."):format(unlisted)
+        )
     end
 
     return {
-        title = title,
-        body = body,
+        title = "Recipes for sale here",
+        body = table.concat(lines, " "),
         items = items,
         primary = {
             label = "Show me",
             onClick = function()
                 -- The vendor on the map if we can place them, and the
                 -- full list either way.
-                local first = rows[1]
+                local first = profits[1] or missing[1]
                 local spot = first and ns.Recipes.VendorSpot(first.recipe or first.deal)
                 if spot then
                     ns.MapMarks.ShowPoint(spot.mapID, spot.x, spot.y)
