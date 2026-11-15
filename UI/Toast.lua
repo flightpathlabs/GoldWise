@@ -494,9 +494,13 @@ function Toast.Update(which, options)
     end
 end
 
---- Whether a card is up at the moment.
+--- Whether a card is up at the moment, or a particular one.
+---@param which number|nil  what Toast.Show returned, for that card only
 ---@return boolean
-function Toast.IsShowing()
+function Toast.IsShowing(which)
+    if which and which ~= shown then
+        return false
+    end
     return card ~= nil and card:IsShown()
 end
 

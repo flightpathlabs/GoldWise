@@ -491,12 +491,16 @@ local function RedrawRecipeCard()
     if not recipeCard then
         return
     end
-    if ns.Toast.IsShowing() then
+    if ns.Toast.IsShowing(recipeCard.id) then
         -- A recipe left off for want of its vendor price may now be worth
-        -- a row. Anything dismissed meanwhile stays off.
-        local rows = RecipeRows()
-        if #rows > 0 then
-            recipeCard.rows = rows
+        -- a row. Anything dismissed meanwhile stays off. Only while the
+        -- player is still in the card's zone: the rows are worked out for
+        -- wherever they're standing.
+        if GetRealZoneText() == recipeCard.zone then
+            local rows = RecipeRows()
+            if #rows > 0 then
+                recipeCard.rows = rows
+            end
         end
         ns.Toast.Update(recipeCard.id, RecipeCardOptions())
     else
@@ -521,7 +525,10 @@ local function CheckRecipes(isRetry)
         return
     end
 
-    if ns.Toast.IsShowing() then
+    -- Another card is up. The recipe card from the last zone gives way to
+    -- this one's; anything else is waited for, once.
+    local oldRecipeCard = recipeCard and ns.Toast.IsShowing(recipeCard.id)
+    if ns.Toast.IsShowing() and not oldRecipeCard then
         if not isRetry then
             C_Timer.After(RECIPE_RETRY, function()
                 CheckRecipes(true)
