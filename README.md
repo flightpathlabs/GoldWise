@@ -210,7 +210,7 @@ after the auction house's cut, and the profit, with any deposits lost on
 listings that didn't sell taken off. Goldwise follows each one from the
 vendor to its sale by itself.
 
-![The Recipes tab](docs/images/recipes.png)
+![The Recipes tab: recipes to get on the left, and recipes worth reselling on the right](docs/images/recipes.png)
 
 ### The session tracker: how this sitting is going
 
