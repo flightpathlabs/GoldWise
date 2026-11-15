@@ -367,6 +367,16 @@ function RecipeCardOptions()
 
     local items = {}
     local function Add(row, heading, detail)
+        -- Each recipe's own vendor, where they can be placed on the map.
+        local spot = ns.Recipes.VendorSpot(row.recipe or row.deal)
+        local onMap, mapTip
+        if spot then
+            onMap = function()
+                ns.MapMarks.ShowPoint(spot.mapID, spot.x, spot.y)
+            end
+            mapTip = { ("Show %s on the map"):format(spot.name or "the vendor") }
+        end
+
         table.insert(items, {
             itemID = row.item,
             icon = C_Item.GetItemIconByID(row.item),
@@ -374,6 +384,8 @@ function RecipeCardOptions()
             quality = C_Item.GetItemQualityByID(row.item),
             detail = detail,
             heading = heading,
+            onMap = onMap,
+            mapTip = mapTip,
             onDismiss = function()
                 DismissRecipe(row)
             end,
@@ -413,23 +425,19 @@ function RecipeCardOptions()
         title = "Recipes for sale here",
         body = table.concat(lines, " "),
         items = items,
+        -- Each row has its own pin for its vendor. The button opens the
+        -- full list the rows come from.
         primary = {
-            label = "Show me",
+            label = "See them all",
             onClick = function()
-                -- The vendor on the map if we can place them, and the
-                -- full list either way.
-                local first = profits[1] or missing[1]
-                local spot = first and ns.Recipes.VendorSpot(first.recipe or first.deal)
-                if spot then
-                    ns.MapMarks.ShowPoint(spot.mapID, spot.x, spot.y)
-                elseif first and not first.recipe then
+                if #missing == 0 then
                     ns.ShowResalePlan()
                 else
                     ns.ShowWindowTab("Recipes")
                 end
             end,
         },
-        secondary = { label = "Not now" },
+        secondary = { label = "Close" },
     }
 end
 

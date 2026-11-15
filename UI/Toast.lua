@@ -20,8 +20,10 @@ local PADDING = 14
 local ROW_HEIGHT = 38
 local ICON_SIZE = 32
 
--- The X on a row that can be dismissed.
+-- The X on a row that can be dismissed, and the pin on one with a place
+-- to show on the map.
 local DISMISS_SIZE = 16
+local PIN_SIZE = 20
 
 -- A heading over a group of rows, and the room it takes.
 local HEADING_HEIGHT = 18
@@ -30,8 +32,9 @@ local HEADING_HEIGHT = 18
 -- a glance. The caller says where the rest can be found.
 Toast.MAX_ITEMS = 4
 
--- Seconds before an ignored card puts itself away, and to look again when
--- it's due to go but the mouse is on it.
+-- Seconds before an ignored card puts itself away, for those who'd like
+-- cards to, and to look again when it's due to go but the mouse is on it.
+-- Otherwise a card stays until it's closed.
 local LINGER = 25
 local LINGER_MORE = 3
 
@@ -145,6 +148,38 @@ local function CreateItemRow(parent)
         GameTooltip_Hide()
         if row.onDismiss then
             row.onDismiss()
+        end
+    end)
+
+    -- A map pin, for a row with somewhere to show: the vendor who sells
+    -- it, say. Each row has its own, since each can be somewhere else.
+    row.Pin = CreateFrame("Button", nil, row)
+    row.Pin:SetSize(PIN_SIZE, PIN_SIZE)
+
+    row.Pin.Icon = row.Pin:CreateTexture(nil, "ARTWORK")
+    row.Pin.Icon:SetAtlas("Waypoint-MapPin-Untracked")
+    row.Pin.Icon:SetAllPoints()
+    row.Pin.Icon:SetAlpha(0.8)
+
+    row.Pin:SetScript("OnEnter", function(button)
+        button.Icon:SetAlpha(1)
+        if row.mapTip then
+            GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+            GameTooltip:SetText(row.mapTip[1])
+            for index = 2, #row.mapTip do
+                GameTooltip:AddLine(row.mapTip[index], 1, 1, 1, true)
+            end
+            GameTooltip:Show()
+        end
+    end)
+    row.Pin:SetScript("OnLeave", function(button)
+        button.Icon:SetAlpha(0.8)
+        GameTooltip_Hide()
+    end)
+    row.Pin:SetScript("OnClick", function()
+        GameTooltip_Hide()
+        if row.onMap then
+            row.onMap()
         end
     end)
 
@@ -267,20 +302,30 @@ local function FillItemRow(row, item)
     row.link = item.link
     row.onDismiss = item.onDismiss
     row.dismissTip = item.dismissTip
+    row.onMap = item.onMap
+    row.mapTip = item.mapTip
 
     row.Icon:SetTexture(item.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
     row.Count:SetText(item.count and item.count > 1 and item.count or "")
     row.Name:SetText(Theme.ItemName(item.name, item.quality))
     row.Detail:SetText(item.detail or "")
 
-    -- The text runs up to the X when there is one, and to the edge when
-    -- there isn't.
+    -- The X sits at the right edge and the pin before it, each only when
+    -- the row has one. The text runs up to whichever comes first.
     local dismissable = item.onDismiss ~= nil
     row.Dismiss:SetShown(dismissable)
     row.Dismiss.Icon:SetAlpha(0.5)
     local edge, edgePoint, offset = row, "RIGHT", 0
     if dismissable then
         edge, edgePoint, offset = row.Dismiss, "LEFT", -4
+    end
+
+    local pinned = item.onMap ~= nil
+    row.Pin:SetShown(pinned)
+    if pinned then
+        row.Pin:ClearAllPoints()
+        row.Pin:SetPoint("RIGHT", edge, edgePoint, offset, 0)
+        edge, edgePoint, offset = row.Pin, "LEFT", -4
     end
     row.Name:SetPoint("RIGHT", edge, edgePoint, offset, 0)
     row.Detail:SetPoint("RIGHT", edge, edgePoint, offset, 0)
@@ -344,8 +389,9 @@ end
 ---              rows with their icons; detail is the line under the name.
 ---              A row with onDismiss gets a small X that calls it, and
 ---              dismissTip ({ title, line, ... }) is the X's tooltip. A
----              row with heading starts a section, with that heading over
----              it. Optional.
+---              row with onMap gets a map pin that calls it, with mapTip
+---              as its tooltip in the same shape. A row with heading
+---              starts a section, with that heading over it. Optional.
 ---   primary    { label, onClick, keepOpen } for the main button; the card
 ---              closes when it's clicked unless keepOpen is set
 ---   secondary  the same for the other button, optional
@@ -365,7 +411,9 @@ function Toast.Show(options)
     end
 
     shown = shown + 1
-    PutAwayLater(shown, LINGER)
+    if ns.settings.cardsPutAway then
+        PutAwayLater(shown, LINGER)
+    end
     return shown
 end
 

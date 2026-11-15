@@ -197,6 +197,14 @@ ns.OnEvent("PLAYER_LOGIN", function()
 
     AddCheckbox(
         category,
+        "cardsPutAway",
+        "Put those prompts away by themselves",
+        "Off unless you turn it on: a card stays until you close it. With this on, one "
+            .. "you leave alone goes after about half a minute, unless the mouse is on it."
+    )
+
+    AddCheckbox(
+        category,
         "promptSound",
         "Play a sound with those prompts",
         "Off unless you turn it on. Goldwise is otherwise silent."

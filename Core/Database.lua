@@ -98,6 +98,9 @@ local DEFAULT_SETTINGS = {
     resaleShare = 25,
     vendorCheck = true,
     promptSound = false,
+    -- Whether a card puts itself away after a while. Otherwise it stays
+    -- until it's closed.
+    cardsPutAway = false,
 
     -- An auction price on item tooltips. Skipped when another addon is
     -- already showing one for the item, whatever this says.
