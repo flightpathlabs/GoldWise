@@ -371,6 +371,15 @@ packager skips `UI/Demo.lua` and comments out its line in the TOC.
 Formatting is StyLua and linting is luacheck, both configured at the
 repository root.
 
+## More from Flight Path Labs
+
+Small addons for World of Warcraft: Forever, all at
+[github.com/flightpathlabs](https://github.com/flightpathlabs).
+
+- [Creel](https://github.com/flightpathlabs/Creel): a fishing log and one-key cast.
+- [Temper](https://github.com/flightpathlabs/Temper): how your character fights, and whether a change helped. Coming soon.
+- [Encore](https://github.com/flightpathlabs/Encore): helpers for enchanters. Coming soon.
+
 ## Disclaimer
 
 Goldwise is a fan-made addon. Its goblin mascot is an original
