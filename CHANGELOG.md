@@ -4,16 +4,6 @@ What changed in each release of Goldwise, newest first. Work that hasn't
 been released yet is listed under "Unreleased" in the copy of this file on
 the `dev` branch.
 
-## Unreleased
-
-**Fixed**
-
-- **The recipe card's resale lines fit.** The vendor's name ran off the
-  end of the line; it's on the row's map pin instead.
-- **Looting no longer fills Goldwise's diagnostic log.** Only what's out
-  of the ordinary is noted, once a session, so a bug report keeps the
-  rest of what it needs.
-
 ## 0.5.0 (14 November 2026)
 
 **New**
