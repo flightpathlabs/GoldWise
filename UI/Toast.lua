@@ -25,6 +25,11 @@ local ICON_SIZE = 32
 local DISMISS_SIZE = 16
 local PIN_SIZE = 20
 
+-- Buttons are as wide as their words need, and no narrower than this.
+-- Room either side of the words, inside the button's edges.
+local BUTTON_LEAST = 80
+local BUTTON_ROOM = 28
+
 -- A heading over a group of rows, and the room it takes.
 local HEADING_HEIGHT = 18
 
@@ -252,20 +257,18 @@ local function Create()
     end
 
     frame.Primary = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.Primary:SetSize(120, 22)
+    frame.Primary:SetHeight(22)
     frame.Primary:SetPoint("BOTTOMLEFT", PADDING, PADDING - 2)
 
     frame.Secondary = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.Secondary:SetSize(120, 22)
+    frame.Secondary:SetHeight(22)
     frame.Secondary:SetPoint("LEFT", frame.Primary, "RIGHT", 8, 0)
 
-    -- A quiet way out, in grey at the bottom right: "Don't show again".
-    frame.Quiet = CreateFrame("Button", nil, frame)
-    frame.Quiet:SetPoint("BOTTOMRIGHT", -PADDING, PADDING + 3)
-    frame.Quiet.Text = frame.Quiet:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-    frame.Quiet.Text:SetPoint("RIGHT")
+    -- A way out at the bottom right, such as "Don't show again".
+    frame.Quiet = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+    frame.Quiet:SetHeight(22)
+    frame.Quiet:SetPoint("BOTTOMRIGHT", -PADDING, PADDING - 2)
     frame.Quiet:SetScript("OnEnter", function(self)
-        self.Text:SetTextColor(1, 1, 1)
         if self.tip then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText(self.tip[1])
@@ -275,10 +278,7 @@ local function Create()
             GameTooltip:Show()
         end
     end)
-    frame.Quiet:SetScript("OnLeave", function(self)
-        self.Text:SetTextColor(0.5, 0.5, 0.5)
-        GameTooltip_Hide()
-    end)
+    frame.Quiet:SetScript("OnLeave", GameTooltip_Hide)
 
     return frame
 end
@@ -308,7 +308,9 @@ local function WireButton(button, definition)
     end
 
     button:SetText(definition.label)
+    button:SetWidth(math.max(BUTTON_LEAST, button:GetFontString():GetStringWidth() + BUTTON_ROOM))
     button:SetScript("OnClick", function()
+        GameTooltip_Hide()
         if not definition.keepOpen then
             card:Hide()
         end
@@ -398,21 +400,8 @@ local function Fill(options)
     WireButton(card.Primary, options.primary)
     WireButton(card.Secondary, options.secondary)
 
-    local quiet = options.quiet
-    card.Quiet:SetShown(quiet ~= nil)
-    if quiet then
-        card.Quiet.Text:SetText(quiet.label)
-        card.Quiet.Text:SetTextColor(0.5, 0.5, 0.5)
-        card.Quiet:SetSize(card.Quiet.Text:GetStringWidth(), 16)
-        card.Quiet.tip = quiet.tip
-        card.Quiet:SetScript("OnClick", function()
-            GameTooltip_Hide()
-            card:Hide()
-            if quiet.onClick then
-                quiet.onClick()
-            end
-        end)
-    end
+    WireButton(card.Quiet, options.quiet)
+    card.Quiet.tip = options.quiet and options.quiet.tip
 
     card:SetHeight(height + 14 + 22 + PADDING)
 end
@@ -432,9 +421,9 @@ end
 ---   primary    { label, onClick, keepOpen } for the main button; the card
 ---              closes when it's clicked unless keepOpen is set
 ---   secondary  the same for the other button, optional
----   quiet      { label, onClick, tip } for a small grey link at the
----              bottom right, such as "Don't show again"; the card closes
----              when it's clicked. Optional.
+---   quiet      { label, onClick, tip } for a third button, at the
+---              bottom right, such as "Don't show again", with tip as its
+---              tooltip; the card closes when it's clicked. Optional.
 ---@return number|nil card  for Toast.Update; nil if nothing was shown
 function Toast.Show(options)
     -- Nothing we have to say is worth a pop-up in the middle of a fight.
