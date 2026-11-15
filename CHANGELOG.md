@@ -47,6 +47,8 @@ the `dev` branch.
   be sold on, list it and sell it, and Goldwise keeps what it really
   cost, what it really sold for and the profit, deposits lost included.
   It's under Your resales on the Recipes tab.
+- **Sort the Assets list** by sell value, by name, or by what Goldwise
+  suggests doing with each thing. It remembers your choice.
 - **What your bank would fetch.** While the bank is open, a strip over
   it says what your bank and the account bank would fetch, at auction
   and to vendors, and how many things in them are worth listing. It

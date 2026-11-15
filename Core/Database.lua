@@ -143,6 +143,9 @@ local DEFAULT_SETTINGS = {
     -- Whether the list shows every character's holdings or just this one's.
     allCharacters = true,
 
+    -- How the Assets list is ordered: "value", "name" or "verdict".
+    assetsSort = "value",
+
     -- How long a stretch each bar of the Purse chart covers: a place in
     -- the list in UI\PurseTab.lua. And whether that chart shows a line of
     -- coin held in place of the bars.

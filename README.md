@@ -78,7 +78,8 @@ as you use them.
 
 Everything sellable in your bags and bank, on this character or all of
 them, with the lowest price, a trend line and a verdict: **Sell**,
-**Hold**, **Vendor** or **Keep**. Right-click anything you use to keep it,
+**Hold**, **Vendor** or **Keep**. **Sort** orders it by sell value, by
+name, or by what to do with each. Right-click anything you use to keep it,
 and Goldwise stops suggesting you sell it. Fishing poles and profession
 tools are kept from the start.
 

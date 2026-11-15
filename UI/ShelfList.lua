@@ -182,13 +182,67 @@ end
 
 -- Ordering --------------------------------------------------------------------
 
--- Most valuable first; things we can't price yet go to the bottom.
-local function ByProceeds(a, b)
-    local left, right = a.advice.proceeds or -1, b.advice.proceeds or -1
+-- What a row would bring in, the figure under its verdict: at auction
+-- for what's to be sold or held, from a vendor for what's to be vendored.
+-- Things we can't price yet count as less than nothing, to go last.
+local function SaleValue(data)
+    local advice = data.advice
+    if advice.verb == ns.Advice.VENDOR then
+        return advice.fromVendor or -1
+    end
+    return advice.proceeds or -1
+end
+
+-- The verdicts in the order they're most use: what to do something with
+-- first, what to leave alone after.
+local VERDICT_ORDER = {
+    [ns.Advice.SELL] = 1,
+    [ns.Advice.VENDOR] = 2,
+    [ns.Advice.HOLD] = 3,
+    [ns.Advice.KEEP] = 4,
+    [ns.Advice.UNKNOWN] = 5,
+}
+
+local function ByName(a, b)
+    if a.name ~= b.name then
+        return a.name < b.name
+    end
+    return (a.owner or "") < (b.owner or "")
+end
+
+-- Most valuable first.
+local function ByValue(a, b)
+    local left, right = SaleValue(a), SaleValue(b)
     if left ~= right then
         return left > right
     end
-    return a.name < b.name
+    return ByName(a, b)
+end
+
+-- By what Goldwise would do with it, most valuable first within each.
+local function ByVerdict(a, b)
+    local left, right = VERDICT_ORDER[a.advice.verb] or 9, VERDICT_ORDER[b.advice.verb] or 9
+    if left ~= right then
+        return left < right
+    end
+    return ByValue(a, b)
+end
+
+-- The ways the list can be ordered, as the Sort menu offers them. The
+-- player's choice is kept in settings.assetsSort.
+local SORTS = {
+    { key = "value", label = "Sell value", order = ByValue },
+    { key = "name", label = "Name", order = ByName },
+    { key = "verdict", label = "Suggested action", order = ByVerdict },
+}
+
+local function CurrentSort()
+    for _, sort in ipairs(SORTS) do
+        if sort.key == ns.settings.assetsSort then
+            return sort
+        end
+    end
+    return SORTS[1]
 end
 
 -- The list --------------------------------------------------------------------
@@ -216,6 +270,29 @@ function ShelfList.Create(parent, onSelect)
     scope:SetScript("OnClick", function()
         ns.settings.allCharacters = not ns.settings.allCharacters
         ns.Publish("SETTINGS_CHANGED")
+    end)
+
+    -- How the list is ordered: by sell value to begin with.
+    local sortButton = CreateFrame("Button", nil, list, "UIPanelButtonTemplate")
+    sortButton:SetSize(160, 20)
+    sortButton:SetPoint("RIGHT", scope, "LEFT", -8, 0)
+
+    -- The line beside the heading stops short of the buttons.
+    about:SetPoint("RIGHT", sortButton, "LEFT", -10, 0)
+    about:SetJustifyH("LEFT")
+    about:SetWordWrap(false)
+    sortButton:SetScript("OnClick", function(self)
+        MenuUtil.CreateContextMenu(self, function(_, root)
+            root:CreateTitle("Sort by")
+            for _, sort in ipairs(SORTS) do
+                root:CreateRadio(sort.label, function()
+                    return CurrentSort() == sort
+                end, function()
+                    ns.settings.assetsSort = sort.key
+                    ns.Publish("SETTINGS_CHANGED")
+                end)
+            end
+        end)
     end)
 
     local empty = list:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
@@ -338,7 +415,9 @@ function ShelfList.Create(parent, onSelect)
                 AddAll(character.holdings, ns.Bank.Holdings(character.key), character.name)
             end
         end
-        table.sort(rows, ByProceeds)
+        local sort = CurrentSort()
+        table.sort(rows, sort.order)
+        sortButton:SetText("Sort: " .. sort.label)
 
         if everyone then
             about:SetText("Sellable things on all your characters, as of their last login")
