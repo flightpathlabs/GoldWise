@@ -208,9 +208,9 @@ the **Session tracker** button on the window's title bar, or `/gw session`.
 It leads with what this session has made or lost in coin, then where that
 coin came from and went: loot, quest rewards, vendors, the auction house,
 repairs. Below that, kept apart, is what your bags would fetch if sold, at
-auction and to vendors, with how far each has moved since you started.
-Tick Bank beside it to count your bank too, as it was when you last had
-it open; then moving things into the bank is neither a gain nor a loss.
+auction and to vendors. What you have up for auction counts too, until it
+sells. Tick Bank beside it to count your bank as well, as it was when you
+last had it open.
 The cog switches sections on and off, the arrow starts afresh before a
 run, and another button folds it to a single line. Drag it anywhere, and
 click the pin in its corner for Places.

@@ -55,6 +55,7 @@ Profile\Bank.lua
 Profile\Professions.lua
 Profile\Purse.lua
 Profile\Trade.lua
+Profile\Listings.lua
 Profile\Session.lua
 Profile\Directory.lua
 Profile\Training.lua

@@ -57,6 +57,11 @@ the `dev` branch.
   were when you last had them open, so putting things in the bank no
   longer shows as a loss. It's off to begin with, and switching it
   doesn't restart the session.
+- **The session tracker's "if sold" section is simpler.** It shows
+  what your bags would fetch at auction and to vendors, and no longer
+  the change since you started beside each, which read as a loss
+  whenever you sold something. What you have up for auction now counts
+  with your bags until it sells or its time runs out.
 - **Alt-right-click always answers.** On an item none of your
   characters can make or use, it used to do nothing at all. It now
   opens the crafting tree page, which says so, and how Goldwise learns

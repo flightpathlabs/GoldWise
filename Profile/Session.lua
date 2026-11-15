@@ -82,6 +82,8 @@ local function Contents(withBank)
         end
     end
     Add(ns.Bags.Holdings())
+    -- What's up for auction is still the player's until it sells.
+    Add((ns.Listings.Holdings()))
     if withBank then
         Add((ns.Bank.Holdings()))
         Add((ns.Bank.AccountHoldings()))
@@ -123,7 +125,7 @@ local function SetStart()
     current.bagsAtStart = Contents(true)
     current.carriedAtStart = Contents(false)
     local own, account = BanksSeen()
-    current.banksSeen = { own = own, account = account }
+    current.banksSeen = { own = own, account = account, listed = ns.Listings.Seen() }
     startValue = nil
 end
 
@@ -140,12 +142,14 @@ local function AddNewlySeenBanks()
         return
     end
     local own, account = BanksSeen()
-    local function Fold(holdings)
+    local function FoldInto(start, holdings)
         for _, holding in ipairs(holdings) do
-            current.bagsAtStart[holding.itemID] = (current.bagsAtStart[holding.itemID] or 0)
-                + holding.count
+            start[holding.itemID] = (start[holding.itemID] or 0) + holding.count
         end
         startValue = nil
+    end
+    local function Fold(holdings)
+        FoldInto(current.bagsAtStart, holdings)
     end
     if own and not current.banksSeen.own then
         Fold((ns.Bank.Holdings()))
@@ -154,6 +158,23 @@ local function AddNewlySeenBanks()
     if account and not current.banksSeen.account then
         Fold((ns.Bank.AccountHoldings()))
         current.banksSeen.account = true
+    end
+    -- The same for each auction house's listings, which are read the
+    -- moment it opens. They count with the bags as well as the bank, so
+    -- they join both starts. A session saved before listings were kept
+    -- has no word on them, and is taken not to have seen any.
+    if type(current.banksSeen.listed) ~= "table" then
+        current.banksSeen.listed = {}
+    end
+    for marketKey in pairs(ns.Listings.Seen()) do
+        if not current.banksSeen.listed[marketKey] then
+            local holdings = ns.Listings.Holdings(marketKey)
+            FoldInto(current.bagsAtStart, holdings)
+            if type(current.carriedAtStart) == "table" then
+                FoldInto(current.carriedAtStart, holdings)
+            end
+            current.banksSeen.listed[marketKey] = true
+        end
     end
 end
 

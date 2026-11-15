@@ -19,6 +19,8 @@ local addonName, ns = ...
 --   dropsVersion  which way of keeping drops records made them; older
 --              ones are let go (see Drops)
 --   keep       what the player has said isn't for sale (see Keep)
+--   listings   what each character has up for auction, as of their last
+--              visit to the auction house (see Listings)
 --   purse      money in and out, and coin held, by the hour, for the
 --              account and each character (see Purse)
 --   trade      auction sales, purchases and deposits by day (see Trade)
