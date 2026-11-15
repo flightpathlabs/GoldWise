@@ -194,6 +194,41 @@ local function RememberIn(book, entry)
     end
 end
 
+-- Purchases put on record without word of what was bought: { entries,
+-- amount, at }, where entries are the account's and this character's
+-- copies on the list. The game may say what it was a moment later.
+local unnamed = {}
+
+-- What the game has said was just bought, before the coin for it was put
+-- on record: { itemID, count, at }.
+local justBought = {}
+
+-- Purchases put on record already knowing what they were for: { itemID,
+-- at }. The game's word on these is old news, and mustn't be taken for
+-- word of another.
+local alreadyNamed = {}
+
+-- Seconds either waits for the other.
+local PURCHASE_WAIT = 10
+
+local function DropOld(list)
+    local now = GetTime()
+    while list[1] and now - list[1].at > PURCHASE_WAIT do
+        table.remove(list, 1)
+    end
+end
+
+-- Says what a purchase was for, on the list and as the price last paid.
+local function Name(entries, amount, itemID, count)
+    for _, entry in ipairs(entries) do
+        entry.itemID = itemID
+        entry.count = count
+    end
+    if count and count > 0 then
+        Book().paid[itemID] = { each = amount / count, at = GetServerTime() }
+    end
+end
+
 -- Puts one movement of coin on record, now that it has happened, in the
 -- account's book and this character's.
 local function File(kind, amount, expected)
@@ -244,8 +279,38 @@ local function File(kind, amount, expected)
             count = expected.count,
             who = UnitName("player"),
         }
+        local own = CopyTable(entry)
         RememberIn(Book(), entry)
-        RememberIn(OwnBook(), CopyTable(entry))
+        RememberIn(OwnBook(), own)
+
+        if kind == Trade.PURCHASE and expected.itemID then
+            -- Already known; the game's word on it, before or after, is
+            -- no news.
+            DropOld(justBought)
+            local heard = false
+            for index, bought in ipairs(justBought) do
+                if bought.itemID == expected.itemID then
+                    table.remove(justBought, index)
+                    heard = true
+                    break
+                end
+            end
+            if not heard then
+                DropOld(alreadyNamed)
+                table.insert(alreadyNamed, { itemID = expected.itemID, at = GetTime() })
+            end
+        elseif kind == Trade.PURCHASE then
+            -- No word of what it was for: the game may have said just
+            -- before, or may say just after.
+            DropOld(justBought)
+            local bought = table.remove(justBought, 1)
+            if bought then
+                Name({ entry, own }, amount, bought.itemID, bought.count)
+            else
+                DropOld(unnamed)
+                table.insert(unnamed, { entries = { entry, own }, amount = amount, at = GetTime() })
+            end
+        end
     end
 
     ns.Publish(
@@ -385,6 +450,38 @@ for name, onAsk in pairs(ASKS) do
         hooksecurefunc(C_AuctionHouse, name, onAsk)
     end
 end
+
+-- The game says what was bought once a purchase goes through: one item
+-- from an auction, or so many of something sold from a pool. Where the
+-- coin for it was put on record without saying, it says so now.
+local function Purchased(itemID, count)
+    if not itemID then
+        return
+    end
+    DropOld(alreadyNamed)
+    for index, named in ipairs(alreadyNamed) do
+        if named.itemID == itemID then
+            table.remove(alreadyNamed, index)
+            return
+        end
+    end
+    DropOld(unnamed)
+    local waiting = table.remove(unnamed, 1)
+    if waiting then
+        Name(waiting.entries, waiting.amount, itemID, count)
+        ns.Publish("TRADE_CHANGED")
+    else
+        DropOld(justBought)
+        table.insert(justBought, { itemID = itemID, count = count, at = GetTime() })
+    end
+end
+
+ns.OnEvent("ITEM_PURCHASED", function(itemID)
+    Purchased(itemID, 1)
+end)
+ns.OnEvent("COMMODITY_PURCHASED", function(itemID, quantity)
+    Purchased(itemID, quantity)
+end)
 
 -- Matching --------------------------------------------------------------------
 
