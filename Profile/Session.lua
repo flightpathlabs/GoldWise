@@ -74,7 +74,7 @@ end
 -- character's own and the one the account shares. Counting it means
 -- putting something in the bank is neither a gain nor a loss, which it
 -- isn't; leaving it out means that's counted as things leaving.
-local function Contents(withBank)
+local function Contents(withBank, withoutListings)
     local counts = {}
     local function Add(holdings)
         for _, holding in ipairs(holdings) do
@@ -83,7 +83,9 @@ local function Contents(withBank)
     end
     Add(ns.Bags.Holdings())
     -- What's up for auction is still the player's until it sells.
-    Add((ns.Listings.Holdings()))
+    if not withoutListings then
+        Add((ns.Listings.Holdings()))
+    end
     if withBank then
         Add((ns.Bank.Holdings()))
         Add((ns.Bank.AccountHoldings()))
@@ -201,7 +203,13 @@ local function Value()
     local withBank = WithBank()
     local start = withBank and current.bagsAtStart or current.carriedAtStart
     local market = ns.Market.Home()
-    local auction, vendor, unpriced = ns.Assets.SaleValue(AsHoldings(Contents(withBank)), market)
+
+    -- What's held and what's listed are valued apart, so the tracker can
+    -- show them apart; together they're what's compared with the start.
+    local heldAuction, heldVendor, unpriced =
+        ns.Assets.SaleValue(AsHoldings(Contents(withBank, true)), market)
+    local listedAuction, listedVendor = ns.Assets.SaleValue(ns.Listings.Holdings(), market)
+    local auction, vendor = heldAuction + listedAuction, heldVendor + listedVendor
     if not startValue then
         local auctionBefore, vendorBefore = ns.Assets.SaleValue(AsHoldings(start), market)
         startValue = { auction = auctionBefore, vendor = vendorBefore }
@@ -211,6 +219,9 @@ local function Value()
     bags = {
         auction = auction,
         vendor = vendor,
+        heldAuction = heldAuction,
+        heldVendor = heldVendor,
+        listed = listedAuction + listedVendor,
         unpriced = unpriced,
         auctionAtStart = auctionBefore,
         vendorAtStart = vendorBefore,
@@ -350,7 +361,9 @@ end
 ---@return table|nil summary  nil before login. Otherwise { seconds, earned,
 ---        spent, income, spending, coin, bags, auction, vendor, unpriced,
 ---        auctionChange, vendorChange, goods, overall, withBank,
----        bankSeenAt }. seconds
+---        bankSeenAt, heldAuction, heldVendor, listed }. heldAuction and
+---        heldVendor are what's held fetches each way, leaving out what's
+---        up for auction, which listed is. seconds
 ---        is how long the session has run, and unpriced how many kinds of
 ---        thing held have no auction price. income and spending are
 ---        { [category] = copper }, by Purse.lua's categories, and the rest
@@ -377,6 +390,9 @@ function Session.Summary()
     if bags then
         summary.auction = bags.auction
         summary.vendor = bags.vendor
+        summary.heldAuction = bags.heldAuction
+        summary.heldVendor = bags.heldVendor
+        summary.listed = bags.listed
         summary.unpriced = bags.unpriced
         summary.bags = bags.auction + bags.vendor
         summary.auctionChange = bags.auction - bags.auctionAtStart

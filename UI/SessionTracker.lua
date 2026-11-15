@@ -391,8 +391,8 @@ local function ShowDetails(frame, opens)
             )
         end
         GameTooltip:AddLine(
-            "What you've listed at auction counts too, until it sells, as of your "
-                .. "last visit there."
+            "What you've listed at auction has a line of its own until it sells, as "
+                .. "of your last visit there."
                 .. (summary.withBank and "" or " Tick Bank to count your bank as well."),
             0.6,
             0.6,
@@ -722,10 +722,16 @@ local function AddBags(layout, summary)
     -- the session began is left to the total, for those who count it
     -- there with the cog: beside each figure it read as a loss whenever
     -- something was sold, when the coin for it is already counted above.
-    for _, way in ipairs({
-        { label = "At auction", worth = summary.auction },
-        { label = "To vendors", worth = summary.vendor },
-    }) do
+    -- What's in the bags (and bank), then what's already up for auction,
+    -- on a line of its own so it isn't taken for something carried.
+    local ways = {
+        { label = "At auction", worth = summary.heldAuction or summary.auction },
+        { label = "To vendors", worth = summary.heldVendor or summary.vendor },
+    }
+    if (summary.listed or 0) > 0 then
+        table.insert(ways, { label = "Listed at auction", worth = summary.listed })
+    end
+    for _, way in ipairs(ways) do
         AddRow(layout, {
             kind = "item",
             label = way.label,

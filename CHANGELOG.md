@@ -15,6 +15,10 @@ the `dev` branch.
 
 **Fixed**
 
+- **The session tracker shows your listings on their own line.** What
+  you have up for auction was added into "At auction", so the bags
+  looked worth far more than they held. It's now "Listed at auction",
+  under the bags' own figures.
 - **The recipe card's resale lines fit.** The vendor's name ran off the
   end of the line; it's on the row's map pin instead.
 - **The recipe card keeps to its own zone.** Left up while you moved
