@@ -306,20 +306,16 @@ end
 
 -- What a recipe worth reselling says under its name: what it should
 -- leave once sold, and what the vendor asks. It's a figure from recent
--- auction prices, and the card says so; it isn't a promise.
+-- auction prices, and the card says so; it isn't a promise. The vendor's
+-- name is on the row's map pin, as the line has no room for it.
 local function ProfitDetail(row)
     local deal = row.deal
     -- What the vendor asks is a guess until their wares have been seen.
-    local detail = ("About %s more than it costs (%s%s)"):format(
+    return ("About %s profit on a cost of %s%s"):format(
         Theme.Coins(deal.profit),
         deal.costIsSeen and "" or "about ",
         Theme.Coins(deal.cost)
     )
-    local spot = ns.Recipes.VendorSpot(deal)
-    if spot and spot.name then
-        detail = ("%s, %s"):format(detail, spot.name)
-    end
-    return detail
 end
 
 -- What a recipe the player could learn says under its name: the skill it

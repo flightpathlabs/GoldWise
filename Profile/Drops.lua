@@ -119,6 +119,19 @@ local function Readable(value)
     return value
 end
 
+-- The diagnostic log is short and shared with everything else Goldwise
+-- notes. Looting happens all evening, so only what's out of the ordinary
+-- goes in, and each kind of it once a session.
+local logged = {}
+
+local function LogOnce(text, ...)
+    if logged[text] then
+        return
+    end
+    logged[text] = true
+    ns.Log(text, ...)
+end
+
 local function InGroup()
     return IsInGroup and IsInGroup() or false
 end
@@ -698,7 +711,7 @@ local function Commit(loot, ignore)
     table.insert(owing, window)
 
     if ignore then
-        ns.Log("drops: window not recorded (%s)", ignore)
+        LogOnce("drops: windows not recorded (" .. ignore .. ")")
         return
     end
 
@@ -731,18 +744,16 @@ local function Commit(loot, ignore)
         window.slots[slotFound.slot] = guids
     end
 
-    -- One line per window, so a report can say why a kill went unrecorded.
-    local hows = {}
-    for _, source in pairs(window.sources) do
-        table.insert(hows, source and (source.how .. " " .. source.npcID) or "not a creature")
+    -- A window that couldn't be put down to a corpse is worth a line, so
+    -- a report can say why kills went unrecorded. The rest aren't.
+    if loot.unplaced then
+        LogOnce(
+            loot.ambiguous and "drops: a window with several corpses near"
+                or "drops: a window with slots from no known corpse"
+        )
+    elseif #loot.found == 0 then
+        LogOnce("drops: an empty window")
     end
-    ns.Log(
-        "drops: %d slots, %s%s%s",
-        #loot.found,
-        #hows > 0 and table.concat(hows, ", ") or "no source",
-        loot.unplaced and (loot.ambiguous and ", several corpses near" or ", some unplaced") or "",
-        loot.from and (", by a " .. loot.from .. " spell") or ""
-    )
 
     for npcID in pairs(changed) do
         ns.Publish("DROPS_CHANGED", npcID)
@@ -888,14 +899,11 @@ local function CheckKill(guid, kill)
     end
     local hasLoot = HasLoot(guid)
     if hasLoot ~= false then
-        ns.Log(
-            "drops: kill %d, %s",
-            kill.npcID,
-            hasLoot and "waiting to be looted" or "can't tell if it has loot"
-        )
+        if hasLoot == nil then
+            LogOnce("drops: a kill whose loot the game wouldn't say")
+        end
         return
     end
-    ns.Log("drops: kill %d, nothing on it", kill.npcID)
 
     -- Remembered as emptied, so skinning it later counts as a skin.
     Remember(guid, { how = KILL, left = false })
@@ -931,12 +939,12 @@ ns.OnEvent("PARTY_KILL", function(attackerGUID, targetGUID)
     -- one in view, so it's noted whatever happens next. Only a corpse
     -- known to be someone else's is left out.
     if unit and UnitIsTapDenied(unit) then
-        ns.Log("drops: a kill that wasn't yours")
+        LogOnce("drops: a kill that wasn't yours")
         return
     end
     unlooted[targetGUID] = GetTime()
     if not unit then
-        ns.Log("drops: a kill out of view")
+        LogOnce("drops: a kill out of view")
         return
     end
 
