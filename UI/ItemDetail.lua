@@ -203,15 +203,20 @@ function ItemDetail.Create(parent, onBack)
             )
         end
 
-        -- What they paid, if they bought it at auction, against what it
-        -- would clear today.
-        local paid, paidAt = ns.Trade.LastPaid(row.itemID)
+        -- What they paid, if they bought it, against what it would clear
+        -- today.
+        local paid, paidAt, paidFrom = ns.Trade.LastPaid(row.itemID)
         if paid then
-            local line = ("You last paid %s each for these at auction, %s."):format(
+            local line = ("You last paid %s each for these%s, %s."):format(
                 Theme.Coins(paid),
+                paidFrom == "vendor" and " from a vendor"
+                    or paidFrom == "auction" and " at auction"
+                    or "",
                 ns.Ago(GetServerTime() - paidAt)
             )
             if row.price then
+                -- The deposit comes back with a sale, so only the cut
+                -- comes off.
                 local clears = row.price * (1 - ns.Market.Cut(marketKey)) - paid
                 line = line
                     .. (

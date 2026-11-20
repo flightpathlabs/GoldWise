@@ -274,10 +274,17 @@ end
 -- Notes what one of something was last bought for, at the auction house
 -- or from a vendor, so a sale of it later can say what it cost.
 -- Prices paid are kept as long as price history is, like the days.
-local function NotePaid(itemID, each, from)
+--
+-- count is how many that purchase was for, so the Assets tab can weigh
+-- only as many as were bought against what they'd fetch, not a whole
+-- farmed stack beside one bought. A purchase can be noted from more than
+-- one place as the game's word comes in, so each noting replaces the
+-- last rather than adding to it.
+local function NotePaid(itemID, each, from, count)
     local paid = Book().paid
     paid[itemID] = {
         each = each,
+        count = count or 1,
         at = GetServerTime(),
         name = ns.ItemName(itemID) or C_Item.GetItemNameByID(itemID),
         from = from,
@@ -337,7 +344,7 @@ local function Settle(waiting, itemID, count)
         entry.count = count
     end
     if count > 0 then
-        NotePaid(itemID, waiting.amount / count, "auction")
+        NotePaid(itemID, waiting.amount / count, "auction", count)
     end
 end
 
@@ -391,7 +398,7 @@ hooksecurefunc("BuyMerchantItem", function(index, quantity)
         local count = math.max(1, tonumber(quantity) or info.stackCount or 1)
         table.insert(
             vendorBuys,
-            { itemID = itemID, each = each, total = each * count, at = GetTime() }
+            { itemID = itemID, each = each, count = count, total = each * count, at = GetTime() }
         )
     end
 end)
@@ -404,7 +411,7 @@ ns.Subscribe("MONEY_MOVED", function(delta, category)
     for index, buy in ipairs(vendorBuys) do
         if math.abs(-delta - buy.total) <= 1 then
             table.remove(vendorBuys, index)
-            NotePaid(buy.itemID, buy.each, "vendor")
+            NotePaid(buy.itemID, buy.each, "vendor", buy.count)
             return
         end
     end
@@ -445,7 +452,7 @@ local function File(kind, amount, expected)
     -- wonder whether to sell it. Only where the game said what was bought
     -- and how many, and only once it's theirs: a bid can still come back.
     if kind == Trade.PURCHASE and expected.itemID and (expected.count or 0) > 0 then
-        NotePaid(expected.itemID, amount / expected.count, "auction")
+        NotePaid(expected.itemID, amount / expected.count, "auction", expected.count)
     end
 
     -- Deposits are left off the list: one for every listing would bury
@@ -1011,15 +1018,18 @@ function Trade.Totals(numDays, whose)
     return totals
 end
 
---- What the player last paid for an item at auction.
+--- What the player last paid for an item, at auction or from a vendor.
 ---@param itemID number
 ---@return number|nil each  copper per unit; nil if they haven't bought
 ---        any on record
 ---@return number|nil at    server time of the purchase
+---@return string|nil from  "auction" or "vendor", where the game said
+---@return number|nil count  how many that purchase was for; nil for
+---        purchases noted before it was kept
 function Trade.LastPaid(itemID)
     local paid = Book().paid[itemID]
     if paid then
-        return paid.each, paid.at
+        return paid.each, paid.at, paid.from, paid.count
     end
 end
 

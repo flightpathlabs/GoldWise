@@ -391,7 +391,8 @@ end
 ---   stock       how many the vendor had left, where the supply is limited
 ---   price       the lowest auction price
 ---   listed      how many are up for auction: the competition
----   profit      what's left after the vendor's price and the auction cut
+---   profit      what's left after the vendor's price, the auction cut and
+---               the deposit lost when a listing doesn't sell
 ---   vendors     { npc, area, zone } for each vendor who'll deal with them
 ---   here        the vendor in the zone they're standing in, if there is one
 ---@return number unpriced  recipes left out because the client hasn't yet
@@ -422,7 +423,12 @@ function Recipes.Resale(marketKey)
                         unpriced = unpriced + 1
                     end
                 else
-                    local profit = price * (1 - cut) - cost
+                    -- The deposit comes back with a sale and is lost when
+                    -- the listing runs out, so it costs as often as
+                    -- listings come back unsold (Advisor\Advice.lua).
+                    local sellPrice = select(11, C_Item.GetItemInfo(item)) or 0
+                    local deposit = ns.Deposit.Estimate(sellPrice, marketKey)
+                    local profit = price * (1 - cut) - deposit * ns.Advice.UNSOLD_SHARE - cost
                     if profit >= math.max(ns.SMALL_CHANGE, cost * WorthwhileShare()) then
                         local vendors, here = VendorsFor(recipe, side, zoneHere)
 

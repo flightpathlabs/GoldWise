@@ -158,7 +158,24 @@ local function FillRow(row, data)
         name = name .. "  " .. Theme.Aside("on " .. data.owner)
     end
     row.Name:SetText(name)
-    row.Reason:SetText(data.watched and data.seenText or advice.reason)
+    local reason = data.watched and data.seenText or advice.reason
+    if data.margin and not data.watched then
+        -- Against what they paid: "Paid 1g each, +2s." or "..., -5s."
+        local marginText, color = Theme.SignedCoins(data.margin)
+        if data.margin >= 0.5 then
+            marginText = "+" .. marginText
+        end
+        -- "Paid 1g each for 2" when only some of what's held was bought.
+        local forHowMany = (data.weighed or data.count) < data.count and (" for " .. data.weighed)
+            or ""
+        reason = ("Paid %s each%s, %s. %s"):format(
+            Theme.Coins(data.paid),
+            forHowMany,
+            CreateColor(unpack(color)):WrapTextInColorCode(marginText),
+            reason or ""
+        )
+    end
+    row.Reason:SetText(reason)
 
     if data.price then
         row.Price:SetText(Theme.Coins(data.price))

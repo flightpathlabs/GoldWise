@@ -32,13 +32,32 @@ local WIDEST_MARGIN = 0.5
 -- item's vendor price arriving.
 local CACHE_FOR = 60
 
+-- Green and better items mostly drop from anything of about the right
+-- level, not from one kind of creature. One found in a handful of kills
+-- says nothing about how often that creature drops it: a crocolisk that
+-- happened to drop two greens in nine kills isn't worth eight times the
+-- next one. So an item this good, found on fewer corpses of a kind than
+-- this, is put down as a world drop. How often world drops turn up, and
+-- what a typical one is worth, come from every kill around that level.
+local WORLD_QUALITY = Enum.ItemQuality and Enum.ItemQuality.Uncommon or 2
+local OWN_DROP_TIMES = 3
+
+-- A creature's own run of luck with world drops is weighed against the
+-- rate around its level as if that rate came from this many kills of its
+-- own. A few kills lean on the rate around; hundreds speak for themselves.
+local PRIOR_KILLS = 10
+
 -- Drops are sold by the stack, not one at a time, so that's how they're
 -- judged: the deposit on one linen cloth would rule it out, and twenty
 -- of them sell happily. Twenty is the largest stack of most drops.
 local LARGEST_LOT = 20
 
--- What one of each item is worth: [itemID] = { at, value, vendor }.
+-- What one of each item is worth: [itemID] = { at, value, vendor, quality }.
 local itemValues = {}
+
+-- World drops around each level and type: [key] = { at, chance, each,
+-- vendor }.
+local worldDrops = {}
 
 -- Estimates from a creature's own kills, by npcID, and those borrowed
 -- from similar creatures, by npcID, level and type. Each is { at,
@@ -52,15 +71,16 @@ local byType
 
 -- Items ---------------------------------------------------------------------
 
--- What one of an item fetches, and what a vendor would pay for it.
+-- What one of an item fetches, what a vendor would pay for it, and its
+-- quality (nil until the client has it).
 local function ItemValue(itemID)
     local now = GetTime()
     local known = itemValues[itemID]
     if known and now - known.at < CACHE_FOR then
-        return known.value, known.vendor
+        return known.value, known.vendor, known.quality
     end
 
-    local _, _, _, _, _, _, _, stackCount, _, _, sellPrice = C_Item.GetItemInfo(itemID)
+    local _, _, quality, _, _, _, _, stackCount, _, _, sellPrice = C_Item.GetItemInfo(itemID)
     if sellPrice == nil then
         -- Asked for. The estimates are worked out again when it arrives.
         ns.LoadItem(itemID)
@@ -89,8 +109,97 @@ local function ItemValue(itemID)
         end
     end
 
-    itemValues[itemID] = { at = now, value = value, vendor = vendor }
-    return value, vendor
+    itemValues[itemID] = { at = now, value = value, vendor = vendor, quality = quality }
+    return value, vendor, quality
+end
+
+-- Whether a tally of { times, quantity } is a world drop rather than the
+-- creature's own: green or better, and found on only a corpse or two.
+local function IsWorldDrop(itemID, tally)
+    if (tally[1] or 0) >= OWN_DROP_TIMES then
+        return false
+    end
+    local _, _, quality = ItemValue(itemID)
+    return quality ~= nil and quality >= WORLD_QUALITY
+end
+
+local function Median(list)
+    if #list == 0 then
+        return 0
+    end
+    table.sort(list)
+    local middle = (#list + 1) / 2
+    return (list[math.floor(middle)] + list[math.ceil(middle)]) / 2
+end
+
+local function NewFinds()
+    return { finds = 0, values = {}, vendors = {} }
+end
+
+-- Splits one creature's tallies into its own drops, which are returned,
+-- and the world drops found on it, which are added to finds: how many,
+-- and what each find was worth, both ways. A world drop is judged by the
+-- one creature's tally, never a pooled one, so three beasts that each
+-- dropped the same green once are three world drops, not a drop of one.
+local function Split(tallies, finds)
+    local own = {}
+    for itemID, tally in pairs(tallies or {}) do
+        local times = tally[1] or 0
+        if times > 0 and IsWorldDrop(itemID, tally) then
+            local each, vendor = ItemValue(itemID)
+            local perFind = (tally[2] or times) / times
+            finds.finds = finds.finds + times
+            for _ = 1, times do
+                table.insert(finds.values, each * perFind)
+                table.insert(finds.vendors, vendor * perFind)
+            end
+        elseif times > 0 then
+            own[itemID] = tally
+        end
+    end
+    return own
+end
+
+-- How often a world drop turns up per kill around a level, and what a
+-- typical one fetches, both ways. The median rather than the average, so
+-- one dear blue doesn't speak for every green. Creatures of the same type
+-- only, when the type is known: beasts and humanoids don't drop alike.
+-- The creature being judged is left out, so its own luck isn't counted
+-- twice. Nil when nothing like it around that level has been killed.
+local function WorldDrops(level, creatureType, exceptID)
+    if not level then
+        return nil
+    end
+    local now = GetTime()
+    local key = ("%d:%s:%s"):format(level, tostring(creatureType), tostring(exceptID))
+    local known = worldDrops[key]
+    if known and now - known.at < CACHE_FOR then
+        return known.chance and known or nil
+    end
+
+    local kills, finds = 0, NewFinds()
+    for npcID, drops in pairs(ns.Drops.All()) do
+        if
+            npcID ~= exceptID
+            and type(drops) == "table"
+            and (drops.kills or 0) > 0
+            and drops.level
+            and math.abs(drops.level - level) <= LEVEL_SPREAD
+            and (not creatureType or drops.type == creatureType)
+        then
+            kills = kills + drops.kills
+            Split(drops.items, finds)
+        end
+    end
+
+    local found = { at = now }
+    if kills > 0 then
+        found.chance = math.min(1, finds.finds / kills)
+        found.each = Median(finds.values)
+        found.vendor = Median(finds.vendors)
+    end
+    worldDrops[key] = found
+    return found.chance and found or nil
 end
 
 -- Biggest earners first: how often it drops, how many, and what each is
@@ -107,14 +216,20 @@ end
 -- Turns tallies of { times, quantity } into the list an estimate carries,
 -- and what the list comes to per opening, at Goldwise's prices and at a
 -- vendor's.
-local function List(tallies, openings)
+--
+-- With finds, from Split, the world drops stand as one entry in the list,
+-- { world = true }: how often, from these finds weighed against the rate
+-- around the level, and what a typical one fetches there. npcID is the
+-- creature's, left out of that rate.
+local function List(tallies, openings, finds, level, creatureType, npcID)
     local list, worth, vendorWorth = {}, 0, 0
     if openings <= 0 then
         return list, worth, vendorWorth
     end
 
     for itemID, tally in pairs(tallies) do
-        local times, quantity = tally[1] or 0, tally[2] or 0
+        local times = tally[1] or 0
+        local quantity = tally[2] or times
         if times > 0 then
             local each, vendor = ItemValue(itemID)
             local drop = {
@@ -126,6 +241,38 @@ local function List(tallies, openings)
             table.insert(list, drop)
             worth = worth + drop.chance * drop.quantity * each
             vendorWorth = vendorWorth + drop.chance * drop.quantity * vendor
+        end
+    end
+
+    if finds then
+        local around = WorldDrops(level, creatureType, npcID)
+        local world
+        if around and around.chance > 0 then
+            world = {
+                chance = math.min(
+                    1,
+                    (finds.finds + PRIOR_KILLS * around.chance) / (openings + PRIOR_KILLS)
+                ),
+                each = around.each,
+                vendor = around.vendor,
+            }
+        elseif finds.finds > 0 then
+            world = {
+                chance = math.min(1, finds.finds / openings),
+                each = Median(finds.values),
+                vendor = Median(finds.vendors),
+            }
+        end
+        if world then
+            table.insert(list, {
+                itemID = 0,
+                world = true,
+                chance = world.chance,
+                quantity = 1,
+                each = world.each,
+            })
+            worth = worth + world.chance * world.each
+            vendorWorth = vendorWorth + world.chance * world.vendor
         end
     end
 
@@ -149,14 +296,23 @@ local function AddTallies(into, from)
 end
 
 local function NewPool()
-    return { kills = 0, skins = 0, copper = 0, items = {}, skinned = {}, kinds = 0 }
+    return {
+        kills = 0,
+        skins = 0,
+        copper = 0,
+        items = {},
+        finds = NewFinds(),
+        skinned = {},
+        kinds = 0,
+    }
 end
 
+-- items keeps each creature's own drops; its world drops go to finds.
 local function AddToPool(pool, drops)
     pool.kills = pool.kills + (drops.kills or 0)
     pool.skins = pool.skins + (drops.skins or 0)
     pool.copper = pool.copper + (drops.copper or 0)
-    AddTallies(pool.items, drops.items)
+    AddTallies(pool.items, Split(drops.items, pool.finds))
     AddTallies(pool.skinned, drops.skinned)
     pool.kinds = pool.kinds + 1
 end
@@ -200,14 +356,17 @@ end
 -- The sums ---------------------------------------------------------------------
 
 -- An estimate from a pool of kills. own is the creature's own record, if
--- it has one, for the kills and skins the estimate reports.
-local function Estimate(pool, own, guess)
+-- it has one, for the kills and skins the estimate reports. level and
+-- creatureType are the creature's, and npcID which it is, for weighing
+-- its world drops.
+local function Estimate(pool, own, guess, level, creatureType, npcID)
     if pool.kills <= 0 then
         return nil
     end
 
     local copper = pool.copper / pool.kills
-    local drops, dropWorth, dropVendor = List(pool.items, pool.kills)
+    local drops, dropWorth, dropVendor =
+        List(pool.items, pool.kills, pool.finds, level, creatureType, npcID)
     local skinned, skinWorth, skinVendor = List(pool.skinned, pool.skins)
 
     -- A creature the player has skinned can be skinned every time, so the
@@ -226,7 +385,9 @@ local function Estimate(pool, own, guess)
     -- plainstrider's beak because the two are beasts of a level.
     if guess then
         local kills, skins = own and own.kills or 0, own and own.skins or 0
-        drops = List(own and own.items or {}, kills)
+        local finds = NewFinds()
+        local items = Split(own and own.items, finds)
+        drops = List(items, kills, finds, level, creatureType, npcID)
         skinned = List(own and own.skinned or {}, skins)
         copper = kills > 0 and own.copper / kills or 0
     end
@@ -275,7 +436,9 @@ end
 ---        copper, drops, skinned }, all money in copper per kill. drops and
 ---        skinned are lists of { itemID, chance, quantity, each }, biggest
 ---        earners first: chance runs from 0 to 1, quantity is how many
----        when it drops, and each is what one is worth. skinned is per
+---        when it drops, and each is what one is worth. One entry in drops
+---        may be { world = true } in place of an item: the green and
+---        better world drops, taken together, with itemID 0. skinned is per
 ---        corpse skinned. kills and skins are this creature's own, even
 ---        when guess is true and value, low and high are borrowed; copper,
 ---        drops and skinned are always its own, and empty for a creature
@@ -295,7 +458,7 @@ function MobValue.For(npcID, level, creatureType)
         end
         local pool = NewPool()
         AddToPool(pool, own)
-        return Keep(estimates, npcID, Estimate(pool, own, false))
+        return Keep(estimates, npcID, Estimate(pool, own, false, own.level, own.type, npcID))
     end
 
     if not level or level <= 0 then
@@ -315,7 +478,7 @@ function MobValue.For(npcID, level, creatureType)
     if own then
         AddToPool(pool, own)
     end
-    return Keep(guesses, key, Estimate(pool, own, guess))
+    return Keep(guesses, key, Estimate(pool, own, guess, level, creatureType, npcID))
 end
 
 --- What killing a unit is worth, if it's a creature the player could
@@ -350,17 +513,20 @@ end
 
 -- Forgetting -----------------------------------------------------------------
 
--- One creature's drops changed: its own estimate goes, and so do all the
--- borrowed ones, since any of them might have borrowed from it. A new
--- kind, or a type only now seen, has to find its way into the index.
-ns.Subscribe("DROPS_CHANGED", function(npcID)
-    estimates[npcID] = nil
+-- One creature's drops changed. Every estimate goes: the borrowed ones
+-- might have borrowed from it, and any around its level lean on the world
+-- drops it adds to. A new kind, or a type only now seen, has to find its
+-- way into the index.
+ns.Subscribe("DROPS_CHANGED", function()
+    wipe(estimates)
+    wipe(worldDrops)
     wipe(guesses)
     byType = nil
 end)
 
 local function ForgetAll()
     wipe(itemValues)
+    wipe(worldDrops)
     wipe(estimates)
     wipe(guesses)
 end

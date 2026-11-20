@@ -26,6 +26,7 @@ local NOTABLE_DIFFERENCE = 0.10
 -- come back unsold. We can't know that for any one item. One time in
 -- three is a careful guess for something priced with the market.
 local UNSOLD_SHARE = 1 / 3
+Advice.UNSOLD_SHARE = UNSOLD_SHARE
 
 -- Every verdict comes in two voices. The facts are identical; only the
 -- delivery changes. The auditor sticks to ordinary accounting words.

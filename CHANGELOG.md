@@ -12,8 +12,20 @@ the `dev` branch.
   its price, or type `/gw watch` and shift-click one. Watched items
   have their own list on the Assets tab, with their price and trend,
   whether you hold any or not.
+- **What you paid, against what it would bring in.** On the Assets
+  tab, something you bought says what you paid each and whether
+  selling it now would make or lose money.
 
 **Fixed**
+
+- **An enemy's worth no longer counts lucky drops as usual ones.** A
+  green that dropped once in a handful of kills was counted as if it
+  dropped that often, so a few creatures looked worth several times
+  the rest. Greens and better now count at the rate they drop from
+  everything of that kind and level, at a typical green's price, and
+  show as one line, "Any green or better", on the enemy's tooltip.
+- **Recipe profits allow for the deposit** as well as the auction
+  house's cut.
 
 - **The session tracker shows your listings on their own line.** What
   you have up for auction was added into "At auction", so the bags

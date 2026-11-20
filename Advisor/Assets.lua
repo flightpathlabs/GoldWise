@@ -17,7 +17,10 @@ ns.Assets = Assets
 ---@param owner string|nil    the character holding it, if not the current one
 ---@return table asset  { itemID, owner, name, icon, quality, link, count,
 ---        price, vendorPrice, listed, seenAt, source, trend, againstUsual,
----        advice }
+---        advice, paid, paidFrom, margin, weighed }. paid is what one last
+---        cost the player, from Trade.LastPaid. margin is what the advice
+---        would bring in for as many as were bought (weighed of them) less
+---        what they cost, when both are known.
 function Assets.Describe(holding, marketKey, owner)
     local itemID = holding.itemID
     local price, listed, seenAt, source = ns.Ledger.Price(marketKey, itemID)
@@ -57,9 +60,30 @@ function Assets.Describe(holding, marketKey, owner)
         })
     end
 
+    -- What they last paid for one, if they bought it, against what the
+    -- verdict would bring in: a recipe bought for 1g that clears 1g 2s at
+    -- auction is 2s of profit, not 1g 2s.
+    -- Only as many as were bought are weighed: a stack farmed beside one
+    -- bought isn't a loss. Purchases noted before the count was kept
+    -- stand for one.
+    local paid, _, paidFrom, bought = ns.Trade.LastPaid(itemID)
+    local margin, weighed
+    if paid and not kept and (holding.count or 0) > 0 then
+        local brings = advice.verb == ns.Advice.SELL and advice.proceeds
+            or advice.verb == ns.Advice.VENDOR and advice.fromVendor
+        if brings then
+            weighed = math.min(holding.count, bought or 1)
+            margin = (brings / holding.count - paid) * weighed
+        end
+    end
+
     return {
         itemID = itemID,
         owner = owner,
+        paid = paid,
+        paidFrom = paidFrom,
+        margin = margin,
+        weighed = weighed,
         name = holding.name or ("Item " .. itemID),
         icon = holding.icon,
         quality = holding.quality,

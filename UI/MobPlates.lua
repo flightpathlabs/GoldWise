@@ -39,6 +39,9 @@ local REFRESH_DELAY = 0.5
 local COIN_SIZE = 8
 local PLATE_ALPHA = 0.8
 
+-- The colour the line for green and better world drops is written in.
+local WORLD_QUALITY = Enum.ItemQuality and Enum.ItemQuality.Uncommon or 2
+
 local function CanSeeSecret(value)
     return value ~= nil and not (issecretvalue and issecretvalue(value))
 end
@@ -132,15 +135,25 @@ end
 
 -- One drop's row: its name on the left, its chance and worth on the
 -- right. Nil when the item has no name and none is coming.
-local function DropRow(drop, prefix)
+local function DropName(drop)
+    if drop.world then
+        -- Greens and better, taken together: which one drops is luck.
+        return Theme.ItemName("Any green or better", WORLD_QUALITY)
+    end
+
     local name, coming = ns.ItemName(drop.itemID)
     if name then
-        name = Theme.ItemName(name, C_Item.GetItemQualityByID(drop.itemID))
+        return Theme.ItemName(name, C_Item.GetItemQualityByID(drop.itemID))
     elseif coming then
         -- It's being fetched, and will be there next time the tooltip is
         -- built. Holding its place keeps the best drops in order.
-        name = Theme.Aside("one moment...")
-    else
+        return Theme.Aside("one moment...")
+    end
+end
+
+local function DropRow(drop, prefix)
+    local name = DropName(drop)
+    if not name then
         return nil
     end
 
