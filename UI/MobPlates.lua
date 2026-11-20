@@ -180,6 +180,10 @@ local function KillsText(kills)
     return kills == 1 and "1 kill" or (FormatLargeNumber(kills) .. " kills")
 end
 
+-- Adds what a kill is worth to a tooltip: the figure, where it comes
+-- from, and the drops that make it so. Defined below.
+local AddValueLines
+
 local function OnUnitTooltip(tooltip, data)
     -- Saved data loads a moment after the first tooltips can appear.
     local settings = ns.settings
@@ -205,10 +209,12 @@ local function OnUnitTooltip(tooltip, data)
     -- Rebuilt several times a second while the mouse rests here, but
     -- MobValue keeps its answers, so asking again is cheap.
     local estimate = Estimate(unit)
-    if not estimate then
-        return
+    if estimate then
+        AddValueLines(tooltip, estimate)
     end
+end
 
+function AddValueLines(tooltip, estimate)
     local coin = Theme.COIN
     local rough = IsRough(estimate)
 
@@ -330,8 +336,20 @@ local function AcquireCoin(unit, plate)
     return frame
 end
 
+-- Plainsight, if it's installed and drawing the plates, shows the value
+-- itself (see the end of this file), so ours stands down.
+local function PlainsightAPI()
+    local api = _G.PlainsightAPI
+    return type(api) == "table" and (tonumber(api.version) or 0) >= 1 and api or nil
+end
+
+local function PlainsightDraws()
+    local api = PlainsightAPI()
+    return api ~= nil and api:ArePlatesActive()
+end
+
 local function UpdatePlate(unit)
-    if not (ns.settings and ns.settings.mobValuePlates) then
+    if not (ns.settings and ns.settings.mobValuePlates) or PlainsightDraws() then
         ReleaseCoin(unit)
         return
     end
@@ -413,13 +431,66 @@ ns.OnEvent("PLAYER_ENTERING_WORLD", function()
     UpdateAllPlates()
 end)
 
+-- On Plainsight's plates -------------------------------------------------------
+
+-- Plainsight draws a small piece of other addons' own on its plates when
+-- asked: here, the coin and figure. It has its own switch for it, in
+-- Plainsight's options, so ours for the coin is only for other plates.
+local CLIP = "goldwise:value"
+
+local function Chip(unit)
+    if not IsQuarry(unit) then
+        return nil
+    end
+    local estimate = Estimate(unit)
+    if not estimate then
+        return nil
+    end
+    local rough = IsRough(estimate)
+    local amount, coin = Short(estimate.value)
+    local muted = Theme.MUTED
+    return {
+        text = (rough and "~" or "") .. amount,
+        atlas = coin,
+        colour = rough and { muted[1], muted[2], muted[3] } or { 0.9, 0.9, 0.9 },
+        tooltip = function(tooltip)
+            AddValueLines(tooltip, estimate)
+        end,
+    }
+end
+
+local function RefreshChips()
+    local api = PlainsightAPI()
+    if api then
+        api:RefreshPlateClip(CLIP)
+    end
+end
+
+ns.OnEvent("PLAYER_LOGIN", function()
+    local api = PlainsightAPI()
+    if not api then
+        return
+    end
+    api:RegisterPlateClip(CLIP, {
+        name = "Gold Wise: what a kill is worth",
+        description = "Roughly what killing it brings in, learned from your own looting.",
+        place = "chip",
+        plates = "enemy",
+        get = Chip,
+    })
+    -- Plainsight starting or stopping its plates hands the coin back and
+    -- forth.
+    api:OnPlatesActiveChanged(UpdateAllPlates)
+end)
+
 -- New prices, a new kill looted, a vendor price that was missing: the
 -- figures move. MobValue hears these first (it loads before us) and has
 -- let go of its old answers by the time the plates ask again. Tooltips
 -- need nothing, being built afresh each time.
-ns.Subscribe("PRICES_CHANGED", UpdateAllPlatesSoon)
-ns.Subscribe("DROPS_CHANGED", UpdateAllPlatesSoon)
-ns.Subscribe("ITEM_NAMES_LOADED", UpdateAllPlatesSoon)
+for _, message in ipairs({ "PRICES_CHANGED", "DROPS_CHANGED", "ITEM_NAMES_LOADED" }) do
+    ns.Subscribe(message, UpdateAllPlatesSoon)
+    ns.Subscribe(message, RefreshChips)
+end
 
 -- Switching the coins on or off shows at once.
 ns.Subscribe("SETTINGS_CHANGED", UpdateAllPlates)
