@@ -438,10 +438,12 @@ local function OpenMenu(frame)
 end
 
 -- Where a click on a line of the panel goes. The session is this
--- character's, so these open on this character's figures.
-local function OpenPurse()
+-- character's, so these open on this character's figures, for the same
+-- stretch the panel is showing.
+local function OpenMoney()
     Theme.ShowOwnMoney()
-    ns.ShowWindowTab("Purse")
+    ns.settings.moneyPeriod = "session"
+    ns.ShowWindowTab("Money")
 end
 
 local function OpenAssets()
@@ -663,8 +665,8 @@ local function AddSide(layout, heading, amounts, labels, total, sign, color)
         label = heading,
         figure = Signed(sign * total),
         color = color,
-        opens = "your purse",
-        open = OpenPurse,
+        opens = "this session on the Money tab",
+        open = OpenMoney,
     })
 
     local byLabel, order = {}, {}
@@ -692,8 +694,8 @@ local function AddSide(layout, heading, amounts, labels, total, sign, color)
             label = label,
             figure = Theme.Coins(byLabel[label]),
             color = color,
-            opens = "your purse",
-            open = OpenPurse,
+            opens = "this session on the Money tab",
+            open = OpenMoney,
         })
     end
 end
@@ -848,8 +850,8 @@ local function Create()
             label = headlineLabel,
             figure = text,
             color = color,
-            opens = "your purse",
-            open = OpenPurse,
+            opens = "this session on the Money tab",
+            open = OpenMoney,
         })
         if ns.settings.sessionTrackerCoin then
             AddRule(layout)

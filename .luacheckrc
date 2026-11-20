@@ -41,6 +41,9 @@ globals = {
 }
 
 read_globals = {
+    "GetInboxItem",
+    "UnitIsDeadOrGhost",
+    "UnitOnTaxi",
     -- The companion prices addon, when installed
     "GoldwisePricesData",
     "GoldwisePricesIndex",
@@ -155,6 +158,7 @@ read_globals = {
     "UnitName",
     "UnitClass",
     "UnitLevel",
+    "GetMaxLevelForPlayerExpansion",
     "UnitFactionGroup",
     "geterrorhandler",
     "GetProfessionInfo",
@@ -221,6 +225,7 @@ read_globals = {
     "UnitExists",
     "UnitGUID",
     "UnitHasLootInteraction",
+    "UnitIsAFK",
     "UnitIsDead",
     "UnitIsGameObject",
     "UnitIsInInteractRange",

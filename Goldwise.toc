@@ -65,6 +65,7 @@ Profile\Keep.lua
 Profile\Watch.lua
 Profile\Crafts.lua
 Profile\Drops.lua
+Profile\Activity.lua
 
 Advisor\Advice.lua
 Advisor\Assets.lua
@@ -88,8 +89,7 @@ UI\CraftTreeView.lua
 UI\ShelfList.lua
 UI\TripPlan.lua
 UI\ProspectList.lua
-UI\PurseTab.lua
-UI\ProfitTab.lua
+UI\MoneyTab.lua
 UI\PlacesTab.lua
 UI\RecipesTab.lua
 UI\AboutTab.lua

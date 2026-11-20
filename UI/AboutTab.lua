@@ -82,7 +82,7 @@ local function Sections()
                     .. "/gw tree does the same for the item you last pointed at. To change "
                     .. "the click or give it a key, see Shortcuts under Goldwise in the "
                     .. "game's options.",
-                "Saving for a mount? /gw goal 50 tracks a 50 gold target on the Purse tab.",
+                "Saving for a mount? /gw goal 50 tracks a 50 gold target on the Money tab.",
                 "Right-click the minimap button for options, Auditor mode among them.",
             },
         },
@@ -95,12 +95,10 @@ local function Sections()
                     .. 'by what each one sells for today. Or press "I want to..." and pick '
                     .. "a zone, and it plans the trip: what to see to before you leave, "
                     .. "what to gather and buy while you're there, and who's on the spot.",
-                "Purse: what you have, a chart of what's come in and gone out each day "
-                    .. "for the last month, and what's about to cost you: repairs, training, "
-                    .. "and whatever you're saving for.",
-                "Profit: whether you're coming out ahead, a day at a time, with the "
-                    .. "auction house drawn on its own line: what you sold there, what "
-                    .. "you bought, and what it took in deposits and its cut.",
+                "Money: whether you're coming out ahead this session, this week or this "
+                    .. "month, what paid best for the time you spent and what you traded, "
+                    .. "and what's about to cost you: repairs, training, and whatever "
+                    .. "you're saving for.",
                 "Places: the nearest trainer for your class and each profession, and the "
                     .. "nearest auction house, repairer, bank, flight master and inn.",
                 "Recipes: what vendors sell that you haven't learned, for the professions "

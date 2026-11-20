@@ -6,8 +6,8 @@ local _, ns = ...
 
 local Theme = ns.Theme
 
--- Tall enough for the Purse tab, which has the most to fit: three tiles, a
--- chart, the list of what's coming and the verdict under it.
+-- Tall enough for the tabs that don't scroll. The Money tab, which has
+-- the most to fit, scrolls inside it.
 local WIDTH, HEIGHT = 780, 570
 
 -- What the portrait says when pointed at. The About tab has the long
@@ -55,20 +55,10 @@ local TABS = {
         end,
     },
     {
-        label = "Purse",
-        page = "Purse",
+        label = "Money",
+        page = "Money",
         refresh = function(page)
-            page:Refresh()
-            return "Amounts are full price. Point at a training line to see where "
-                .. "your reputation makes it cheaper."
-        end,
-    },
-    {
-        label = "Profit",
-        page = "Profit",
-        refresh = function(page)
-            -- The tab has three things it can chart, and a different
-            -- caution for each.
+            -- What needs saying depends on which of its views is on show.
             return page:Refresh()
         end,
     },
@@ -379,6 +369,25 @@ local function CreateSessionButton(frame, beside)
     Update()
 end
 
+-- Stands in for the Money tab when its file hasn't been loaded. The game
+-- only reads files an update adds when it starts, so after a /reload the
+-- tab can be missing while the rest of the window is there.
+local function CreateRestartPage(parent)
+    local page = CreateFrame("Frame", nil, parent)
+    page:SetAllPoints()
+    page:Hide()
+
+    local text = page:CreateFontString(nil, "ARTWORK", "GameFontHighlightLarge")
+    text:SetPoint("CENTER", 0, 20)
+    text:SetWidth(500)
+    text:SetText("Restart the game to finish updating Goldwise.")
+
+    function page:Refresh()
+        return ""
+    end
+    return page
+end
+
 local function CreateWindow()
     local frame = CreateFrame("Frame", "GoldwiseWindow", UIParent, "ButtonFrameTemplate")
     frame:SetSize(WIDTH, HEIGHT)
@@ -428,8 +437,7 @@ local function CreateWindow()
 
     frame.List = ns.ShelfList.Create(frame.Inset, ShowDetail)
     frame.Prospects = ns.ProspectList.Create(frame.Inset, ShowDetail)
-    frame.Purse = ns.PurseTab.Create(frame.Inset)
-    frame.Profit = ns.ProfitTab.Create(frame.Inset)
+    frame.Money = ns.MoneyTab and ns.MoneyTab.Create(frame.Inset) or CreateRestartPage(frame.Inset)
     frame.Places = ns.PlacesTab.Create(frame.Inset)
     frame.Recipes = ns.RecipesTab.Create(frame.Inset)
     frame.Items = ns.ItemsTab.Create(frame.Inset)
@@ -464,9 +472,13 @@ function ns.ShowWindow()
     window:Show()
 end
 
+-- Tabs that have since become part of another, and where they went.
+local MERGED_TABS = { Purse = "Money", Profit = "Money" }
+
 --- Opens the window on a particular tab.
 ---@param page string  the tab's page, as named in TABS: "Recipes", say
 function ns.ShowWindowTab(page)
+    page = MERGED_TABS[page] or page
     ns.ShowWindow()
     for index, tab in ipairs(TABS) do
         if tab.page == page then
@@ -590,17 +602,31 @@ for _, message in ipairs({
     ns.Subscribe(message, Refresh)
 end
 
--- Money and durability change constantly, and only two tabs care.
-for _, message in ipairs({ "PURSE_CHANGED", "TRADE_CHANGED" }) do
+-- Money, durability, trades and time played change constantly, and only
+-- the Money tab cares. One coin picked up says so several ways at once
+-- (the purse, the session, the activity record), so the redraw waits for
+-- the next frame and is done once for all of them.
+local moneyRedrawWaiting = false
+
+for _, message in ipairs({
+    "PURSE_CHANGED",
+    "TRADE_CHANGED",
+    "ACTIVITY_CHANGED",
+    "SESSION_CHANGED",
+}) do
     ns.Subscribe(message, function()
-        local page = TABS[currentTab].page
-        if page == "Purse" or page == "Profit" then
-            Refresh()
+        if TABS[currentTab].page ~= "Money" or moneyRedrawWaiting then
+            return
         end
+        moneyRedrawWaiting = true
+        C_Timer.After(0, function()
+            moneyRedrawWaiting = false
+            Refresh()
+        end)
     end)
 end
 
--- Likewise a newly learned place. It also names a trainer on the Purse
+-- Likewise a newly learned place. It also names a trainer on the Money
 -- tab's map menu, but that's built fresh each time it's opened.
 ns.Subscribe("PLACES_CHANGED", function()
     if TABS[currentTab].page == "Places" then
@@ -619,7 +645,7 @@ local function SetGoal(amount)
     local gold = tonumber(amount)
     if gold and gold > 0 and gold <= MAX_GOAL_GOLD then
         ns.settings.goalCopper = math.floor(gold * ns.COPPER_PER_GOLD)
-        ns.Print("Saving toward %s. The Purse tab tracks it.", ns.Money(ns.settings.goalCopper))
+        ns.Print("Saving toward %s. The Money tab tracks it.", ns.Money(ns.settings.goalCopper))
     elseif amount == "off" or amount == "0" then
         ns.settings.goalCopper = nil
         ns.Print("Savings goal cleared.")

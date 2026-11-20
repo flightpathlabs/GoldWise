@@ -1,7 +1,7 @@
 local _, ns = ...
 
 -- Colours and small display helpers shared by every part of the interface,
--- and the choice, shared by the money tabs, of whose money they show.
+-- and the Money tab's choice of whose money it shows.
 --
 -- Wherever the game has its own answer (item quality colours, coin icons,
 -- fonts, frame art) we use that. These are only for the things it doesn't
@@ -18,9 +18,9 @@ Theme.MUTED = { 0.79, 0.73, 0.61 }
 -- the panels are: a dark wash for a background and light strokes on it,
 -- with gold for the line that matters.
 --
--- The wash is black at CHART_WASH opacity, the same as the tiles across
--- the top of the money tabs, so a chart reads as part of the panel it's
--- on. The one under a tooltip floats over the game world with nothing
+-- The wash is black at CHART_WASH opacity, the same as the Money tab's
+-- tiles and the bar across its top, so a chart reads as part of the panel
+-- it's on. The one under a tooltip floats over the game world with nothing
 -- behind it, and gets a solid colour instead.
 Theme.CHART_WASH = 0.35
 Theme.CHART_FLOATING = { 0.05, 0.05, 0.06 }
@@ -125,8 +125,8 @@ function Theme.SignedCoins(copper)
     return Theme.Coins(copper), Theme.INCOME
 end
 
---- Creates one of the boxes the money tabs put across the top: a label,
---- a figure and a footnote.
+--- Creates one of the Money tab's boxes: a label, a figure and a
+--- footnote.
 ---@param parent table  frame
 ---@param label string  what the figure is, shown small and in capitals
 ---@return table tile   with .Figure and .Note, both font strings
@@ -155,12 +155,12 @@ function Theme.CreateTile(parent, label)
     return tile
 end
 
--- Another character the money tabs are showing, by key. Only for this
+-- Another character the Money tab is showing, by key. Only for this
 -- session: the saved choice is between the account and whoever is being
 -- played, so logging in on an alt shows the alt.
 local viewing
 
---- Whose money the Purse and Profit tabs are showing, in the form their
+--- Whose money the Money tab is showing, in the form its
 --- figures are asked for by: true for the whole account, or a
 --- character's key.
 ---@return boolean|string
@@ -171,14 +171,14 @@ function Theme.MoneyWhose()
     return viewing or ns.Characters.CurrentKey()
 end
 
---- Whether the money tabs are showing a character other than the one
+--- Whether the Money tab is showing a character other than the one
 --- being played.
 ---@return boolean
 function Theme.MoneyIsSomeoneElse()
     return not ns.settings.moneyAccountWide and viewing ~= nil
 end
 
---- Puts the money tabs back on the character being played, as when
+--- Puts the Money tab back on the character being played, as when
 --- something about this character's own money is asked for.
 function Theme.ShowOwnMoney()
     if ns.settings.moneyAccountWide or viewing then
@@ -205,7 +205,7 @@ local function FindCharacter(key)
     end
 end
 
---- Whose money the Purse and Profit tabs are showing, in words for a
+--- Whose money the Money tab is showing, in words for a
 --- heading: "Alia" or "your characters".
 ---@return string
 function Theme.MoneyOwner()
@@ -219,9 +219,11 @@ function Theme.MoneyOwner()
     return UnitName("player") or "this character"
 end
 
---- What the money tabs say when the character they're showing has
---- nothing on record. Each character's own figures were only kept apart
---- from 0.4.1 on, so an empty one usually has history under the account.
+--- What the Money tab says when the character it's showing has nothing
+--- on record. Each character's own figures were only kept apart from
+--- 0.4.1 on, so an empty one usually has history under the account.
+--- Only for the records that go back that far: what came in and went
+--- out, and the latest trades.
 ---@return string|nil text  nil when that isn't so: when this is the only
 ---        character, whose own record took over the account's
 function Theme.MoneyEmptyText()
@@ -234,10 +236,9 @@ function Theme.MoneyEmptyText()
     ):format(Theme.MoneyOwner())
 end
 
---- Creates the button the money tabs share for choosing whose money they
---- show: the character being played, which is where they start, any
---- other character on the account, or the whole account. The choice is
---- shared, so switching on one tab switches both.
+--- Creates the Money tab's button for choosing whose money it shows: the
+--- character being played, which is where it starts, any other
+--- character on the account, or the whole account.
 ---@param parent table  frame
 ---@return table button  with :Update(), to bring its text up to date
 function Theme.CreateMoneyScopeButton(parent)

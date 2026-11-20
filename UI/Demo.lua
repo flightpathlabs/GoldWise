@@ -5,8 +5,9 @@ local _, ns = ...
 -- Goldwise's charts fill in over weeks of play, which is no help to
 -- someone who wants to show what it looks like today. With demo data on,
 -- every chart is drawn from a month or three of invented history: prices
--- that wander around what the item really costs now, and a purse with
--- money coming and going each day.
+-- that wander around what the item really costs now, a purse with money
+-- coming and going each day, and evenings spent hunting, gathering and
+-- trading.
 --
 -- Nothing is saved and nothing real is changed. The inventing is done at
 -- the moment something asks for history, in place of the real answer,
@@ -219,6 +220,51 @@ local function InventedTradeTotals(numDays)
     return totals
 end
 
+-- Shares out an amount among categories, in order. The last takes what's
+-- left over from rounding, so the parts add up to the whole.
+local function ShareOut(amount, shares)
+    local parts, given = {}, 0
+    for index, share in ipairs(shares) do
+        local part = index == #shares and amount - given or math.floor(amount * share[2])
+        parts[share[1]] = part
+        given = given + part
+    end
+    return parts
+end
+
+-- What came in and went out over the last so many days, by category: the
+-- same flow the chart is drawn from, shared out. Sales and the odd bid
+-- handed back come by post, and the auction house's share of the spending
+-- is what the trade book says was paid there, so the Money tab can split
+-- them as it does real ones.
+local function InventedByCategory(numDays)
+    -- Cut as the Money tab cuts its chart: six hours a bar over a week,
+    -- a day a bar over longer.
+    local hoursEach = numDays <= 7 and 6 or 24
+    local flow = InventedFlow(hoursEach, numDays * 24 / hoursEach)
+    local cameIn, wentOut = 0, 0
+    for _, stretch in ipairs(flow) do
+        cameIn = cameIn + stretch.income
+        wentOut = wentOut + stretch.spending
+    end
+
+    local trade = InventedTradeTotals(numDays)
+    local returned = math.floor(trade.bought * 0.05)
+    local mail = math.min(trade.sold + returned, math.floor(cameIn * 0.6))
+    local paidThere = math.min(trade.bought + trade.deposits + returned, math.floor(wentOut * 0.5))
+
+    local income = ShareOut(cameIn - mail, { { "loot", 0.5 }, { "vendor", 0.3 }, { "quest" } })
+    income.mail = mail
+    local spending = ShareOut(wentOut - paidThere, {
+        { "repair", 0.35 },
+        { "training", 0.3 },
+        { "vendor", 0.25 },
+        { "travel" },
+    })
+    spending.auction = paidThere
+    return income, spending
+end
+
 -- The latest sales and purchases: mostly sales, newest first as the real
 -- list is, over the last few days.
 local RECENT_SHOWN = 14
@@ -247,6 +293,68 @@ local function InventedRecent()
         })
     end
     return entries
+end
+
+-- About how long was spent playing since a moment: most of a session, and
+-- an evening or so of each day over longer.
+local function PlayedSince(sinceTime)
+    local span = sinceTime and GetServerTime() - sinceTime or 30 * ns.SECONDS_PER_DAY
+    return math.max(60, math.min(span * 0.9, 4 * 3600 + span * 0.07))
+end
+
+-- What was traded of each item, for What you traded: three things farmed
+-- and sold, and four bought to sell on, which went well, barely paid,
+-- lost money and haven't sold yet. For each, how many were bought and
+-- sold in three hours of play, and what was paid for each as a share of
+-- the price today. Everything sold went for today's price, less the cut.
+local TRADED = {
+    { itemID = 4306, sold = 20 }, -- Silk Cloth
+    { itemID = 2772, sold = 12 }, -- Iron Ore
+    { itemID = 4234, sold = 8 }, -- Heavy Leather
+    { itemID = 3356, bought = 20, sold = 20, paid = 0.7 }, -- Kingsblood
+    { itemID = 785, bought = 20, sold = 20, paid = 0.9 }, -- Mageroyal
+    { itemID = 2592, bought = 30, sold = 20, paid = 1.1, lost = 0.3 }, -- Wool Cloth
+    { itemID = 3821, bought = 20, sold = 0, paid = 0.8, lost = 0.2 }, -- Goldthorn
+}
+
+-- In stacks of five, as things are bought at auction.
+local function Stack(count)
+    return math.max(5, math.floor(count / 5 + 0.5) * 5)
+end
+
+local function InventedItems(sinceTime)
+    local scale = PlayedSince(sinceTime) / (3 * 3600)
+    local market = ns.Market.Home()
+
+    local items = {}
+    for _, traded in ipairs(TRADED) do
+        local each = ns.Ledger.Price(market, traded.itemID) or FALLBACK_EACH
+        local bought, sold = 0, math.max(1, math.floor(traded.sold * scale + 0.5))
+        if traded.bought then
+            bought = Stack(traded.bought * scale)
+            sold = traded.sold > 0 and math.min(bought, Stack(traded.sold * scale)) or 0
+        end
+
+        -- Deposits lost on listings that didn't sell: a share of the
+        -- price for each stack of five.
+        local paid = math.floor(bought * each * (traded.paid or 0) + 0.5)
+        local lost = math.floor(bought / 5 * each * (traded.lost or 0) + 0.5)
+        local brought = math.floor(sold * each * 0.95 + 0.5) - lost
+        local cost = bought > 0 and paid / bought * math.min(sold, bought) or 0
+
+        table.insert(items, {
+            itemID = traded.itemID,
+            name = C_Item.GetItemNameByID(traded.itemID),
+            bought = bought,
+            paid = paid,
+            sold = sold,
+            brought = brought,
+            lost = lost,
+            profit = math.floor(brought - cost + 0.5),
+            held = bought > 0 and bought - sold or math.floor(sold * 0.2),
+        })
+    end
+    return items
 end
 
 -- What the player was worth, day by day, ending at what they really hold:
@@ -320,6 +428,50 @@ local function InventedSession()
     return summary
 end
 
+-- What the player did ----------------------------------------------------------
+
+-- An evening's worth of levelling in Stranglethorn and Arathi: the share
+-- of the time each thing took, and how well it paid against the rest.
+-- Questing and fishing pay least, and skinning was only tried for a bit.
+local STRANGLETHORN, ARATHI = "Stranglethorn Vale", "Arathi Highlands"
+local ACTIVITIES = {
+    { kind = "kill", label = "Young Panther", where = STRANGLETHORN, time = 0.26, pays = 1.05 },
+    { kind = "gather", label = "Mining", where = STRANGLETHORN, time = 0.17, pays = 1.55 },
+    { kind = "kill", label = "Bloodscalp Warrior", where = STRANGLETHORN, time = 0.15, pays = 1.3 },
+    { kind = "quest", label = "Questing", where = STRANGLETHORN, time = 0.14, pays = 0.55 },
+    { kind = "fish", label = "Fishing", where = ARATHI, time = 0.12, pays = 0.6 },
+    { kind = "gather", label = "Herbalism", where = ARATHI, time = 0.1, pays = 1.2 },
+    { kind = "gather", label = "Skinning", where = "Badlands", time = 0.03, pays = 1.4 },
+}
+
+local function InventedActivities(sinceTime)
+    local played = PlayedSince(sinceTime)
+    -- Copper an hour, on average, for someone of the player's level.
+    local rate = math.max(UnitLevel("player"), 5) * 600
+    local random = Wobble(math.floor(played / 600) * 7 + 5)
+
+    local activities = {}
+    for index, activity in ipairs(ACTIVITIES) do
+        local seconds = math.floor(played * activity.time * (0.9 + random() * 0.2))
+        local earned = math.floor(seconds / 3600 * rate * activity.pays * (0.9 + random() * 0.2))
+            + math.floor(random() * 100)
+        table.insert(activities, {
+            key = "demo:" .. index,
+            kind = activity.kind,
+            label = activity.label,
+            where = activity.where,
+            seconds = seconds,
+            earned = earned,
+            perHour = seconds > 0 and math.floor(earned * 3600 / seconds + 0.5) or 0,
+        })
+    end
+
+    table.sort(activities, function(a, b)
+        return a.seconds > b.seconds
+    end)
+    return activities
+end
+
 -- Switching -------------------------------------------------------------------
 
 local function Redraw()
@@ -341,9 +493,11 @@ function ns.ToggleDemo()
         real.Averages = ns.Purse.Averages
         real.Flow = ns.Purse.Flow
         real.Coin = ns.Purse.Coin
+        real.ByCategory = ns.Purse.ByCategory
         real.TradeDaily = ns.Trade.Daily
         real.TradeTotals = ns.Trade.Totals
         real.TradeRecent = ns.Trade.Recent
+        real.TradeItems = ns.Trade.Items
         real.WorthDaily = ns.Worth.Daily
         real.Summary = ns.Session.Summary
 
@@ -357,17 +511,28 @@ function ns.ToggleDemo()
         ns.Purse.Averages = InventedAverages
         ns.Purse.Flow = InventedFlow
         ns.Purse.Coin = InventedCoin
+        ns.Purse.ByCategory = InventedByCategory
         ns.Trade.Daily = InventedTradeDays
         ns.Trade.Totals = InventedTradeTotals
         ns.Trade.Recent = InventedRecent
+        ns.Trade.Items = InventedItems
         ns.Worth.Daily = InventedWorth
         ns.Session.Summary = InventedSession
+        -- Activities are kept by a file an update adds, which isn't there
+        -- until the game has been restarted.
+        if ns.Activity then
+            real.ActivitySummary = ns.Activity.Summary
+            ns.Activity.Summary = InventedActivities
+        end
         for _, itemID in ipairs(TRADE_GOODS) do
             ns.LoadItem(itemID)
         end
+        for _, traded in ipairs(TRADED) do
+            ns.LoadItem(traded.itemID)
+        end
 
         ns.Print(
-            "Demo data is on: charts, the Profit tab and the session tracker show invented "
+            "Demo data is on: charts, the Money tab and the session tracker show invented "
                 .. "figures, for screenshots. "
                 .. "Nothing is saved. Type /gw demo again, or reload, to switch it off."
         )
@@ -379,11 +544,16 @@ function ns.ToggleDemo()
         ns.Purse.Averages = real.Averages
         ns.Purse.Flow = real.Flow
         ns.Purse.Coin = real.Coin
+        ns.Purse.ByCategory = real.ByCategory
         ns.Trade.Daily = real.TradeDaily
         ns.Trade.Totals = real.TradeTotals
         ns.Trade.Recent = real.TradeRecent
+        ns.Trade.Items = real.TradeItems
         ns.Worth.Daily = real.WorthDaily
         ns.Session.Summary = real.Summary
+        if ns.Activity then
+            ns.Activity.Summary = real.ActivitySummary
+        end
 
         ns.Print("Demo data is off. Charts are back to your real history.")
     end

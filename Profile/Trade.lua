@@ -21,6 +21,13 @@ local _, ns = ...
 -- latest sales and purchases: once for the whole account, and once for
 -- each character on their own. What was last paid for each item is kept
 -- for the account only; it's a price, and any character can use it.
+--
+-- Each book also keeps what was traded of each item, by day, for a month:
+-- how many were bought and for how much, how many sold and what they
+-- brought in. A purchase is often only named a moment after its coin has
+-- gone, so it's added to those then, once. The last two days of those are
+-- kept one by one as well, with the time of each, so a session can be
+-- added up from when it began rather than from midnight.
 
 local Trade = {}
 ns.Trade = Trade
@@ -113,10 +120,23 @@ local function Book()
     if type(book.paid) ~= "table" then
         book.paid = {}
     end
+    if type(book.items) ~= "table" then
+        book.items = {}
+    end
+    if type(book.itemsByName) ~= "table" then
+        book.itemsByName = {}
+    end
+    if type(book.listed) ~= "table" then
+        book.listed = {}
+    end
     return book
 end
 
--- This character's own record: days and recent, as the account's are.
+-- This character's own record: days, recent and items, as the account's
+-- are, and two things the account doesn't keep: latest, their trades of
+-- the last two days one by one, and bids, the bids they have open.
+local OWN_FIELDS = { "days", "recent", "hours", "items", "itemsByName", "latest", "bids" }
+
 local function OwnBook()
     local book = Book()
     if type(book.characters) ~= "table" then
@@ -129,18 +149,19 @@ local function OwnBook()
         -- Before characters were kept apart there was only the account's
         -- record. On an account with one character, all of it is theirs.
         own = ns.Characters.IsOnlyOne()
-                and { days = CopyTable(book.days), recent = CopyTable(book.recent) }
+                and {
+                    days = CopyTable(book.days),
+                    recent = CopyTable(book.recent),
+                    items = CopyTable(book.items),
+                    itemsByName = CopyTable(book.itemsByName),
+                }
             or {}
         book.characters[key] = own
     end
-    if type(own.days) ~= "table" then
-        own.days = {}
-    end
-    if type(own.recent) ~= "table" then
-        own.recent = {}
-    end
-    if type(own.hours) ~= "table" then
-        own.hours = {}
+    for _, field in ipairs(OWN_FIELDS) do
+        if type(own[field]) ~= "table" then
+            own[field] = {}
+        end
     end
     return own
 end
@@ -158,14 +179,32 @@ local function BookFor(whose)
     local characters = Book().characters
     local theirs = characters and characters[whose]
     if type(theirs) ~= "table" then
-        return { days = {}, recent = {} }
+        return { days = {}, recent = {}, items = {}, itemsByName = {}, latest = {} }
     end
     return {
         days = theirs.days or {},
         recent = theirs.recent or {},
         hours = theirs.hours or {},
         hoursFrom = theirs.hoursFrom,
+        items = theirs.items or {},
+        itemsByName = theirs.itemsByName or {},
+        latest = theirs.latest or {},
     }
+end
+
+-- The trades of the last two days to read back, as a list of lists:
+-- everyone's for the account, which keeps none of its own.
+local function LatestFor(whose)
+    if whose ~= true then
+        return { BookFor(whose).latest }
+    end
+    local lists = {}
+    for _, own in pairs(Book().characters or {}) do
+        if type(own) == "table" and type(own.latest) == "table" then
+            table.insert(lists, own.latest)
+        end
+    end
+    return lists
 end
 
 -- Recording -------------------------------------------------------------------
@@ -196,12 +235,16 @@ local function AddToHour(book, net)
     book.hours[now] = (book.hours[now] or 0) + net
 end
 
--- Today's totals in a book: sold, bought, deposits, refunds and cut in
--- copper, and how many sales.
 -- The prices paid by name: [name] = itemID, made when first needed. Let
 -- go of whenever the prices paid change, so it's made again.
 local paidByName
 
+-- Names the player's own listings were posted under, kept as long as the
+-- item totals are: [name] = { itemID, at }.
+local KEEP_LISTED_DAYS = 30
+
+-- Today's totals in a book: sold, bought, deposits, refunds and cut in
+-- copper, and how many sales.
 local function TodayIn(book)
     local days = book.days
     local today = ns.Ledger.Today()
@@ -221,6 +264,14 @@ local function TodayIn(book)
             end
         end
         paidByName = nil
+
+        local oldestListed = GetServerTime() - KEEP_LISTED_DAYS * ns.SECONDS_PER_DAY
+        local listed = Book().listed
+        for name, listing in pairs(listed) do
+            if type(listing) ~= "table" or (listing[2] or 0) < oldestListed then
+                listed[name] = nil
+            end
+        end
     end
     return days[today]
 end
@@ -233,13 +284,93 @@ local function RememberIn(book, entry)
     end
 end
 
+-- Item totals are kept a month, as the hours are, and never longer than
+-- the days.
+local KEEP_ITEM_DAYS = 30
+
+-- What was traded of one thing on one day, in a book: { bought, paid,
+-- sold, brought, deposits }. bought and sold are how many; paid is the
+-- copper spent on them, brought what their sales came to after the cut
+-- and without the deposit handed back. deposits is what was paid to list
+-- it, less what came back with a sale, and so can be less than nothing on
+-- a day something listed earlier sold.
+--
+-- Kept by item ID in items, and in itemsByName by the name a sale's
+-- letter gave, for a sale of something that couldn't be put to an ID.
+local function ItemRecord(book, day, key, byName)
+    local field = byName and "itemsByName" or "items"
+    if type(book[field]) ~= "table" then
+        book[field] = {}
+    end
+    local days = book[field]
+    if not days[day] then
+        -- A new day is as good a moment as any to drop the oldest.
+        ns.Ledger.ForgetOldDays(days, math.min(KEEP_ITEM_DAYS, ns.settings.historyDays))
+        days[day] = {}
+    end
+
+    local record = days[day][key]
+    if not record then
+        record = { bought = 0, paid = 0, sold = 0, brought = 0, deposits = 0 }
+        days[day][key] = record
+    end
+    return record
+end
+
+-- Trades are kept one by one for this long, for periods that don't start
+-- at midnight.
+local KEEP_EXACT = 48 * 60 * 60
+
+-- Lets go of trades more than two days gone.
+local function TrimLatest(list)
+    local oldest = GetServerTime() - KEEP_EXACT
+    local kept = 0
+    for index = 1, #list do
+        local entry = list[index]
+        if type(entry) == "table" and (entry[1] or 0) >= oldest then
+            kept = kept + 1
+            list[kept] = entry
+        end
+    end
+    for index = #list, kept + 1, -1 do
+        list[index] = nil
+    end
+end
+
+-- One trade of one thing, for this character's last two days: { at, key,
+-- bought, paid, sold, brought, deposits }, the figures as an item's day
+-- has them. key is the item's ID, or the name a sale's letter gave when
+-- that couldn't be put to one. Mostly in the order they happened, though
+-- a bid that won is put down at the time it was placed.
+local function NoteLatest(at, key, bought, paid, sold, brought, deposits)
+    local latest = OwnBook().latest
+    table.insert(latest, { at, key, bought, paid, sold, brought, deposits })
+    TrimLatest(latest)
+end
+
+-- So many of something bought, for so much, at the time the coin went.
+-- Each purchase must come through here once and no more: what calls it
+-- makes sure of that.
+local function CountBought(itemID, count, paid, at)
+    local day = ns.Ledger.DayOf(at)
+    for _, book in ipairs({ Book(), OwnBook() }) do
+        local record = ItemRecord(book, day, itemID)
+        record.bought = record.bought + count
+        record.paid = record.paid + paid
+    end
+    NoteLatest(at, itemID, count, paid, 0, 0, 0)
+end
+
 -- Buyouts and bids the player placed, and pool purchases they confirmed,
 -- put on record and waiting for the game to say they went through:
--- { entries, amount, itemID, auctionID, pool, done, at }. entries are the
--- account's and this character's copies on the list; itemID is what we
--- were told it was for, if anything; auctionID is the auction bid on;
--- pool marks a purchase from a pool; done marks a buyout the game has
--- said went through, still waiting to hear what it was. Only these are
+-- { entries, amount, itemID, auctionID, pool, done, counted, paidAt,
+-- openBid, at }. entries are the account's and this character's copies on
+-- the list; itemID is what we were told it was for, if anything;
+-- auctionID is the auction bid on; pool marks a purchase from a pool;
+-- done marks a buyout the game has said went through, still waiting to
+-- hear what it was; counted marks one already in the item totals, and
+-- paidAt is the server time its coin went. openBid is a bid's place among
+-- the bids kept open, until it turns out to have been a buyout. Only these are
 -- ever named from the game's word: coin that left without being asked
 -- for is left as it is.
 --
@@ -273,6 +404,13 @@ local function DropOld(list)
     while list[1] and now - list[1].at > PURCHASE_WAIT do
         table.remove(list, 1)
     end
+end
+
+-- A purchase from a pool has been settled. The game's "item purchased"
+-- for it can still be on its way.
+local function SettledPool(itemID)
+    DropOld(settledPools)
+    table.insert(settledPools, { itemID = itemID, at = GetTime() })
 end
 
 -- Notes what one of something was last bought for, at the auction house
@@ -330,16 +468,145 @@ local function PaidFor(name)
     end
 end
 
+-- Names from sales' letters already put to an item this session, and
+-- names that couldn't be. Those are tried again once the client has
+-- loaded more names, though not more than once a minute: searching the
+-- names written down for each of them isn't free.
+local namedIDs, unnamed = {}, {}
+local RETRY_NAMES_EVERY = 60
+local namesTriedAt, retryPending = 0, false
+
+local function RetryNames()
+    retryPending = false
+    namesTriedAt = GetTime()
+    wipe(unnamed)
+end
+
+ns.Subscribe("ITEM_NAMES_LOADED", function()
+    if retryPending or not next(unnamed) then
+        return
+    end
+    local wait = namesTriedAt + RETRY_NAMES_EVERY - GetTime()
+    if wait <= 0 then
+        RetryNames()
+    else
+        retryPending = true
+        C_Timer.After(wait, RetryNames)
+    end
+end)
+
+-- The player's own listing of something, under the name its sale's
+-- letter will give, so the sale lands with its deposit.
+local function RememberListed(itemID, name)
+    name = name or (itemID and ns.ItemName(itemID))
+    if not itemID or not name then
+        return
+    end
+    Book().listed[name] = { itemID, GetServerTime() }
+    namedIDs[name] = itemID
+    unnamed[name] = nil
+end
+
+-- Listings read at the auction house carry their names too, which covers
+-- those posted before the names were kept, or from another addon's
+-- window.
+ns.Subscribe("LISTINGS_READ", function(_, auctions)
+    for _, auction in pairs(auctions or {}) do
+        if auction.itemID and auction.name then
+            RememberListed(auction.itemID, auction.name)
+        end
+    end
+end)
+
+-- The one item the names written down give this name to, if only one.
+-- Two things can share a name, and then it isn't for us to pick.
+local function OnlyItemNamed(name)
+    local lowered, found = name:lower(), nil
+    for _, match in ipairs(ns.Names.Search(name)) do
+        if match.name and match.name:lower() == lowered then
+            if found then
+                return nil
+            end
+            found = match.itemID
+        end
+    end
+    return found
+end
+
+-- The item a sale's letter means, which gives only its name. Something
+-- the player listed under that name is the likeliest, then something
+-- bought; otherwise any name Goldwise has written down.
+local function ItemNamed(name)
+    if not name or unnamed[name] then
+        return nil
+    end
+    if namedIDs[name] then
+        return namedIDs[name]
+    end
+
+    local listing = Book().listed[name]
+    local itemID = type(listing) == "table" and listing[1] or nil
+    if not itemID then
+        local _, paidID = PaidFor(name)
+        itemID = paidID or OnlyItemNamed(name)
+    end
+    if itemID then
+        namedIDs[name] = itemID
+    else
+        unnamed[name] = true
+    end
+    return itemID
+end
+
+-- Bids the player has open, in their own book: { at, amount, itemID },
+-- where at is the server time the coin went. A bid that wins is only
+-- known to have when the letter with the item in it is opened, perhaps
+-- days later, so it's kept until then, or until its coin comes back or
+-- it's too old to be waiting still.
+local BID_KEPT = 3 * ns.SECONDS_PER_DAY
+
+local function OpenBids()
+    local bids = OwnBook().bids
+    local oldest = GetServerTime() - BID_KEPT
+    for index = #bids, 1, -1 do
+        local bid = bids[index]
+        if type(bid) ~= "table" or (bid.at or 0) < oldest then
+            table.remove(bids, index)
+        end
+    end
+    return bids
+end
+
+local function ForgetBid(bid)
+    local bids = OwnBook().bids
+    for index, open in ipairs(bids) do
+        if open == bid then
+            table.remove(bids, index)
+            return
+        end
+    end
+end
+
 -- What was on record as a bid was a buyout after all. The day's totals
--- already count the coin as spent either way.
+-- already count the coin as spent either way. It's no longer an open
+-- bid, so the letter its item comes in won't count it a second time.
 local function MarkBought(waiting)
     for _, entry in ipairs(waiting.entries) do
         entry.kind = Trade.PURCHASE
+    end
+    if waiting.openBid then
+        ForgetBid(waiting.openBid)
+        waiting.openBid = nil
     end
 end
 
 -- The game has said a purchase went through: it was for this, so many
 -- of them.
+--
+-- This is where a purchase named after its coin is added to the item
+-- totals. Every caller has taken the waiting purchase off the list first,
+-- or never put it there, so nothing settles twice; and one already counted
+-- when its coin was filed, because the asking named it, says so.
 local function Settle(waiting, itemID, count)
     count = count or 1
     MarkBought(waiting)
@@ -349,6 +616,10 @@ local function Settle(waiting, itemID, count)
     end
     if count > 0 then
         NotePaid(itemID, waiting.amount / count, "auction", count)
+        if not waiting.counted then
+            waiting.counted = true
+            CountBought(itemID, count, waiting.amount, waiting.paidAt)
+        end
     end
 end
 
@@ -418,6 +689,7 @@ ns.Subscribe("MONEY_MOVED", function(delta, category)
         if math.abs(-delta - buy.total) <= 1 then
             table.remove(vendorBuys, index)
             NotePaid(buy.itemID, buy.each, "vendor", buy.count)
+            CountBought(buy.itemID, buy.count, -delta, GetServerTime())
             return
         end
     end
@@ -427,6 +699,32 @@ end)
 -- account's book and this character's.
 local function File(kind, amount, expected)
     expected = expected or {}
+    local now = GetServerTime()
+    local today = ns.Ledger.DayOf(now)
+
+    -- What a sale was of, by its name, for the item totals: put to an
+    -- item once, here, and kept by that name when it can't be.
+    local soldID = kind == Trade.SALE and ItemNamed(expected.name)
+    local returned = kind == Trade.SALE and math.min(expected.deposit or 0, amount) or 0
+
+    local soldKey = kind == Trade.SALE and (soldID or expected.name) or nil
+
+    if soldKey then
+        local brought = amount - returned
+        NoteLatest(now, soldKey, 0, 0, expected.count or 1, brought, -returned)
+    elseif kind == Trade.DEPOSIT and expected.itemID then
+        NoteLatest(now, expected.itemID, 0, 0, 0, 0, amount)
+    elseif kind == Trade.REFUND then
+        -- A bid handed back is no longer open. Which one isn't said, so
+        -- it's the oldest for as much.
+        local bids = OpenBids()
+        for index, bid in ipairs(bids) do
+            if bid.amount == amount then
+                table.remove(bids, index)
+                break
+            end
+        end
+    end
 
     for _, book in ipairs({ Book(), OwnBook() }) do
         local day = TodayIn(book)
@@ -435,15 +733,25 @@ local function File(kind, amount, expected)
             -- cut, and the deposit handed back. That deposit was never
             -- spent, so it comes off what deposits cost rather than
             -- counting as something sold.
-            local returned = math.min(expected.deposit or 0, amount)
             day.sold = day.sold + amount - returned
             day.returned = (day.returned or 0) + returned
             day.sales = day.sales + 1
             day.cut = day.cut + (expected.cut or 0)
+
+            if soldKey then
+                local item = ItemRecord(book, today, soldKey, not soldID)
+                item.sold = item.sold + (expected.count or 1)
+                item.brought = item.brought + amount - returned
+                item.deposits = item.deposits - returned
+            end
         elseif kind == Trade.REFUND then
             day.refunds = day.refunds + amount
         elseif kind == Trade.DEPOSIT then
             day.deposits = day.deposits + amount
+            if expected.itemID then
+                local item = ItemRecord(book, today, expected.itemID)
+                item.deposits = item.deposits + amount
+            end
         else
             -- A purchase or a bid. Either way the coin has gone.
             day.bought = day.bought + amount
@@ -457,8 +765,13 @@ local function File(kind, amount, expected)
     -- What the player paid for a thing is worth knowing the next time they
     -- wonder whether to sell it. Only where the game said what was bought
     -- and how many, and only once it's theirs: a bid can still come back.
+    -- Named already, it goes into the item totals now, and the game's word
+    -- on it later mustn't add it again.
+    local counted = false
     if kind == Trade.PURCHASE and expected.itemID and (expected.count or 0) > 0 then
         NotePaid(expected.itemID, amount / expected.count, "auction", expected.count)
+        CountBought(expected.itemID, expected.count, amount, now)
+        counted = true
     end
 
     -- Deposits are left off the list: one for every listing would bury
@@ -466,7 +779,7 @@ local function File(kind, amount, expected)
     -- the account's list.
     if kind ~= Trade.DEPOSIT then
         local entry = {
-            at = GetServerTime(),
+            at = now,
             kind = kind,
             amount = amount,
             itemID = expected.itemID,
@@ -480,7 +793,7 @@ local function File(kind, amount, expected)
         -- handed back with it, less what was paid.
         if kind == Trade.SALE then
             local paid, itemID = PaidFor(expected.name)
-            entry.itemID = entry.itemID or itemID
+            entry.itemID = entry.itemID or soldID or itemID
             entry.deposit = math.min(expected.deposit or 0, amount)
             if paid and paid.each then
                 entry.cost = math.floor(paid.each * (expected.count or 1) + 0.5)
@@ -506,12 +819,24 @@ local function File(kind, amount, expected)
                 -- the buyout was, and this wasn't it. Word of a buyout on
                 -- the same auction is never this one's.
                 bid = kind == Trade.BID and expected.itemID ~= nil,
+                -- Whether it's in the item totals yet, and when the coin
+                -- went, which is when it goes under once it is.
+                counted = counted,
+                paidAt = now,
                 at = GetTime(),
             }
+            if kind == Trade.BID then
+                -- Kept open until it's known to have been a buyout, it's
+                -- handed back, or its item arrives by post.
+                local bid = { at = now, amount = amount, itemID = expected.itemID }
+                table.insert(OpenBids(), bid)
+                waiting.openBid = bid
+            end
             if waiting.pool then
                 local heard = TakeHeard(heardPools, waiting.itemID)
                 if heard then
                     Settle(waiting, heard.itemID, heard.count)
+                    SettledPool(heard.itemID)
                 else
                     Wait(waiting)
                 end
@@ -590,6 +915,60 @@ for _, name in ipairs({ "TakeInboxMoney", "AutoLootMailItem" }) do
     end
 end
 
+-- Puts the copies of a bid on the latest list down as a purchase.
+local function MarkWon(bid, itemID, count)
+    for _, book in ipairs({ Book(), OwnBook() }) do
+        for _, entry in ipairs(book.recent) do
+            if entry.kind == Trade.BID and entry.at == bid.at and entry.amount == bid.amount then
+                entry.kind = Trade.PURCHASE
+                entry.itemID = entry.itemID or itemID
+                entry.count = count
+                break
+            end
+        end
+    end
+end
+
+-- The player, or an addon on their behalf, has asked for what's in a
+-- letter. A letter from the auction house with something they won in it
+-- is the only word there is that a bid won, so that's when the bid is
+-- put down as bought, at the time its coin went. Only a bid still open
+-- will do. A buyout comes in such a letter too, but it was counted when
+-- it went through and is no longer open, so it isn't counted again.
+local function OnItemAskedFor(index, attachment)
+    local bids = OpenBids()
+    if #bids == 0 then
+        return
+    end
+    local invoice, _, _, paid, _, _, _, _, _, _, count = GetInboxInvoiceInfo(index)
+    if invoice ~= "buyer" or not paid or paid <= 0 then
+        return
+    end
+    local _, attachedID, _, attached = GetInboxItem(index, attachment or 1)
+
+    for position, bid in ipairs(bids) do
+        local sameItem = not bid.itemID or not attachedID or bid.itemID == attachedID
+        if bid.amount == paid and sameItem then
+            table.remove(bids, position)
+            local itemID = bid.itemID or attachedID
+            count = count or attached or 1
+            if itemID and count > 0 then
+                NotePaid(itemID, paid / count, "auction", count)
+                CountBought(itemID, count, paid, bid.at)
+            end
+            MarkWon(bid, itemID, count)
+            ns.Publish("TRADE_CHANGED")
+            return
+        end
+    end
+end
+
+for _, name in ipairs({ "TakeInboxItem", "AutoLootMailItem" }) do
+    if _G[name] then
+        hooksecurefunc(name, OnItemAskedFor)
+    end
+end
+
 -- The item an auction is for, and what buying it outright costs, if
 -- the game will say.
 local function AuctionDetails(auctionID)
@@ -607,6 +986,7 @@ end
 -- came back with: whether it answered, and the figure. A listing that
 -- costs nothing to post moves no coin, and so there's nothing to expect.
 local function ExpectDeposit(itemID, answered, deposit)
+    RememberListed(itemID)
     if not answered or not deposit then
         -- The game wouldn't say. A deposit is coming all the same.
         Expect(leaving, { kind = Trade.DEPOSIT, itemID = itemID })
@@ -790,9 +1170,7 @@ ns.OnEvent("COMMODITY_PURCHASED", function(itemID, quantity)
     end)
     if waiting then
         Settle(waiting, itemID, quantity)
-        -- The game's "item purchased" for it can still be on its way.
-        DropOld(settledPools)
-        table.insert(settledPools, { itemID = itemID, at = GetTime() })
+        SettledPool(itemID)
         ns.Publish("TRADE_CHANGED")
     else
         DropOld(heardPools)
@@ -1084,3 +1462,189 @@ function Trade.Recent(whose)
     end
     return entries
 end
+
+-- How many of an item there are to hand. For the one being played, their
+-- bags and banks as Bank.Held counts them; for the account, every other
+-- character's bags as well, as of their last login. Nil for another
+-- character on their own: their bags are kept by name, not by key.
+local function HeldBy(whose, itemID)
+    if whose == true then
+        local held = ns.Bank.Held(itemID)
+        for _, holder in ipairs(ns.Characters.HoldersOf(itemID)) do
+            held = held + holder.count
+        end
+        return held
+    end
+    if not whose or whose == ns.Characters.CurrentKey() then
+        return ns.Bank.Held(itemID)
+    end
+end
+
+local ITEM_FIELDS = { "bought", "paid", "sold", "brought", "deposits" }
+
+-- Adds one record of an item to its running total: a day's, or one
+-- trade's from the last two days, whose figures are in ITEM_FIELDS' order
+-- after its time and key.
+local function AddUp(totals, key, record, offset)
+    local total = totals[key]
+    if not total then
+        total = { bought = 0, paid = 0, sold = 0, brought = 0, deposits = 0 }
+        totals[key] = total
+    end
+    for index, field in ipairs(ITEM_FIELDS) do
+        local value = offset and record[offset + index] or record[field]
+        total[field] = total[field] + (value or 0)
+    end
+    return total
+end
+
+-- Whether a period can be added up trade by trade: it began within the
+-- last two days, and since trades were kept that way.
+local function Exact(sinceTime)
+    local from = Book().latestFrom
+    return sinceTime ~= nil
+        and from ~= nil
+        and sinceTime >= from
+        and GetServerTime() - sinceTime <= KEEP_EXACT
+end
+
+--- What was traded of each item over a stretch: bought at auction or from
+--- a vendor, and sold at auction. A stretch that began in the last two
+--- days is counted from sinceTime to the second. Further back it's kept by
+--- day, so the stretch starts at the beginning of the day sinceTime falls
+--- on, and goes back a month at most.
+---@param sinceTime number|nil  server time; everything kept if left out
+---@param whose boolean|string|nil  as for Daily
+---@return table items  list of { itemID, name, bought, paid, sold,
+---        brought, lost, cost, profit, held }, biggest profit or loss
+---        first. bought and sold are how many; paid, brought, lost, cost
+---        and profit are copper. brought is what sales came to after the
+---        cut, less lost: the deposits paid to list it that weren't handed
+---        back, which includes any on listings still up. cost is what the
+---        ones sold cost: at the stretch's average price paid for as many
+---        as were bought in it, and for any more, what was last paid for
+---        one before the stretch began. Something never bought cost
+---        nothing. profit is brought less cost. held is how many there are
+---        now, as for the current character's bags and banks or, for the
+---        account, everyone's bags too; nil for another character. A sale
+---        whose letter's name couldn't be put to an item has no itemID or
+---        held. name can be missing until the client has loaded the item.
+function Trade.Items(sinceTime, whose)
+    local byID, byName = {}, {}
+
+    -- A sale kept by name may be put to an item now, from what's been
+    -- listed, bought or seen since.
+    local function Count(key, record, offset)
+        if type(key) == "number" then
+            AddUp(byID, key, record, offset)
+            return
+        end
+        local itemID = ItemNamed(key)
+        local total = itemID and AddUp(byID, itemID, record, offset)
+            or AddUp(byName, key, record, offset)
+        total.name = total.name or key
+    end
+
+    -- When the stretch began, for what was paid before it.
+    local from
+    if Exact(sinceTime) then
+        from = sinceTime
+        for _, list in ipairs(LatestFor(whose)) do
+            for _, entry in ipairs(list) do
+                if (entry[1] or 0) >= sinceTime and entry[2] then
+                    Count(entry[2], entry, 2)
+                end
+            end
+        end
+    else
+        local book = BookFor(whose)
+        local firstDay = ns.Ledger.DayOf(sinceTime or 0)
+        local earliest = ns.Ledger.Today()
+        for _, field in ipairs({ "items", "itemsByName" }) do
+            for day, records in pairs(book[field] or {}) do
+                if day >= firstDay then
+                    earliest = math.min(earliest, day)
+                    for key, record in pairs(records) do
+                        Count(key, record)
+                    end
+                end
+            end
+        end
+        from = (sinceTime and firstDay or earliest) * ns.SECONDS_PER_DAY - ns.ClockOffset()
+    end
+
+    local list = {}
+    local function Add(itemID, name, total)
+        -- deposits is what listing it cost in the stretch, less what came
+        -- back with its sales. A sale can hand back the deposit on a
+        -- listing posted before the stretch began, and which listing a
+        -- sale was isn't kept, so that comes off deposits paid within the
+        -- stretch as well and can hide one lost. It's never let make lost
+        -- less than nothing.
+        local lost = math.max(0, total.deposits)
+        if total.bought == 0 and total.sold == 0 and lost == 0 then
+            return
+        end
+
+        local brought = total.brought - lost
+        local cost = 0
+        if total.bought > 0 then
+            cost = total.paid / total.bought * math.min(total.sold, total.bought)
+        end
+        -- More sold than were bought in the stretch: the rest were bought
+        -- before it, or farmed. What was last paid says which, as long as
+        -- that was before the stretch, and so isn't one of those above.
+        local beyond = total.sold - total.bought
+        if itemID and beyond > 0 then
+            local each, paidAt = Trade.LastPaid(itemID)
+            if each and paidAt and paidAt < from then
+                cost = cost + each * beyond
+            end
+        end
+
+        table.insert(list, {
+            itemID = itemID,
+            name = name,
+            bought = total.bought,
+            paid = total.paid,
+            sold = total.sold,
+            brought = brought,
+            lost = lost,
+            cost = math.floor(cost + 0.5),
+            profit = math.floor(brought - cost + 0.5),
+            held = itemID and HeldBy(whose, itemID) or nil,
+        })
+    end
+
+    for itemID, total in pairs(byID) do
+        Add(itemID, ns.ItemName(itemID) or ns.Names.Get(itemID) or total.name, total)
+    end
+    for name, total in pairs(byName) do
+        Add(nil, name, total)
+    end
+
+    table.sort(list, function(a, b)
+        local aSize, bSize = math.abs(a.profit), math.abs(b.profit)
+        if aSize ~= bSize then
+            return aSize > bSize
+        end
+        if (a.name or "") ~= (b.name or "") then
+            return (a.name or "") < (b.name or "")
+        end
+        return (a.itemID or 0) < (b.itemID or 0)
+    end)
+    return list
+end
+
+-- Trades kept one by one are only added up from when this was first
+-- loaded. Other characters' are let go here as they age, since they're
+-- only trimmed otherwise as their own trades are put down.
+ns.Subscribe("DATABASE_READY", function()
+    local book = Book()
+    book.latestFrom = book.latestFrom or GetServerTime()
+    for _, own in pairs(book.characters or {}) do
+        if type(own) == "table" and type(own.latest) == "table" then
+            TrimLatest(own.latest)
+        end
+    end
+end)

@@ -156,9 +156,12 @@ local DEFAULT_SETTINGS = {
     profitScale = 0,
     purseCoin = false,
 
-    -- Whether the Purse and Profit tabs show the whole account's money or
-    -- this character's alone. One choice for both, so they can't disagree.
+    -- Whether the Money tab shows the whole account's money or this
+    -- character's alone.
     moneyAccountWide = false,
+
+    -- What the Money tab looks back over: "session", "week" or "month".
+    moneyPeriod = "week",
 
     -- The session tracker: whether it's on screen, and whether it's
     -- pinned where it is. Where it is goes in sessionTrackerPoint, once

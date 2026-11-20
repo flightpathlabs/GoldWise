@@ -492,6 +492,30 @@ function Purse.Daily(numDays, whose)
     return days, firstDay, today
 end
 
+--- What came in and went out over the last so many days, by what it was
+--- for.
+---@param numDays number  how far back to look, counting today
+---@param whose boolean|string|nil  as for Flow
+---@return table income    { [category] = copper }
+---@return table spending  the same
+function Purse.ByCategory(numDays, whose)
+    local today = StretchOf(math.floor(GetServerTime() / SECONDS_PER_HOUR), 24)
+    local firstDay = today - numDays + 1
+    local income, spending = {}, {}
+
+    for hour, record in pairs(HoursFor(whose)) do
+        if StretchOf(hour, 24) >= firstDay then
+            for category, amount in pairs(record.income or {}) do
+                income[category] = (income[category] or 0) + amount
+            end
+            for category, amount in pairs(record.spending or {}) do
+                spending[category] = (spending[category] or 0) + amount
+            end
+        end
+    end
+    return income, spending
+end
+
 -- Repairs ---------------------------------------------------------------------
 
 --- How worn the player's gear is, as a whole.

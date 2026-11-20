@@ -575,10 +575,10 @@ local NEWS = {
             if not ns.Characters.IsOnlyOne() then
                 table.insert(
                     lines,
-                    "Purse and Profit now open on the character you're playing. Each "
+                    "The Money tab now opens on the character you're playing. Each "
                         .. "character's own figures start from this version, so they'll "
                         .. "look empty for a while. Everything from before is still there, "
-                        .. "under Whole account: the button at the top of either tab."
+                        .. "under Whole account: the button at the top of the tab."
                 )
             end
             table.insert(
@@ -599,7 +599,7 @@ local NEWS = {
                 onClick = function()
                     ns.settings.moneyAccountWide = true
                     ns.Publish("SETTINGS_CHANGED")
-                    ns.ShowWindowTab("Purse")
+                    ns.ShowWindowTab("Money")
                 end,
             }
         end,

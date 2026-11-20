@@ -4,7 +4,22 @@ What changed in each release of Goldwise, newest first. Work that hasn't
 been released yet is listed under "Unreleased" in the copy of this file on
 the `dev` branch.
 
-## 0.5.1 (20 November 2026)
+## Unreleased
+
+**New**
+
+- **A Money tab in place of Purse and Profit.** One choice at the top
+  (whose money, and this session, 7 days or 30 days), then three
+  questions: are you making money, what's worth your time, and can you
+  afford what's next.
+- **What's worth your time.** Your play is split into what you were
+  doing (killing a kind of creature somewhere, gathering, fishing,
+  questing) with the time each took and what it brought in an hour. A
+  second view shows each thing you traded: what it cost, what it brought
+  in, and the profit.
+- **Plainsight's nameplates** can show what a kill is worth, when
+  Plainsight is installed.
+
 
 **New**
 
