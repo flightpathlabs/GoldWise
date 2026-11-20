@@ -261,6 +261,10 @@ local heardPools = {}
 -- mustn't be taken for word of another.
 local namedItems = {}
 
+-- Purchases from pools just settled: { itemID, at }. The game may yet say
+-- "item purchased" for one, and that isn't word of a buyout.
+local settledPools = {}
+
 -- Seconds either waits for the other.
 local PURCHASE_WAIT = 10
 
@@ -381,6 +385,8 @@ local function BoughtOut(waiting)
     else
         MarkBought(waiting)
         waiting.done = true
+        -- Put back as the newest, so it's let go in its turn.
+        waiting.at = GetTime()
         Wait(waiting)
     end
 end
@@ -496,6 +502,10 @@ local function File(kind, amount, expected)
                 auctionID = expected.auctionID,
                 pool = expected.pool,
                 heard = expected.heard,
+                -- Known to be a bid and not a buyout: the game said what
+                -- the buyout was, and this wasn't it. Word of a buyout on
+                -- the same auction is never this one's.
+                bid = kind == Trade.BID and expected.itemID ~= nil,
                 at = GetTime(),
             }
             if waiting.pool then
@@ -684,10 +694,10 @@ end
 -- or the game's word. The game may also say "item purchased" for it,
 -- which is no word of a buyout.
 local function FromPool(itemID)
-    for _, list in ipairs({ awaiting, heardPools }) do
+    for _, list in ipairs({ awaiting, heardPools, settledPools }) do
         DropOld(list)
         for _, entry in ipairs(list) do
-            if entry.itemID == itemID and (list == heardPools or entry.pool) then
+            if entry.itemID == itemID and (list ~= awaiting or entry.pool) then
                 return true
             end
         end
@@ -705,7 +715,7 @@ ns.OnEvent("AUCTION_HOUSE_PURCHASE_COMPLETED", function(auctionID)
     -- A bid and then a buyout on one auction share its ID. The buyout is
     -- the later.
     local waiting = TakeWaiting(function(candidate)
-        return not candidate.pool and candidate.auctionID == auctionID
+        return not candidate.pool and not candidate.bid and candidate.auctionID == auctionID
     end, true)
     if waiting then
         BoughtOut(waiting)
@@ -738,7 +748,12 @@ ns.OnEvent("ITEM_PURCHASED", function(itemID)
     -- through, or whose coin hasn't come yet.
     DropOld(awaiting)
     for _, candidate in ipairs(awaiting) do
-        if not candidate.pool and not candidate.done and candidate.itemID == itemID then
+        if
+            not candidate.pool
+            and not candidate.bid
+            and not candidate.done
+            and candidate.itemID == itemID
+        then
             candidate.heard = true
             return
         end
@@ -747,6 +762,7 @@ ns.OnEvent("ITEM_PURCHASED", function(itemID)
         if
             expected.asked
             and not expected.pool
+            and expected.kind ~= Trade.BID
             and expected.itemID == itemID
             and not expected.heard
         then
@@ -774,6 +790,9 @@ ns.OnEvent("COMMODITY_PURCHASED", function(itemID, quantity)
     end)
     if waiting then
         Settle(waiting, itemID, quantity)
+        -- The game's "item purchased" for it can still be on its way.
+        DropOld(settledPools)
+        table.insert(settledPools, { itemID = itemID, at = GetTime() })
         ns.Publish("TRADE_CHANGED")
     else
         DropOld(heardPools)

@@ -204,12 +204,15 @@ local function Value()
     local start = withBank and current.bagsAtStart or current.carriedAtStart
     local market = ns.Market.Home()
 
-    -- What's held and what's listed are valued apart, so the tracker can
-    -- show them apart; together they're what's compared with the start.
-    local heldAuction, heldVendor, unpriced =
+    -- Everything together is what's compared with the start, valued the
+    -- way the start was, as one lot per item. What's held is valued again
+    -- on its own so the tracker can show it apart, and what's listed is
+    -- the difference: valuing the listings on their own would charge an
+    -- item that's both carried and listed the smallest deposit twice.
+    local auction, vendor, unpriced = ns.Assets.SaleValue(AsHoldings(Contents(withBank)), market)
+    local heldAuction, heldVendor =
         ns.Assets.SaleValue(AsHoldings(Contents(withBank, true)), market)
-    local listedAuction, listedVendor = ns.Assets.SaleValue(ns.Listings.Holdings(), market)
-    local auction, vendor = heldAuction + listedAuction, heldVendor + listedVendor
+    local listed = math.max(0, auction + vendor - heldAuction - heldVendor)
     if not startValue then
         local auctionBefore, vendorBefore = ns.Assets.SaleValue(AsHoldings(start), market)
         startValue = { auction = auctionBefore, vendor = vendorBefore }
@@ -221,7 +224,7 @@ local function Value()
         vendor = vendor,
         heldAuction = heldAuction,
         heldVendor = heldVendor,
-        listed = listedAuction + listedVendor,
+        listed = listed,
         unpriced = unpriced,
         auctionAtStart = auctionBefore,
         vendorAtStart = vendorBefore,
