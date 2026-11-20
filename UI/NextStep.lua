@@ -626,6 +626,27 @@ local NEWS = {
             }
         end,
     },
+    {
+        id = "0.5.1",
+        title = "New in Goldwise",
+        body = function()
+            return table.concat({
+                "Watch any item's price, held or not: right-click it in Goldwise and "
+                    .. "choose Watch its price. Watched items have their own list on the "
+                    .. "Assets tab.",
+                "Things you bought say what you paid, and whether selling them now "
+                    .. "would make or lose money.",
+            }, "\n\n")
+        end,
+        action = function()
+            return {
+                label = "See watch list",
+                onClick = function()
+                    ns.ShowWatchList()
+                end,
+            }
+        end,
+    },
 }
 
 local NEWS_WIDTH = 300
