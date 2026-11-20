@@ -107,7 +107,8 @@ end
 --   RESALES_CHANGED                 a recipe bought to resell was bought,
 --                                   listed or sold (see Profile\Resales.lua)
 --   WATCH_CHANGED    itemID         the player started or stopped watching
---                                   an item
+--                                   an item, or (itemID nil) switched the
+--                                   Assets tab to or from the watch list
 --   PLACES_CHANGED                  the directory of places has learned more
 --   CRAFTS_CHANGED                  the player's known recipes have been read
 --   DROPS_CHANGED    npcID          what a kind of creature drops has been

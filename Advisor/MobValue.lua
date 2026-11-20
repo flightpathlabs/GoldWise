@@ -160,46 +160,93 @@ local function Split(tallies, finds)
     return own
 end
 
+-- Every creature on record, kills and world drops added up by level and
+-- type: [level][type] = { kills, finds }. Made in one pass over the
+-- records and kept until they change, so a screen full of nameplates
+-- doesn't each go through them all again.
+local bands
+
+local function Bands()
+    if bands and GetTime() - bands.at < CACHE_FOR then
+        return bands
+    end
+    local byLevel = {}
+    for _, drops in pairs(ns.Drops.All()) do
+        if type(drops) == "table" and (drops.kills or 0) > 0 and drops.level then
+            local kinds = byLevel[drops.level] or {}
+            byLevel[drops.level] = kinds
+            local kind = drops.type or "?"
+            local band = kinds[kind] or { kills = 0, finds = NewFinds() }
+            kinds[kind] = band
+            band.kills = band.kills + drops.kills
+            Split(drops.items, band.finds)
+        end
+    end
+    bands = { at = GetTime(), byLevel = byLevel }
+    return bands
+end
+
 -- How often a world drop turns up per kill around a level, and what a
 -- typical one fetches, both ways. The median rather than the average, so
 -- one dear blue doesn't speak for every green. Creatures of the same type
 -- only, when the type is known: beasts and humanoids don't drop alike.
--- The creature being judged is left out, so its own luck isn't counted
--- twice. Nil when nothing like it around that level has been killed.
+-- The creature being judged is left out of how often, so its own luck
+-- isn't counted twice. Nil when nothing else like it around that level
+-- has been killed.
 local function WorldDrops(level, creatureType, exceptID)
-    if not level then
+    if not level or level <= 0 then
         return nil
     end
-    local now = GetTime()
-    local key = ("%d:%s:%s"):format(level, tostring(creatureType), tostring(exceptID))
-    local known = worldDrops[key]
-    if known and now - known.at < CACHE_FOR then
-        return known.chance and known or nil
-    end
+    level = math.floor(level)
 
-    local kills, finds = 0, NewFinds()
-    for npcID, drops in pairs(ns.Drops.All()) do
-        if
-            npcID ~= exceptID
-            and type(drops) == "table"
-            and (drops.kills or 0) > 0
-            and drops.level
-            and math.abs(drops.level - level) <= LEVEL_SPREAD
-            and (not creatureType or drops.type == creatureType)
-        then
-            kills = kills + drops.kills
-            Split(drops.items, finds)
+    local key = ("%d:%s"):format(level, tostring(creatureType))
+    local around = worldDrops[key]
+    if not around or GetTime() - around.at >= CACHE_FOR then
+        local kills, finds, values, vendors = 0, 0, {}, {}
+        local byLevel = Bands().byLevel
+        for near = level - LEVEL_SPREAD, level + LEVEL_SPREAD do
+            for kind, band in pairs(byLevel[near] or {}) do
+                if not creatureType or kind == creatureType then
+                    kills = kills + band.kills
+                    finds = finds + band.finds.finds
+                    for index, value in ipairs(band.finds.values) do
+                        table.insert(values, value)
+                        table.insert(vendors, band.finds.vendors[index])
+                    end
+                end
+            end
         end
+        around = {
+            at = GetTime(),
+            kills = kills,
+            finds = finds,
+            each = Median(values),
+            vendor = Median(vendors),
+        }
+        worldDrops[key] = around
     end
 
-    local found = { at = now }
-    if kills > 0 then
-        found.chance = math.min(1, finds.finds / kills)
-        found.each = Median(finds.values)
-        found.vendor = Median(finds.vendors)
+    local kills, finds = around.kills, around.finds
+    local own = exceptID and ns.Drops.Get(exceptID)
+    if
+        own
+        and own.level
+        and math.abs(own.level - level) <= LEVEL_SPREAD
+        and (not creatureType or (own.type or "?") == creatureType)
+    then
+        local ownFinds = NewFinds()
+        Split(own.items, ownFinds)
+        kills = kills - (own.kills or 0)
+        finds = finds - ownFinds.finds
     end
-    worldDrops[key] = found
-    return found.chance and found or nil
+    if kills <= 0 then
+        return nil
+    end
+    return {
+        chance = math.min(1, math.max(0, finds) / kills),
+        each = around.each,
+        vendor = around.vendor,
+    }
 end
 
 -- Biggest earners first: how often it drops, how many, and what each is
@@ -247,16 +294,21 @@ local function List(tallies, openings, finds, level, creatureType, npcID)
     if finds then
         local around = WorldDrops(level, creatureType, npcID)
         local world
-        if around and around.chance > 0 then
+        if around and (around.chance > 0 or finds.finds > 0) then
+            -- Weighed against the rate around, even when that's none: a
+            -- green from a kind that rarely drops one is the luckier for
+            -- it. What one fetches is a typical one's price around here,
+            -- or the creature's own if none have dropped around here.
+            local typical = around.chance > 0
             world = {
                 chance = math.min(
                     1,
                     (finds.finds + PRIOR_KILLS * around.chance) / (openings + PRIOR_KILLS)
                 ),
-                each = around.each,
-                vendor = around.vendor,
+                each = typical and around.each or Median(finds.values),
+                vendor = typical and around.vendor or Median(finds.vendors),
             }
-        elseif finds.finds > 0 then
+        elseif not around and finds.finds > 0 then
             world = {
                 chance = math.min(1, finds.finds / openings),
                 each = Median(finds.values),
@@ -458,7 +510,14 @@ function MobValue.For(npcID, level, creatureType)
         end
         local pool = NewPool()
         AddToPool(pool, own)
-        return Keep(estimates, npcID, Estimate(pool, own, false, own.level, own.type, npcID))
+        -- Its own record's level and type, or failing those, the unit's:
+        -- kills looted without ever pointing at the creature leave none.
+        local ownLevel = own.level or (level and level > 0 and level) or nil
+        return Keep(
+            estimates,
+            npcID,
+            Estimate(pool, own, false, ownLevel, own.type or creatureType, npcID)
+        )
     end
 
     if not level or level <= 0 then
@@ -521,12 +580,14 @@ ns.Subscribe("DROPS_CHANGED", function()
     wipe(estimates)
     wipe(worldDrops)
     wipe(guesses)
+    bands = nil
     byType = nil
 end)
 
 local function ForgetAll()
     wipe(itemValues)
     wipe(worldDrops)
+    bands = nil
     wipe(estimates)
     wipe(guesses)
 end

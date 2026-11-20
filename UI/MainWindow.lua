@@ -646,7 +646,7 @@ SlashCmdList.GOLDWISE = function(message)
     -- An item shift-clicked into the command: "/gw [Light Leather]" for
     -- its price history, "/gw tree [Light Leather]" for its crafting tree.
     local linkedItem = message:match("|Hitem:(%d+)")
-    if linkedItem and message:lower():find("^watch%s") then
+    if linkedItem and message:lower():find("^watch[%s|]") then
         local watching = ns.Watch.Toggle(tonumber(linkedItem))
         ns.Print(
             watching and "Watching %s. It's on the Assets tab, under Watched."
@@ -654,7 +654,7 @@ SlashCmdList.GOLDWISE = function(message)
             message:match("|c.-|h|r") or ("item " .. linkedItem)
         )
         return
-    elseif linkedItem and message:lower():find("^tree%s") then
+    elseif linkedItem and message:lower():find("^tree[%s|]") then
         ns.ShowCraftTree(tonumber(linkedItem))
         return
     elseif linkedItem then

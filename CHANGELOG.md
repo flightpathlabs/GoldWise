@@ -26,6 +26,12 @@ the `dev` branch.
   show as one line, "Any green or better", on the enemy's tooltip.
 - **Recipe profits allow for the deposit** as well as the auction
   house's cut.
+- **Characters aren't listed twice.** When the game gave the realm's
+  name as blank just after logging in, a character's records were kept
+  apart from their own, and "Whose money" showed them twice. Those
+  records are put back together, and the realm's name is remembered.
+- **`/gw watch` with a shift-clicked item watches it,** rather than
+  opening its price history. The same for `/gw tree`.
 
 - **The session tracker shows your listings on their own line.** What
   you have up for auction was added into "At auction", so the bags

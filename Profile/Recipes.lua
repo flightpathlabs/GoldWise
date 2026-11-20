@@ -426,8 +426,15 @@ function Recipes.Resale(marketKey)
                     -- The deposit comes back with a sale and is lost when
                     -- the listing runs out, so it costs as often as
                     -- listings come back unsold (Advisor\Advice.lua).
-                    local sellPrice = select(11, C_Item.GetItemInfo(item)) or 0
-                    local deposit = ns.Deposit.Estimate(sellPrice, marketKey)
+                    -- The deposit goes by what a vendor pays for it,
+                    -- which the client may not have yet even when the
+                    -- vendor's asking price is known. Until it arrives
+                    -- the floor stands in, and the list redraws then.
+                    local sellPrice = select(11, C_Item.GetItemInfo(item))
+                    if sellPrice == nil then
+                        ns.LoadItem(item)
+                    end
+                    local deposit = ns.Deposit.Estimate(sellPrice or 0, marketKey)
                     local profit = price * (1 - cut) - deposit * ns.Advice.UNSOLD_SHARE - cost
                     if profit >= math.max(ns.SMALL_CHANGE, cost * WorthwhileShare()) then
                         local vendors, here = VendorsFor(recipe, side, zoneHere)

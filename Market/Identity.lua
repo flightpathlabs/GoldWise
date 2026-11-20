@@ -32,7 +32,7 @@ local openMarket
 -- The last word alone would file it with the PvP worlds, whose auction
 -- house it doesn't share, so all three are read as one name.
 local function Ruleset()
-    local realm = GetRealmName() or ""
+    local realm = ns.RealmName()
     local last = realm:match("(%S+)%s*$")
     if not last then
         return "Unknown"

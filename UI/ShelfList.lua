@@ -312,7 +312,9 @@ function ShelfList.Create(parent, onSelect)
     viewButton:SetPoint("RIGHT", sortButton, "LEFT", -8, 0)
     viewButton:SetScript("OnClick", function()
         showingWatched = not showingWatched
-        list:Refresh()
+        -- The whole window redraws on this, footer and all, not just the
+        -- list.
+        ns.Publish("WATCH_CHANGED")
     end)
 
     -- Opens the window on the watch list.

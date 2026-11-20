@@ -200,6 +200,23 @@ local function EnsureTable(db, key)
     return db[key]
 end
 
+--- The realm's name, which on Forever also carries the ruleset ("CAMWOW
+--- US1 Realm 1 PvE"). The game can give it as blank for a while after
+--- logging in, and records filed under a blank realm turned up as a
+--- second "Bjorn" beside the first. So the last name seen is kept and
+--- stands in until the game says it again.
+---@return string realm  "" only if the game has never said
+function ns.RealmName()
+    local realm = GetRealmName()
+    if type(realm) == "string" and realm ~= "" then
+        if ns.db then
+            ns.db.realm = realm
+        end
+        return realm
+    end
+    return ns.db and ns.db.realm or ""
+end
+
 ns.OnEvent("ADDON_LOADED", function(name)
     if name ~= addonName then
         return

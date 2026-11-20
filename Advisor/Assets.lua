@@ -63,12 +63,15 @@ function Assets.Describe(holding, marketKey, owner)
     -- What they last paid for one, if they bought it, against what the
     -- verdict would bring in: a recipe bought for 1g that clears 1g 2s at
     -- auction is 2s of profit, not 1g 2s.
+    --
     -- Only as many as were bought are weighed: a stack farmed beside one
     -- bought isn't a loss. Purchases noted before the count was kept
-    -- stand for one.
+    -- stand for one. Only on the current character's own row, too: the
+    -- record of what was paid is the account's, and an alt's stack or the
+    -- account bank's would weigh the same purchase again.
     local paid, _, paidFrom, bought = ns.Trade.LastPaid(itemID)
     local margin, weighed
-    if paid and not kept and (holding.count or 0) > 0 then
+    if paid and not kept and not owner and (holding.count or 0) > 0 then
         local brings = advice.verb == ns.Advice.SELL and advice.proceeds
             or advice.verb == ns.Advice.VENDOR and advice.fromVendor
         if brings then
