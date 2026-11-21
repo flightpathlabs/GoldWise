@@ -173,7 +173,8 @@ local function ChosenPeriod()
             return period
         end
     end
-    return PERIODS[2]
+    -- 30 days, as a new player starts on.
+    return PERIODS[3]
 end
 
 -- The session belongs to the character being played. Across the account
@@ -1056,7 +1057,8 @@ function MoneyTab.Create(parent)
     tab:SetAllPoints()
     tab:Hide()
 
-    local view = DID
+    -- "What you did" or "What you traded", as it was last left.
+    local view = ns.settings.moneyView == TRADED and TRADED or DID
 
     -- Who and when ------------------------------------------------------------
 
@@ -1244,6 +1246,7 @@ function MoneyTab.Create(parent)
         PanelTemplates_TabResize(viewTab, 0)
         viewTab:SetScript("OnClick", function(self)
             view = self:GetID()
+            ns.settings.moneyView = view
             -- The window takes its footer from the tab, so it has to be
             -- the one to redraw.
             ns.Publish("COURSE_CHANGED")

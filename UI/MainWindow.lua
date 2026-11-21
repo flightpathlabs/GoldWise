@@ -204,6 +204,8 @@ end
 
 local function ShowTab(index)
     currentTab = index
+    -- Opened again on the same tab, this session or the next.
+    ns.settings.windowTab = TABS[index].page
     PanelTemplates_SetTab(window, index)
 
     HidePages()
@@ -254,6 +256,14 @@ local function CreateTabs(frame)
         -- Only the first needs placing. SetNumTabs chains the rest to it.
         if index == 1 then
             tab:SetPoint("TOPLEFT", frame, "BOTTOMLEFT", 11, 2)
+        end
+    end
+
+    -- Back on the tab it was left on, last session included.
+    local remembered = ns.settings.windowTab
+    for index, definition in ipairs(TABS) do
+        if definition.page == remembered then
+            currentTab = index
         end
     end
 
@@ -460,6 +470,9 @@ end
 function ns.ToggleWindow()
     if not window then
         window = CreateWindow()
+        -- On the tab it was last left on, not whichever page was made
+        -- showing.
+        ShowTab(currentTab)
     end
     window:SetShown(not window:IsShown())
 end
@@ -468,6 +481,9 @@ end
 function ns.ShowWindow()
     if not window then
         window = CreateWindow()
+        -- On the tab it was last left on, not whichever page was made
+        -- showing.
+        ShowTab(currentTab)
     end
     window:Show()
 end

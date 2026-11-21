@@ -155,10 +155,17 @@ function Theme.CreateTile(parent, label)
     return tile
 end
 
--- Another character the Money tab is showing, by key. Only for this
--- session: the saved choice is between the account and whoever is being
--- played, so logging in on an alt shows the alt.
-local viewing
+-- Another character the Money tab is showing, by key, kept with the rest
+-- of the tab's choices so it opens where it was left. Nil for the
+-- character being played: choosing yourself and then logging in on an
+-- alt shows the alt.
+local function Viewing()
+    local key = ns.settings and ns.settings.moneyViewing
+    if key == nil or key == ns.Characters.CurrentKey() then
+        return nil
+    end
+    return key
+end
 
 --- Whose money the Money tab is showing, in the form its
 --- figures are asked for by: true for the whole account, or a
@@ -168,22 +175,22 @@ function Theme.MoneyWhose()
     if ns.settings.moneyAccountWide then
         return true
     end
-    return viewing or ns.Characters.CurrentKey()
+    return Viewing() or ns.Characters.CurrentKey()
 end
 
 --- Whether the Money tab is showing a character other than the one
 --- being played.
 ---@return boolean
 function Theme.MoneyIsSomeoneElse()
-    return not ns.settings.moneyAccountWide and viewing ~= nil
+    return not ns.settings.moneyAccountWide and Viewing() ~= nil
 end
 
 --- Puts the Money tab back on the character being played, as when
 --- something about this character's own money is asked for.
 function Theme.ShowOwnMoney()
-    if ns.settings.moneyAccountWide or viewing then
+    if ns.settings.moneyAccountWide or Viewing() then
         ns.settings.moneyAccountWide = false
-        viewing = nil
+        ns.settings.moneyViewing = nil
         ns.Publish("SETTINGS_CHANGED")
     end
 end
@@ -212,6 +219,7 @@ function Theme.MoneyOwner()
     if ns.settings.moneyAccountWide then
         return "your characters"
     end
+    local viewing = Viewing()
     local character = viewing and FindCharacter(viewing)
     if character then
         return CharacterLabel(character)
@@ -227,7 +235,7 @@ end
 ---@return string|nil text  nil when that isn't so: when this is the only
 ---        character, whose own record took over the account's
 function Theme.MoneyEmptyText()
-    if not viewing and ns.Characters.IsOnlyOne() then
+    if not Viewing() and ns.Characters.IsOnlyOne() then
         return nil
     end
     return (
@@ -251,7 +259,7 @@ function Theme.CreateMoneyScopeButton(parent)
 
     local function Choose(accountWide, key)
         ns.settings.moneyAccountWide = accountWide
-        viewing = key
+        ns.settings.moneyViewing = key
         ns.Publish("SETTINGS_CHANGED")
     end
 
@@ -264,7 +272,7 @@ function Theme.CreateMoneyScopeButton(parent)
             root:CreateRadio(
                 ("%s, playing now"):format(UnitName("player") or "This character"),
                 function()
-                    return not ns.settings.moneyAccountWide and not viewing
+                    return not ns.settings.moneyAccountWide and not Viewing()
                 end,
                 function()
                     Choose(false, nil)
@@ -273,7 +281,7 @@ function Theme.CreateMoneyScopeButton(parent)
             for _, character in ipairs(ns.Characters.All()) do
                 if character.key ~= current then
                     root:CreateRadio(CharacterLabel(character), function()
-                        return not ns.settings.moneyAccountWide and viewing == character.key
+                        return not ns.settings.moneyAccountWide and Viewing() == character.key
                     end, function()
                         Choose(false, character.key)
                     end)

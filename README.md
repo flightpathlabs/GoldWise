@@ -19,8 +19,9 @@ set up.
   and a watch list for anything else you want to keep an eye on.
 - **Prospects:** pick a goal (gathering, crafting, reselling vendor
   recipes) and get a short plan.
-- **Purse and Profit:** what you've earned and spent, and what's coming
-  up, like training and repairs.
+- **Money:** whether you're coming out ahead, what's worth your time
+  (gold an hour for what you do, profit on what you trade), and what's
+  coming up, like training and repairs.
 - **Recipes:** vendor recipes you haven't learned, and ones worth
   reselling.
 - **Places:** the nearest trainer, bank, auction house and so on, with a
@@ -34,8 +35,6 @@ set up.
 ![The Assets tab](docs/images/assets.png)
 
 ![The Recipes tab](docs/images/recipes.png)
-
-![The Profit tab](docs/images/profit.png)
 
 ## Installing
 

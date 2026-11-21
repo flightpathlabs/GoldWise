@@ -4,7 +4,7 @@ What changed in each release of Goldwise, newest first. Work that hasn't
 been released yet is listed under "Unreleased" in the copy of this file on
 the `dev` branch.
 
-## Unreleased
+## 0.6.0 (21 November 2026)
 
 **New**
 
@@ -19,6 +19,9 @@ the `dev` branch.
   in, and the profit.
 - **Plainsight's nameplates** can show what a kill is worth, when
   Plainsight is installed.
+- **The window remembers where you were:** it opens on the tab you last
+  used, and the Money tab on the same character, period and view. It
+  starts on your whole account over 30 days.
 
 
 **New**

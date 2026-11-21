@@ -156,12 +156,19 @@ local DEFAULT_SETTINGS = {
     profitScale = 0,
     purseCoin = false,
 
-    -- Whether the Money tab shows the whole account's money or this
-    -- character's alone.
-    moneyAccountWide = false,
+    -- Whether the Money tab shows the whole account's money or one
+    -- character's, and which other character if it isn't the one being
+    -- played. It starts on the whole account, and remembers.
+    moneyAccountWide = true,
+    moneyViewing = nil,
 
-    -- What the Money tab looks back over: "session", "week" or "month".
-    moneyPeriod = "week",
+    -- What the Money tab looks back over: "session", "week" or "month";
+    -- and which of "What you did" (1) and "What you traded" (2) it shows.
+    moneyPeriod = "month",
+    moneyView = 1,
+
+    -- The window's tab last on show, by its page name, to open on again.
+    windowTab = nil,
 
     -- The session tracker: whether it's on screen, and whether it's
     -- pinned where it is. Where it is goes in sessionTrackerPoint, once

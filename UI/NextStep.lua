@@ -647,6 +647,27 @@ local NEWS = {
             }
         end,
     },
+    {
+        id = "0.6.0",
+        title = "New in Goldwise",
+        body = function()
+            return table.concat({
+                "Purse and Profit are now one Money tab: whether you're coming out "
+                    .. "ahead, what's worth your time, and what's coming up.",
+                "What's worth your time shows gold an hour for what you do (a kind "
+                    .. "of creature, gathering, fishing, questing) and the profit on "
+                    .. "what you trade. It fills in as you play from now on.",
+            }, "\n\n")
+        end,
+        action = function()
+            return {
+                label = "See Money",
+                onClick = function()
+                    ns.ShowWindowTab("Money")
+                end,
+            }
+        end,
+    },
 }
 
 local NEWS_WIDTH = 300
