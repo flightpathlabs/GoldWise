@@ -23,6 +23,7 @@ the `dev` branch.
   used, and the Money tab on the same character, period and view. It
   starts on your whole account over 30 days.
 
+## 0.5.1 (20 November 2026)
 
 **New**
 
