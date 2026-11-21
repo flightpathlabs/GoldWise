@@ -4,6 +4,14 @@ What changed in each release of Goldwise, newest first. Work that hasn't
 been released yet is listed under "Unreleased" in the copy of this file on
 the `dev` branch.
 
+## Unreleased
+
+**New**
+
+- **Goldwise's price beside another addon's, if you like.** Goldwise
+  leaves its tooltip price off when Auctionator, Profession Atlas or the
+  like already shows one. A new option shows it as well.
+
 ## 0.6.0 (21 November 2026)
 
 **New**

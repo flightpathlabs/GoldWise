@@ -105,8 +105,9 @@ local DEFAULT_SETTINGS = {
     cardsPutAway = false,
 
     -- An auction price on item tooltips. Skipped when another addon is
-    -- already showing one for the item, whatever this says.
+    -- already showing one for the item, unless tooltipPriceAlways.
     tooltipPrice = true,
+    tooltipPriceAlways = false,
 
     -- The verdict (sell, hold, vendor, keep) on the tooltip of anything
     -- in the player's bags.

@@ -268,6 +268,16 @@ ns.OnEvent("PLAYER_LOGIN", function()
 
     AddCheckbox(
         category,
+        "tooltipPriceAlways",
+        "Show Goldwise's price even beside another addon's",
+        "Goldwise usually leaves its price off when an addon such as Auctionator or "
+            .. "Profession Atlas already shows one, so a tooltip doesn't say it twice. "
+            .. "Tick this to see Goldwise's as well. To see only Goldwise's, turn off "
+            .. "the other addon's tooltip prices in its own options."
+    )
+
+    AddCheckbox(
+        category,
         "tooltipVerdict",
         "Show the verdict on things in your bags",
         "Sell, Hold, Vendor or Keep, on the same line: what the Assets tab says "

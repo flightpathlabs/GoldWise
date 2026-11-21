@@ -279,7 +279,7 @@ local function OnItemTooltip(tooltip, data)
 
     local showPrice = found.price
         and settings.tooltipPrice
-        and not ns.Companions.ShowsTooltipPrices(itemID)
+        and (settings.tooltipPriceAlways or not ns.Companions.ShowsTooltipPrices(itemID))
 
     if verdict or showPrice then
         local parts = {}
